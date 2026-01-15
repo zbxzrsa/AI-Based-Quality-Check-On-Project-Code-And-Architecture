@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: ai-code-review
+  labels:
+    app: celery-worker
+    tier: worker
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: celery-worker
+  template:
+    metadata:
+      labels:
+        app: celery-worker
+        tier: worker
+    spec:
+      containers:
+        - name: celery-worker
+          image: your-registry/ai-review-backend:latest
+          command: ["celery"]
+          args:
+            - "-A"
+            - "app.celery_config"
+            - "worker"
+            - "--loglevel=info"
+            - "--concurrency=4"
+            - "--queues=high_priority,low_priority,default"
+            - "--max-tasks-per-child=1000"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: postgres-url
+            - name: NEO4J_URI
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: neo4j-uri
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: redis-url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-keys
+                  key: openai-key
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-keys
+                  key: anthropic-key
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - app.celery_config
+                - inspect
+                - ping
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: celery-worker-hpa
+  namespace: ai-code-review
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: celery-worker
+  minReplicas: 10
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85
+    # Custom metric for queue length
+    - type: External
+      external:
+        metric:
+          name: celery_queue_length
+          selector:
+            matchLabels:
+              queue: high_priority
+        target:
+          type: AverageValue
+          averageValue: "100"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600 # 10 minutes
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 200
+          periodSeconds: 60

@@ -1,0 +1,78 @@
+# FastAPI and Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+pydantic==2.9.2
+pydantic-settings==2.6.0
+email-validator==2.2.0
+
+# Database Drivers
+# Using psycopg (v3) instead of psycopg2 for better Windows compatibility
+psycopg[binary]==3.2.3
+asyncpg==0.29.0
+neo4j==5.24.0
+redis==5.2.0
+# hiredis is optional for redis performance, skip if build issues on Windows
+# hiredis==3.0.0
+
+# SQLAlchemy (ORM for PostgreSQL)
+SQLAlchemy==2.0.35
+alembic==1.13.3
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.1
+cryptography==43.0.3
+bcrypt==4.2.1
+PyJWT==2.9.0
+
+# Task Queue (Celery)
+celery==5.4.0
+flower==2.0.1
+
+# HTTP Client & External APIs
+httpx==0.27.2
+aiohttp==3.11.7
+requests==2.32.3
+
+# GitHub Integration
+PyGithub==2.5.0
+github3.py==4.0.1
+
+# AI/LLM SDKs
+openai==1.54.5
+anthropic==0.39.0
+
+# Code Analysis
+esprima==4.0.1
+javalang==0.13.0
+ast-comments==1.2.2
+astroid==3.3.5
+tree-sitter==0.23.2
+
+# Utilities
+python-dateutil==2.9.0.post0
+pytz==2024.2
+
+# WebSocket Support
+websockets==13.1
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Monitoring & Logging
+prometheus-client==0.21.0
+python-json-logger==3.2.1
+
+# Testing (Development)
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Code Quality (Development)
+black==24.10.0
+isort==5.13.2
+flake8==7.1.1
+mypy==1.13.0
+pylint==3.3.2

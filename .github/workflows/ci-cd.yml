@@ -1,0 +1,193 @@
+name: CI/CD Pipeline
+
+on:
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
+
+jobs:
+    backend-tests:
+        name: Backend Tests
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:15
+                env:
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                    POSTGRES_DB: ai_code_review_test
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+            neo4j:
+                image: neo4j:5
+                env:
+                    NEO4J_AUTH: neo4j/testpassword
+                ports:
+                    - 7687:7687
+                    - 7474:7474
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+                  cache: "pip"
+
+            - name: Install dependencies
+              run: |
+                  cd backend
+                  pip install -r requirements.txt
+                  pip install pytest pytest-cov pytest-asyncio
+
+            - name: Run database migrations
+              env:
+                  POSTGRES_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_code_review_test
+              run: |
+                  cd backend
+                  alembic upgrade head
+
+            - name: Run tests with coverage
+              env:
+                  POSTGRES_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_code_review_test
+                  REDIS_URL: redis://localhost:6379
+                  NEO4J_URI: bolt://localhost:7687
+                  NEO4J_USER: neo4j
+                  NEO4J_PASSWORD: testpassword
+                  JWT_SECRET: test-secret-key
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+              run: |
+                  cd backend
+                  pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+
+            - name: Upload coverage reports
+              uses: codecov/codecov-action@v3
+              with:
+                  file: ./backend/coverage.xml
+                  flags: backend
+
+    frontend-tests:
+        name: Frontend Tests
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "18"
+                  cache: "npm"
+                  cache-dependency-path: frontend/package-lock.json
+
+            - name: Install dependencies
+              run: |
+                  cd frontend
+                  npm ci
+
+            - name: Run linting
+              run: |
+                  cd frontend
+                  npm run lint
+
+            - name: Run type checking
+              run: |
+                  cd frontend
+                  npm run type-check
+
+            - name: Run unit tests
+              run: |
+                  cd frontend
+                  npm test -- --coverage --watchAll=false
+
+            - name: Build application
+              run: |
+                  cd frontend
+                  npm run build
+
+            - name: Upload coverage reports
+              uses: codecov/codecov-action@v3
+              with:
+                  file: ./frontend/coverage/coverage-final.json
+                  flags: frontend
+
+    e2e-tests:
+        name: End-to-End Tests
+        runs-on: ubuntu-latest
+        needs: [backend-tests, frontend-tests]
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "18"
+
+            - name: Install Playwright
+              run: |
+                  cd frontend
+                  npm ci
+                  npx playwright install --with-deps
+
+            - name: Start services
+              run: |
+                  docker-compose up -d
+                  sleep 30
+
+            - name: Run E2E tests
+              run: |
+                  cd frontend
+                  npx playwright test
+
+            - name: Upload test results
+              if: always()
+              uses: actions/upload-artifact@v3
+              with:
+                  name: playwright-report
+                  path: frontend/playwright-report/
+
+    deploy:
+        name: Deploy to Production
+        runs-on: ubuntu-latest
+        needs: [backend-tests, frontend-tests, e2e-tests]
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: us-east-1
+
+            - name: Deploy to AWS
+              run: |
+                  # Add deployment commands here
+                  echo "Deploying to production..."
