@@ -23,7 +23,7 @@ alembic==1.13.3
 python-jose[cryptography]==3.4.0  # Updated from 3.3.0 - fixes PYSEC-2024-232, PYSEC-2024-233
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
-cryptography==44.0.1  # Updated from 43.0.3 - fixes CVE-2024-12797
+cryptography==46.0.3  # Updated from 43.0.3 - fixes CVE-2024-12797
 bcrypt==4.2.1
 PyJWT==2.9.0
 
