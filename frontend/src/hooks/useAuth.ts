@@ -30,7 +30,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (data: LoginFormData) => {
-      const response = await api.post<TokenResponse>('/auth/login', data);
+      const response = await api.post<TokenResponse>('/login', data);
       return response.data;
     },
     onSuccess: (data) => {
@@ -55,7 +55,7 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: async (data: RegisterFormData) => {
-      const response = await api.post<User>('/auth/register', {
+      const response = await api.post<User>('/register', {
         email: data.email,
         password: data.password,
         full_name: data.fullName,
@@ -78,7 +78,7 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      await api.post('/auth/logout');
+      await api.post('/logout');
     },
     onSuccess: () => {
       // Clear tokens
@@ -104,7 +104,7 @@ export function useUser() {
       const token = localStorage.getItem('access_token');
       if (!token) return null;
       
-      const response = await api.get<User>('/auth/me');
+      const response = await api.get<User>('/me');
       return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -133,7 +133,7 @@ export function useRefreshToken() {
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) throw new Error('No refresh token');
 
-      const response = await api.post<TokenResponse>('/auth/refresh', {
+      const response = await api.post<TokenResponse>('/refresh', {
         refresh_token: refreshToken,
       });
       return response.data;

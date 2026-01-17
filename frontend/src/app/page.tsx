@@ -21,7 +21,7 @@ export default function Home() {
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
-            router.push('/auth/signin');
+            router.push('/login');
         } else if (isAuthenticated) {
             fetchStats();
         }
@@ -243,7 +243,7 @@ export default function Home() {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Button 
-                            onClick={() => router.push('/auth/signin')}
+                            onClick={() => router.push('/login')}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold"
                         >
                             Start Free Trial
