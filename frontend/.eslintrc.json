@@ -3,6 +3,7 @@
     "next/core-web-vitals",
     "plugin:@typescript-eslint/recommended-type-checked",
     "plugin:@typescript-eslint/stylistic-type-checked",
+    "plugin:security/recommended",
     "prettier"
   ],
   "parser": "@typescript-eslint/parser",
@@ -14,10 +15,25 @@
       "jsx": true
     }
   },
-  "plugins": ["@typescript-eslint", "prettier"],
+  "plugins": ["@typescript-eslint", "prettier", "security"],
   "rules": {
     "prettier/prettier": "error",
-    
+
+    // Security rules (from eslint-plugin-security)
+    "security/detect-buffer-noassert": "error",
+    "security/detect-child-process": "error",
+    "security/detect-disable-mustache-escape": "error",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-new-buffer": "error",
+    "security/detect-no-csrf-before-method-override": "error",
+    "security/detect-non-literal-fs-filename": "error",
+    "security/detect-non-literal-regexp": "error",
+    "security/detect-non-literal-require": "error",
+    "security/detect-object-injection": "error",
+    "security/detect-possible-timing-attacks": "error",
+    "security/detect-pseudoRandomBytes": "error",
+    "security/detect-unsafe-regex": "error",
+
     // TypeScript specific rules
     "@typescript-eslint/explicit-function-return-types": "error",
     "@typescript-eslint/explicit-member-accessibility": [
@@ -99,7 +115,7 @@
     // React specific rules
     "react/display-name": "warn",
     "react/no-children-prop": "error",
-    "react/no-danger": "warn",
+    "react/no-danger": "error",
     "react/no-danger-with-children": "error",
     "react/no-unescaped-entities": "warn",
     "react/prop-types": "off",

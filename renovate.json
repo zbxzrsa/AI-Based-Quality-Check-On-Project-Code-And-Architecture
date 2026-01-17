@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticPrefixFixDepsChoreOthers",
+    ":ignoreUnstable",
+    "group:monorepos",
+    "group:recommended",
+    "workarounds:all"
+  ],
+  "schedule": ["before 4am on Monday"],
+  "timezone": "Asia/Shanghai",
+  "labels": ["dependencies"],
+  "commitMessagePrefix": "deps: ",
+  "packageRules": [
+    {
+      "description": "Group security updates",
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "matchDatasources": ["pypi", "npm"],
+      "groupName": "security-updates",
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "FastAPI ecosystem updates",
+      "matchPackagePatterns": ["fastapi", "uvicorn", "pydantic*", "starlette"],
+      "groupName": "fastapi-ecosystem"
+    },
+    {
+      "description": "React ecosystem updates",
+      "matchPackagePatterns": ["react", "react-dom", "next", "@types/react*"],
+      "groupName": "react-ecosystem"
+    },
+    {
+      "description": "TypeScript ecosystem updates",
+      "matchPackagePatterns": ["typescript", "@typescript-eslint/*", "@types/*"],
+      "groupName": "typescript-ecosystem"
+    },
+    {
+      "description": "Security tools updates",
+      "matchPackagePatterns": ["safety", "bandit", "pip-audit"],
+      "groupName": "security-tools"
+    },
+    {
+      "description": "Automerge patch updates",
+      "matchUpdateTypes": ["patch"],
+      "matchDatasources": ["pypi", "npm"],
+      "automerge": true,
+      "automergeType": "pr",
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "Limit major updates to 5 PRs",
+      "matchUpdateTypes": ["major"],
+      "prHourlyLimit": 0,
+      "prConcurrentLimit": 5,
+      "schedule": ["before 4am on first day of month"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "osvVulnerabilityAlerts": true,
+  "pip_requirements": {
+    "fileMatch": ["^backend/requirements.*\\.txt$"]
+  },
+  "npm": {
+    "fileMatch": ["^frontend/package.*\\.json$"]
+  },
+  "prBodyTemplate": "{{{header}}}{{{table}}}{{{notes}}}{{{changelogs}}}{{{controls}}}",
+  "prHeader": "Dependency Updates",
+  "suppressNotifications": ["prIgnoreNotification"]
+}
