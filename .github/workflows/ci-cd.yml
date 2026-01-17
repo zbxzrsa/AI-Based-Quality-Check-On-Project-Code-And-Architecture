@@ -45,7 +45,7 @@ jobs:
                     - 7474:7474
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Set up Python
               uses: actions/setup-python@v4
@@ -186,7 +186,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Set up Node.js
               uses: actions/setup-node@v4
@@ -278,7 +278,7 @@ jobs:
         needs: [backend-tests, frontend-tests]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Set up Python
               uses: actions/setup-python@v4
@@ -320,7 +320,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v5
