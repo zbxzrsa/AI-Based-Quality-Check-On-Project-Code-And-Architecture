@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
 const nextConfig = {
     reactStrictMode: true,
     swcMinify: true,
@@ -8,14 +6,22 @@ const nextConfig = {
         domains: ['localhost'],
         formats: ['image/avif', 'image/webp'],
     },
-    env: {
-        NEXT_PUBLIC_API_URL: apiUrl,
+    // Server-side only configuration (not exposed to client)
+    serverRuntimeConfig: {
+        // These secrets are only available server-side
+        jwtSecret: process.env.JWT_SECRET,
+        githubToken: process.env.GITHUB_TOKEN,
+        githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET,
+    },
+    // Client-side safe configuration
+    publicRuntimeConfig: {
+        apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
     },
     async rewrites() {
         return [
             {
                 source: '/api/:path*',
-                destination: `${apiUrl}/:path*`,
+                destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/:path*`,
             },
         ];
     },

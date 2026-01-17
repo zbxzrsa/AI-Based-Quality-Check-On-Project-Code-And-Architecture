@@ -2,7 +2,7 @@
 Pull Request Analysis endpoints
 Handles PR creation, analysis status, and results
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
@@ -12,6 +12,7 @@ from app.models import PullRequest, Project
 from app.schemas.auth import Message
 from app.api.dependencies import get_current_user, check_project_access
 from app.tasks.pull_request_analysis import analyze_pull_request_sync
+from app.services.circular_dependency_detector import detect_circular_dependencies_background
 from celery.result import AsyncResult
 from app.celery_config import celery_app
 
@@ -138,3 +139,39 @@ async def reanalyze_pull_request(
         "message": "PR re-analysis queued",
         **task_result
     }
+
+
+@router.post("/projects/{project_id}/circular-dependencies")
+async def analyze_circular_dependencies(
+    project_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+    _ = Depends(lambda: check_project_access(project_id, current_user))
+):
+    """
+    Analyze circular dependencies in a project using AST analysis
+
+    This endpoint runs as a background task to prevent timeout issues in CI/CD pipelines.
+    The analysis uses Python's AST library to build a dependency graph and detect cycles.
+
+    Returns:
+        Task initiation response with estimated completion time
+
+    Background Task Results:
+        The analysis results are logged and can be retrieved from application logs
+        or stored in the database for future reference.
+
+    Example Response:
+    {
+        "message": "Circular dependency analysis started",
+        "project_id": "project-123",
+        "status": "running",
+        "estimated_duration": "30-60 seconds"
+    }
+    """
+    return await detect_circular_dependencies_background(
+        project_id,
+        background_tasks,
+        db
+    )
