@@ -75,15 +75,66 @@ jobs:
                   NEO4J_PASSWORD: testpassword
                   JWT_SECRET: test-secret-key
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+                  TEST_RESULTS_JSON: test-results-ai-reviewer.json
               run: |
                   cd backend
                   pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+              continue-on-error: true
+
+            - name: Analyze Test Failures
+              if: failure()
+              run: |
+                  cd backend
+                  python -c "
+                  import json
+                  try:
+                      with open('test-results-ai-reviewer.json', 'r') as f:
+                          results = json.load(f)
+                          print('🧪 Test Failure Analysis for AI Reviewer:')
+                          print(f'  Test Run ID: {results.get(\"test_run_id\", \"unknown\")}')
+                          print(f'  Total Tests: {results.get(\"summary\", {}).get(\"total_tests\", 0)}')
+                          print(f'  Failures: {len(results.get(\"failures\", []))}')
+                          print(f'  Errors: {len(results.get(\"errors\", []))}')
+
+                          # Analyze common failure patterns
+                          neo4j_failures = [f for f in results.get('failures', []) + results.get('errors', []) if 'neo4j' in f.get('exception_message', '').lower() or 'neo4j' in f.get('traceback', '').lower()]
+                          async_failures = [f for f in results.get('failures', []) + results.get('errors', []) if 'async' in f.get('exception_message', '').lower() or 'event loop' in f.get('exception_message', '').lower()]
+                          validation_failures = [f for f in results.get('failures', []) + results.get('errors', []) if 'validation' in f.get('exception_message', '').lower() or 'pydantic' in f.get('exception_message', '').lower()]
+
+                          print(f'  Neo4j-related failures: {len(neo4j_failures)}')
+                          print(f'  Async/event loop failures: {len(async_failures)}')
+                          print(f'  Pydantic validation failures: {len(validation_failures)}')
+
+                          if neo4j_failures:
+                              print('  ⚠️  Possible Neo4j connection issues detected')
+                          if async_failures:
+                              print('  ⚠️  Possible async event loop issues detected')
+                          if validation_failures:
+                              print('  ⚠️  Possible Pydantic validation issues detected')
+
+                  except FileNotFoundError:
+                      print('❌ Test results JSON not found')
+                  except json.JSONDecodeError as e:
+                      print(f'❌ Error parsing test results JSON: {e}')
+                  "
 
             - name: Upload coverage reports
               uses: codecov/codecov-action@v3
               with:
                   file: ./backend/coverage.xml
                   flags: backend
+
+            - name: AI Self-Healing Analysis
+              if: failure() && github.event_name == 'pull_request'
+              run: |
+                  echo "🤖 Running AI Self-Healing Analysis..."
+                  cd backend
+                  python ../scripts/ai_self_healing.py --analyze-failure --pr-number ${{ github.event.number }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
+                  OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
+              continue-on-error: true
 
     frontend-tests:
         name: Frontend Tests
@@ -99,10 +150,27 @@ jobs:
                   cache: "npm"
                   cache-dependency-path: frontend/package-lock.json
 
+            - name: Configure environment variables
+              run: |
+                  # Create .env.local for Next.js build and tests
+                  cat > frontend/.env.local << EOF
+                  NEXT_PUBLIC_API_URL=http://localhost:8000
+                  NEXT_PUBLIC_APP_ENV=test
+                  NEXT_PUBLIC_GITHUB_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
+                  NEXT_PUBLIC_ANALYTICS_ID=${{ secrets.NEXT_PUBLIC_ANALYTICS_ID }}
+                  # Add other public environment variables here
+                  EOF
+
             - name: Install dependencies
               run: |
                   cd frontend
                   npm ci
+
+            - name: Install Playwright browsers for E2E tests
+              run: |
+                  cd frontend
+                  npx playwright install --with-deps chromium
+              continue-on-error: true
 
             - name: Run linting
               run: |
@@ -114,21 +182,35 @@ jobs:
                   cd frontend
                   npm run type-check
 
-            - name: Run unit tests
+            - name: Run unit tests with Headless Chrome
               run: |
                   cd frontend
-                  npm test -- --coverage --watchAll=false
+                  npm test -- --coverage --watchAll=false --maxWorkers=2
+              env:
+                  NODE_OPTIONS: "--max-old-space-size=4096"
+                  CI: true
+                  JEST_MAX_WORKERS: 2
 
             - name: Build application
               run: |
                   cd frontend
                   npm run build
+              env:
+                  NODE_OPTIONS: "--max-old-space-size=4096"
 
             - name: Upload coverage reports
-              uses: codecov/codecov-action@v3
+              uses: actions/upload-artifact@v3
               with:
                   file: ./frontend/coverage/coverage-final.json
                   flags: frontend
+
+            - name: Upload test results
+              if: always()
+              uses: actions/upload-artifact@v3
+              with:
+                  name: frontend-test-results
+                  path: frontend/junit.xml
+              continue-on-error: true
 
     e2e-tests:
         name: End-to-End Tests

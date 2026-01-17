@@ -1,0 +1,24 @@
+# Test dependencies for FastAPI backend
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0  # For parallel test execution
+
+# For Neo4j testing
+testcontainers[neo4j]>=3.7.0  # Optional: for real Neo4j containers in tests
+
+# For JSON report generation
+pytest-json-report>=1.5.0
+
+# For additional test utilities
+httpx>=0.24.0  # For testing FastAPI endpoints
+faker>=15.0.0  # For generating test data
+freezegun>=1.2.0  # For time mocking
+
+# For performance testing
+pytest-benchmark>=4.0.0
+
+# For testing database operations
+pytest-postgresql>=4.0.0
+pytest-redis>=2.0.0
