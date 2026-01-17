@@ -209,6 +209,17 @@ jobs:
                   GITHUB_WEBHOOK_SECRET=\${{ secrets.GITHUB_WEBHOOK_SECRET }}
                   EOF
 
+            - name: Configure environment variables
+              run: |
+                  # Create .env.local for Next.js build and tests
+                  cat > frontend/.env.local << EOF
+                  NEXT_PUBLIC_API_URL=http://localhost:8000
+                  NEXT_PUBLIC_APP_ENV=test
+                  NEXT_PUBLIC_GITHUB_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
+                  NEXT_PUBLIC_ANALYTICS_ID=${{ secrets.NEXT_PUBLIC_ANALYTICS_ID }}
+                  # Add other public environment variables here
+                  EOF
+
             - name: Install dependencies
               run: |
                   cd frontend
@@ -271,6 +282,14 @@ jobs:
             - name: Upload test results
               if: always()
               uses: actions/upload-artifact@v6
+              with:
+                  name: frontend-test-results
+                  path: frontend/junit.xml
+              continue-on-error: true
+
+            - name: Upload test results
+              if: always()
+              uses: actions/upload-artifact@v3
               with:
                   name: frontend-test-results
                   path: frontend/junit.xml
