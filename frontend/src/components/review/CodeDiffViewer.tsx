@@ -4,8 +4,7 @@
  * Code Diff Viewer Component
  */
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
-import Prism from 'prismjs';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import 'prismjs/themes/prism-tomorrow.css';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
@@ -157,7 +156,7 @@ export default function CodeDiffViewer({
                                         {file.lines.map((line, idx) => (
                                             <tr
                                                 key={idx}
-                                                className={getLineClassName(file.filename, line.newLineNumber || line.oldLineNumber)}
+                                                className={getLineClassName(line, file.filename, line.newLineNumber || line.oldLineNumber)}
                                                 onClick={() =>
                                                     onLineClick?.(file.filename, line.newLineNumber || line.oldLineNumber || 0)
                                                 }

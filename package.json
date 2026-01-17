@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "eslint-plugin-security": "^3.0.1"
+  },
+  "dependencies": {
+    "axios-retry": "^4.5.0"
   }
 }

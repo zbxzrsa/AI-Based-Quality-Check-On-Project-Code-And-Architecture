@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 import type { LoginFormData, RegisterFormData } from '@/lib/validations/auth';
 
 interface TokenResponse {

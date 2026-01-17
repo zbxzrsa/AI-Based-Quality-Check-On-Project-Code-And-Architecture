@@ -10,7 +10,7 @@ import { Shield, Code, GitPullRequest, Users, TrendingUp, Database, Cpu, Lock } 
 
 export default function Home() {
     const router = useRouter();
-    const { data: user, isLoading } = useUser();
+    const { isLoading } = useUser();
     const { isAuthenticated } = useIsAuthenticated();
     const [stats, setStats] = useState({
         totalReviews: 0,

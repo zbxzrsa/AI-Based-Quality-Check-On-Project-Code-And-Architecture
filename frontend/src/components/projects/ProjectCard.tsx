@@ -3,7 +3,7 @@
 /**
  * Project Card Component
  */
-import { GitBranch, AlertCircle, CheckCircle, Clock, MoreVertical, RefreshCw, Settings, Trash2 } from 'lucide-react';
+import { GitBranch, CheckCircle, Clock, MoreVertical, RefreshCw, Settings, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { Project } from '@/hooks/useProjects';

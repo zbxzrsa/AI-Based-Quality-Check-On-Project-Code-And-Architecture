@@ -3,7 +3,7 @@
 /**
  * Issue Card Component for AI Analysis
  */
-import { AlertCircle, CheckCircle, Info, Lock, Zap, Code, Layers, Brain } from 'lucide-react';
+import { Info, Lock, Zap, Code, Layers, Brain } from 'lucide-react';
 
 interface Issue {
     type: 'security' | 'logic' | 'architecture' | 'performance' | 'quality';
