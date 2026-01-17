@@ -24,7 +24,7 @@ python-jose[cryptography]==3.4.0  # Updated from 3.3.0 - fixes PYSEC-2024-232, P
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
 cryptography==44.0.1  # Updated from 43.0.3 - fixes CVE-2024-12797
-bcrypt==4.2.1
+bcrypt==5.0.0
 PyJWT==2.9.0
 
 # Task Queue (Celery)
