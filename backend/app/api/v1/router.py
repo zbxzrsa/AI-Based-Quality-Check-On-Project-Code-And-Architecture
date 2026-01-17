@@ -3,7 +3,7 @@ API v1 router configuration
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, database, auth, github, pull_request
+from app.api.v1.endpoints import health, database, auth, github, pull_request, analyze
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(database.router, prefix="/database", tags=["Database"]
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(github.router, prefix="/github", tags=["GitHub Integration"])
 api_router.include_router(pull_request.router, prefix="/analysis", tags=["PR Analysis"])
+api_router.include_router(analyze.router, prefix="/analyze", tags=["Architecture Analysis"])

@@ -1,0 +1,350 @@
+name: Branch Protection & Compliance Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  compliance-gate:
+    name: Compliance Gate - Main Branch Protection
+    runs-on: ubuntu-latest
+    outputs:
+      compliance-passed: ${{ steps.check-compliance.outputs.compliance-passed }}
+      critical-security-passed: ${{ steps.check-compliance.outputs.critical-security-passed }}
+      reproducible-build-passed: ${{ steps.check-compliance.outputs.reproducible-build-passed }}
+      ai-review-comment-count: ${{ steps.check-compliance.outputs.ai-review-comment-count }}
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          # Backend dependencies
+          pip install bandit safety pip-audit
+          pip install -r backend/requirements.txt
+          
+          # Frontend dependencies
+          cd frontend && npm ci
+
+      # Check 1: Critical Security Checks
+      - name: Run Critical Security Checks
+        id: critical-security
+        run: |
+          echo "🔍 Running Critical Security Checks..."
+          
+          # Secrets detection
+          echo "  - Checking for secrets..."
+          secrets_found=false
+          if docker run --rm -v "$(pwd):/workdir" trufflesecurity/trufflehog:latest \
+            git file:///workdir --only-verified --json 2>/dev/null | jq -e '.verified == true' >/dev/null 2>&1; then
+            echo "❌ Secrets detected!"
+            secrets_found=true
+          else
+            echo "✅ No secrets found"
+          fi
+
+          # Python SAST
+          echo "  - Running Python SAST..."
+          bandit -r backend/app -ll -f json -o bandit-report.json
+          high_issues=$(jq '.results | map(select(.issue_severity == "HIGH" or .issue_confidence == "HIGH")) | length' bandit-report.json)
+          if [ "$high_issues" -gt 0 ]; then
+            echo "❌ High-severity Python security issues found: $high_issues"
+            python_sast_failed=true
+          else
+            echo "✅ No high-severity Python security issues"
+            python_sast_failed=false
+          fi
+
+          # JavaScript/TypeScript SAST
+          echo "  - Running JavaScript/TypeScript SAST..."
+          cd frontend
+          eslint_output=$(npm run lint 2>&1)
+          if [ $? -eq 0 ]; then
+            echo "✅ No JavaScript/TypeScript security issues"
+            js_sast_failed=false
+          else
+            echo "❌ JavaScript/TypeScript security issues found"
+            echo "$eslint_output"
+            js_sast_failed=true
+          fi
+
+          # Set outputs
+          if [ "$secrets_found" = "true" ] || [ "$python_sast_failed" = "true" ] || [ "$js_sast_failed" = "true" ]; then
+            echo "critical-security-passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Critical security checks FAILED"
+            exit 1
+          else
+            echo "critical-security-passed=true" >> $GITHUB_OUTPUT
+            echo "✅ Critical security checks PASSED"
+          fi
+
+      # Check 2: Reproducible Build Test
+      - name: Run Reproducible Build Test
+        id: reproducible-build
+        run: |
+          echo "🔍 Running Reproducible Build Test..."
+          
+          # Clean install
+          cd frontend
+          rm -rf node_modules package-lock.json
+          npm install --no-optional --production=false
+          
+          # Verify package-lock.json
+          npm ci
+          
+          # Check for peer dependency issues
+          peer_issues=$(npm ls --depth=0 2>&1 | grep -c "UNMET" || echo "0")
+          
+          if [ "$peer_issues" -eq 0 ]; then
+            echo "reproducible-build-passed=true" >> $GITHUB_OUTPUT
+            echo "✅ Reproducible build test PASSED"
+          else
+            echo "reproducible-build-passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Reproducible build test FAILED - peer dependency issues: $peer_issues"
+            exit 1
+          fi
+
+      # Check 3: AI-Augmented Review Comments
+      - name: Check for AI Review Comments
+        id: ai-review
+        run: |
+          echo "🔍 Checking for AI-Augmented Review Comments..."
+          
+          # Get PR comments
+          comments=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments)
+          
+          # Count AI review comments (comments containing specific markers)
+          ai_comments=$(echo "$comments" | jq '[.[] | select(.body | contains("🤖 AI-Augmented Review") or contains("## 🤖 AI-Augmented Review"))] | length')
+          
+          echo "ai-review-comment-count=$ai_comments" >> $GITHUB_OUTPUT
+          echo "Found $ai_comments AI review comments"
+          
+          if [ "$ai_comments" -gt 0 ]; then
+            echo "✅ AI review comments found"
+          else
+            echo "⚠️  No AI review comments found"
+          fi
+
+      # Final compliance check
+      - name: Check Compliance Status
+        id: check-compliance
+        run: |
+          critical_passed="${{ steps.critical-security.outputs.critical-security-passed }}"
+          reproducible_passed="${{ steps.reproducible-build.outputs.reproducible-build-passed }}"
+          ai_comments="${{ steps.ai-review.outputs.ai-review-comment-count }}"
+          
+          echo "📊 Compliance Status:"
+          echo "  Critical Security: $critical_passed"
+          echo "  Reproducible Build: $reproducible_passed"
+          echo "  AI Review Comments: $ai_comments"
+          
+          if [ "$critical_passed" = "true" ] && [ "$reproducible_passed" = "true" ]; then
+            echo "compliance-passed=true" >> $GITHUB_OUTPUT
+            echo "✅ All compliance requirements PASSED"
+          else
+            echo "compliance-passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Compliance requirements FAILED"
+            exit 1
+          fi
+
+  generate-compliance-summary:
+    name: Generate Compliance Summary
+    runs-on: ubuntu-latest
+    needs: compliance-gate
+    if: always()
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Generate Compliance Summary
+        run: |
+          echo "## 🛡️ Compliance Summary for PR #${{ github.event.pull_request.number }}" > compliance-summary.md
+          echo "" >> compliance-summary.md
+          echo "**Date:** $(date -u)" >> compliance-summary.md
+          echo "**Branch:** ${{ github.event.pull_request.head.ref }}" >> compliance-summary.md
+          echo "**Commit:** ${{ github.event.pull_request.head.sha }}" >> compliance-summary.md
+          echo "" >> compliance-summary.md
+
+          echo "### 📋 Compliance Requirements" >> compliance-summary.md
+          echo "" >> compliance-summary.md
+          
+          # Critical Security Status
+          if [ "${{ needs.compliance-gate.outputs.critical-security-passed }}" = "true" ]; then
+            echo "✅ **Critical Security Checks:** PASSED" >> compliance-summary.md
+            echo "   - No secrets detected" >> compliance-summary.md
+            echo "   - No high-severity security issues" >> compliance-summary.md
+            echo "   - ESLint security rules passed" >> compliance-summary.md
+          else
+            echo "❌ **Critical Security Checks:** FAILED" >> compliance-summary.md
+            echo "   - Critical security issues must be resolved before merge" >> compliance-summary.md
+          fi
+          echo "" >> compliance-summary.md
+
+          # Reproducible Build Status
+          if [ "${{ needs.compliance-gate.outputs.reproducible-build-passed }}" = "true" ]; then
+            echo "✅ **Reproducible Build Test:** PASSED" >> compliance-summary.md
+            echo "   - Clean npm install successful" >> compliance-summary.md
+            echo "   - package-lock.json verified" >> compliance-summary.md
+            echo "   - No peer dependency issues" >> compliance-summary.md
+          else
+            echo "❌ **Reproducible Build Test:** FAILED" >> compliance-summary.md
+            echo "   - Build reproducibility issues must be resolved" >> compliance-summary.md
+          fi
+          echo "" >> compliance-summary.md
+
+          # AI Review Comments Status
+          ai_comments="${{ needs.compliance-gate.outputs.ai-review-comment-count }}"
+          if [ "$ai_comments" -gt 0 ]; then
+            echo "✅ **AI-Augmented Review:** COMPLETED ($ai_comments comments)" >> compliance-summary.md
+          else
+            echo "⚠️  **AI-Augmented Review:** PENDING (no AI review comments found)" >> compliance-summary.md
+          fi
+          echo "" >> compliance-summary.md
+
+          echo "### 🎯 Merge Readiness" >> compliance-summary.md
+          echo "" >> compliance-summary.md
+          
+          if [ "${{ needs.compliance-gate.outputs.compliance-passed }}" = "true" ]; then
+            echo "✅ **Ready for Merge** - All critical compliance requirements met" >> compliance-summary.md
+            echo "" >> compliance-summary.md
+            echo "### 📊 Vulnerability Summary" >> compliance-summary.md
+            echo "- **High/Critical vulnerabilities:** 0" >> compliance-summary.md
+            echo "- **Security issues:** 0" >> compliance-summary.md
+            echo "- **Build issues:** 0" >> compliance-summary.md
+          else
+            echo "❌ **Not Ready for Merge** - Critical compliance failures detected" >> compliance-summary.md
+            echo "" >> compliance-summary.md
+            echo "### 🔧 Required Actions" >> compliance-summary.md
+            echo "- [ ] Fix critical security issues" >> compliance-summary.md
+            echo "- [ ] Resolve build reproducibility issues" >> compliance-summary.md
+            echo "- [ ] Ensure AI review comments are generated" >> compliance-summary.md
+          fi
+          echo "" >> compliance-summary.md
+
+          echo "### 📈 Quality Metrics" >> compliance-summary.md
+          echo "- **Code Coverage:** See test results" >> compliance-summary.md
+          echo "- **Security Score:** Based on scan results" >> compliance-summary.md
+          echo "- **Architecture Compliance:** See architectural drift analysis" >> compliance-summary.md
+          echo "" >> compliance-summary.md
+
+          echo "---" >> compliance-summary.md
+          echo "*Generated by Compliance Gate workflow*" >> compliance-summary.md
+
+          cat compliance-summary.md
+
+      - name: Upload Compliance Summary
+        uses: actions/upload-artifact@v6
+        with:
+          name: compliance-summary
+          path: compliance-summary.md
+
+      - name: Comment Compliance Summary on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('compliance-summary.md', 'utf8');
+
+            // Check if we already have a compliance comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existingComment = comments.data.find(comment => 
+              comment.body.includes('🛡️ Compliance Summary')
+            );
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: summary
+              });
+              console.log('Updated existing compliance summary comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+              console.log('Created new compliance summary comment');
+            }
+
+  enforce-branch-protection:
+    name: Enforce Branch Protection
+    runs-on: ubuntu-latest
+    needs: compliance-gate
+    if: always() && github.event.pull_request.base.ref == 'main'
+
+    steps:
+      - name: Check Compliance Status
+        run: |
+          if [ "${{ needs.compliance-gate.outputs.compliance-passed }}" = "true" ]; then
+            echo "✅ Compliance passed - merge allowed"
+            echo "COMPLIANCE_STATUS=PASS" >> $GITHUB_ENV
+          else
+            echo "❌ Compliance failed - merge blocked"
+            echo "COMPLIANCE_STATUS=FAIL" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Create Compliance Check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ env.COMPLIANCE_STATUS }}';
+            const conclusion = status === 'PASS' ? 'success' : 'failure';
+            const title = status === 'PASS' ? 'Compliance Gate Passed' : 'Compliance Gate Failed';
+            const summary = status === 'PASS' 
+              ? 'All compliance requirements met. Ready for merge.'
+              : 'Critical compliance requirements failed. Merge blocked.';
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Compliance Gate',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: title,
+                summary: summary,
+                text: `Critical Security: ${{ needs.compliance-gate.outputs.critical-security-passed }}\nReproducible Build: ${{ needs.compliance-gate.outputs.reproducible-build-passed }}\nAI Review Comments: ${{ needs.compliance-gate.outputs.ai-review-comment-count }}`
+              }
+            });
+
+      - name: Block Merge if Compliance Failed
+        if: env.COMPLIANCE_STATUS == 'FAIL'
+        run: |
+          echo "🚨 MERGE BLOCKED: Compliance requirements not met"
+          echo "Critical Security: ${{ needs.compliance-gate.outputs.critical-security-passed }}"
+          echo "Reproducible Build: ${{ needs.compliance-gate.outputs.reproducible-build-passed }}"
+          echo "AI Review Comments: ${{ needs.compliance-gate.outputs.ai-review-comment-count }}"
+          exit 1

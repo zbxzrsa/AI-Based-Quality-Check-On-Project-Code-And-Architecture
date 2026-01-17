@@ -1,0 +1,201 @@
+name: Generate Requirements with pip-compile
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2 AM UTC to keep dependencies up to date
+    - cron: '0 2 * * *'
+  push:
+    paths:
+      - 'backend/requirements.in'
+      - 'scripts/generate_requirements.py'
+
+jobs:
+  generate-requirements:
+    name: Generate Requirements
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for commit
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install pip-tools
+        run: |
+          pip install pip-tools
+
+      - name: Generate requirements.in if needed
+        run: |
+          cd backend
+          if [ ! -f requirements.in ]; then
+            echo "📝 Creating requirements.in from requirements.txt..."
+            
+            # Create requirements.in from current requirements.txt
+            echo "# Generated requirements.in for pip-compile" > requirements.in
+            echo "# This file contains the base dependencies without hashes" >> requirements.in
+            echo "# Run 'pip-compile' to generate requirements.txt with hashes" >> requirements.in
+            echo "" >> requirements.in
+            
+            # Extract package names and versions
+            grep -E '^[a-zA-Z0-9_-]+[=<>!~]' requirements.txt | while read line; do
+              # Extract package name (before == or >= or <= etc.)
+              if [[ $line == *"=="* ]]; then
+                package=$(echo $line | cut -d'=' -f1)
+              elif [[ $line == *">="* ]]; then
+                package=$(echo $line | cut -d'>' -f1)
+              elif [[ $line == *"<="* ]]; then
+                package=$(echo $line | cut -d'<' -f1)
+              elif [[ $line == *">"* ]]; then
+                package=$(echo $line | cut -d'>' -f1)
+              elif [[ $line == *"<"* ]]; then
+                package=$(echo $line | cut -d'<' -f1)
+              else
+                package=$line
+              fi
+              
+              echo "$package" >> requirements.in
+            done
+            
+            echo "✅ Created requirements.in"
+          else
+            echo "📝 Using existing requirements.in"
+          fi
+
+      - name: Generate requirements.txt with hashes
+        run: |
+          cd backend
+          echo "🔄 Generating requirements.txt with pip-compile..."
+          
+          # Run pip-compile with verbose output
+          pip-compile --verbose --output-file=requirements.txt requirements.in
+          
+          echo "✅ Generated requirements.txt successfully"
+
+      - name: Validate generated requirements
+        run: |
+          cd backend
+          echo "🔍 Validating requirements.txt..."
+          
+          # Check for hashes
+          if grep -q '--hash=' requirements.txt; then
+            echo "✅ Requirements file contains hashes"
+          else
+            echo "⚠️  Warning: Requirements file may not contain hashes"
+          fi
+          
+          # Count packages
+          package_count=$(grep -cE '^[a-zA-Z0-9_-]+==' requirements.txt)
+          echo "📦 Found $package_count packages"
+          
+          # Show first 10 packages
+          echo "📋 First 10 packages:"
+          grep -E '^[a-zA-Z0-9_-]+==' requirements.txt | head -10 | nl
+          
+          echo "✅ Validation completed"
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          cd backend
+          if git diff --quiet requirements.txt; then
+            echo "No changes to requirements.txt"
+            echo "CHANGES=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected in requirements.txt"
+            echo "CHANGES=true" >> $GITHUB_OUTPUT
+            git diff requirements.txt
+          fi
+
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.CHANGES == 'true'
+        run: |
+          cd backend
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add requirements.txt
+          if [ -f requirements.in ]; then
+            git add requirements.in
+          fi
+          
+          git commit -m "🤖 Auto-update requirements.txt with pip-compile
+
+          - Generated with pip-tools for reproducible builds
+          - Includes dependency hashes for security auditing
+          - Ensures consistent dependency resolution
+          
+          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          
+          git push
+
+      - name: Upload requirements report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: requirements-report
+          path: |
+            backend/requirements.txt
+            backend/requirements.in
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: generate-requirements
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install safety for security auditing
+        run: |
+          pip install safety
+
+      - name: Run security audit
+        run: |
+          cd backend
+          echo "🔍 Running security audit with safety..."
+          
+          # Run safety check
+          safety check --json --output safety-report.json || true
+          
+          # Generate summary
+          if [ -f safety-report.json ]; then
+            echo "📊 Security Audit Summary:"
+            python -c "
+            import json
+            try:
+                with open('safety-report.json', 'r') as f:
+                    data = json.load(f)
+                    print(f'  Total vulnerabilities: {len(data)}')
+                    critical = len([v for v in data if v.get(\"severity\") == \"critical\"])
+                    high = len([v for v in data if v.get(\"severity\") == \"high\"])
+                    medium = len([v for v in data if v.get(\"severity\") == \"medium\"])
+                    low = len([v for v in data if v.get(\"severity\") == \"low\"])
+                    print(f'  Critical: {critical}')
+                    print(f'  High: {high}')
+                    print(f'  Medium: {medium}')
+                    print(f'  Low: {low}')
+            except:
+                print('  Could not parse safety report')
+            "
+          else
+            echo "⚠️  No safety report generated"
+          fi
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: backend/safety-report.json

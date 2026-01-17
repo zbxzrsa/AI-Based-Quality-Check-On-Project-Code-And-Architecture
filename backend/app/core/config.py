@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     GITHUB_WEBHOOK_SECRET: Optional[str] = None  # For webhook verification
     OPENAI_API_KEY: Optional[str] = None  # For OpenAI integration
     ANTHROPIC_API_KEY: Optional[str] = None  # For Anthropic Claude
+    OLLAMA_BASE_URL: Optional[str] = None  # For Ollama local LLM
 
     # ========================================
     # NON-SECRETS (safe to expose)

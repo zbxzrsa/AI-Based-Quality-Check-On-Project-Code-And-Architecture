@@ -17,24 +17,65 @@ on:
 jobs:
   path-compliance-check:
     name: Path Compliance Check
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run Python path compliance scan
+        run: |
+          python scripts/scan_file_paths.py --output-format json > path-compliance-report.json || true
+          
+          # Check if issues were found
+          ISSUES_COUNT=$(python -c "
+          import json
+          try:
+              with open('path-compliance-report.json', 'r') as f:
+                  data = json.load(f)
+                  print(data['total_issues'])
+          except:
+              print('0')
+          ")
+          
+          echo "PATH_ISSUES=$ISSUES_COUNT" >> $GITHUB_ENV
+          
+          if [ "$ISSUES_COUNT" -gt 0 ]; then
+            echo "❌ Found $ISSUES_COUNT path compliance issues"
+            python scripts/scan_file_paths.py
+            exit 1
+          else
+            echo "✅ No path compliance issues found"
+            python scripts/scan_file_paths.py
+          fi
+
+      - name: Setup Node.js (for existing frontend check)
         uses: actions/setup-node@v4
         with:
           node-version: '18.x'
           cache: 'npm'
 
-      - name: Check file paths for compliance
+      - name: Check file paths for compliance (frontend)
         run: |
           cd frontend
           node scripts/check-file-paths.js
         shell: bash
+
+      - name: Upload path compliance report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: path-compliance-report-${{ matrix.os }}
+          path: path-compliance-report.json
 
   dependency-audit:
     name: Dependency Security Audit

@@ -9,6 +9,7 @@ import openai
 import anthropic
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+import httpx
 
 from app.core.config import settings
 
@@ -17,11 +18,12 @@ class LLMProvider(str, Enum):
     """LLM provider enum"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    OLLAMA = "ollama"
 
 
 class LLMClient:
     """
-    Universal LLM client supporting multiple providers
+    Universal LLM client supporting multiple providers including Ollama
     """
     
     def __init__(
@@ -37,6 +39,10 @@ class LLMClient:
         elif provider == LLMProvider.ANTHROPIC:
             self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
             self.model = model or "claude-3-opus-20240229"
+        elif provider == LLMProvider.OLLAMA:
+            self.client = None  # Ollama uses HTTP requests
+            self.model = model or "qwen2.5-coder"
+            self.ollama_base_url = settings.OLLAMA_BASE_URL or "http://localhost:11434"
         else:
             raise ValueError(f"Unsupported provider: {provider}")
         
@@ -72,7 +78,7 @@ class LLMClient:
                 max_tokens,
                 json_mode
             )
-        else:
+        elif self.provider == LLMProvider.ANTHROPIC:
             return await self._anthropic_completion(
                 system_prompt,
                 user_prompt,
@@ -80,6 +86,16 @@ class LLMClient:
                 max_tokens,
                 json_mode
             )
+        elif self.provider == LLMProvider.OLLAMA:
+            return await self._ollama_completion(
+                system_prompt,
+                user_prompt,
+                temperature,
+                max_tokens,
+                json_mode
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
     
     async def _openai_completion(
         self,
@@ -190,6 +206,69 @@ class LLMClient:
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
     
+    async def _ollama_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int,
+        json_mode: bool
+    ) -> Dict[str, Any]:
+        """Ollama completion using HTTP API"""
+        try:
+            # Prepare the prompt
+            full_prompt = f"{system_prompt}\n\nUser: {user_prompt}"
+            if json_mode:
+                full_prompt += "\n\nPlease respond with valid JSON only."
+            
+            # Ollama API request
+            payload = {
+                "model": self.model,
+                "prompt": full_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens
+                }
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.ollama_base_url}/api/generate",
+                    json=payload,
+                    timeout=120.0
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+            
+            content = result.get("response", "")
+            
+            # Ollama doesn't provide detailed token usage, so we estimate
+            # This is a rough estimation based on character count
+            estimated_tokens = len(content.split()) + len(user_prompt.split()) + len(system_prompt.split())
+            
+            # Ollama is local, so cost is effectively zero (just compute cost)
+            estimated_cost = 0.0
+            
+            self.total_tokens += estimated_tokens
+            self.total_cost += estimated_cost
+            
+            return {
+                "content": content,
+                "provider": "ollama",
+                "model": self.model,
+                "tokens": {
+                    "prompt": len(user_prompt.split()) + len(system_prompt.split()),
+                    "completion": len(content.split()),
+                    "total": estimated_tokens
+                },
+                "cost": estimated_cost
+            }
+            
+        except Exception as e:
+            raise Exception(f"Ollama API error: {str(e)}")
+
     def _calculate_openai_cost(
         self,
         prompt_tokens: int,
@@ -242,13 +321,23 @@ _anthropic_client: Optional[LLMClient] = None
 
 def get_llm_client(provider: LLMProvider = LLMProvider.OPENAI) -> LLMClient:
     """Get LLM client instance"""
-    global _openai_client, _anthropic_client
+    global _openai_client, _anthropic_client, _ollama_client
     
     if provider == LLMProvider.OPENAI:
         if _openai_client is None:
             _openai_client = LLMClient(LLMProvider.OPENAI)
         return _openai_client
-    else:
+    elif provider == LLMProvider.ANTHROPIC:
         if _anthropic_client is None:
             _anthropic_client = LLMClient(LLMProvider.ANTHROPIC)
         return _anthropic_client
+    elif provider == LLMProvider.OLLAMA:
+        if _ollama_client is None:
+            _ollama_client = LLMClient(LLMProvider.OLLAMA)
+        return _ollama_client
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+
+# Add Ollama client instance
+_ollama_client: Optional[LLMClient] = None
