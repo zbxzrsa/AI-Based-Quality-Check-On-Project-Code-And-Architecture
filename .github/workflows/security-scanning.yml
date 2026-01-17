@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload Dependency Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dependency-reports
           path: |
@@ -267,7 +267,7 @@ jobs:
 
       - name: Upload License Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: license-reports
           path: |
@@ -424,7 +424,7 @@ jobs:
 
       - name: Upload Security Summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-summary
           path: security-summary.md
