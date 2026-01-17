@@ -4,6 +4,7 @@ Go AST Parser using tree-sitter
 from typing import List, Dict, Any
 import subprocess
 import json
+import shlex
 from app.services.parsers.base_parser import BaseASTParser
 from app.schemas.ast_models import ParsedFile, Module, Class, Function, Import
 
@@ -56,11 +57,17 @@ class GoParser(BaseASTParser):
         
         try:
             # Run Go AST parser (requires Go installed)
+            # Use shell=False for security and pass args as list
+            parser_script = self._get_parser_script()
+            cmd = ['go', 'run', parser_script, temp_file]
+            
             result = subprocess.run(
-                ['go', 'run', self._get_parser_script(), temp_file],
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                shell=False,  # Explicitly set shell=False for Bandit
+                check=False   # Don't raise exception on non-zero return
             )
             
             if result.returncode == 0:
@@ -68,6 +75,10 @@ class GoParser(BaseASTParser):
             else:
                 return {"error": result.stderr}
                 
+        except subprocess.TimeoutExpired:
+            return {"error": "Go parser timeout"}
+        except json.JSONDecodeError:
+            return {"error": "Invalid JSON from Go parser"}
         finally:
             os.unlink(temp_file)
     

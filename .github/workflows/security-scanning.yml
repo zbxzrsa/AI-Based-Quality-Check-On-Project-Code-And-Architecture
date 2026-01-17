@@ -1,0 +1,262 @@
+name: Security Scanning & Dependency Audit
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  python-security:
+    name: Python Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install bandit safety
+
+      - name: Run Bandit Security Check
+        run: |
+          bandit -r backend/app -ll -f json -o bandit-report.json
+          bandit -r backend/app -ll
+        continue-on-error: true
+
+      - name: Run Safety Check for Vulnerable Packages
+        run: |
+          safety check --json --output safety-report.json
+          safety check
+        continue-on-error: true
+
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  npm-security:
+    name: NPM Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run npm audit
+        id: npm_audit
+        run: |
+          cd frontend && npm audit --json > npm-audit-report.json || true
+          cd frontend && npm audit --audit-level=moderate || true
+        continue-on-error: true
+
+      - name: Upload npm Audit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: frontend/npm-audit-report.json
+
+  container-security:
+    name: Container Security (Trivy)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner for Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend'
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+
+      - name: Run Trivy vulnerability scanner for Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: |
+            trivy-backend-results.sarif
+            trivy-frontend-results.sarif
+
+  create-security-pr:
+    name: Create Security Fix PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    needs: [python-security, npm-security]
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Try to fix Python vulnerabilities
+        id: python_fix
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety
+          safety check --json > /tmp/safety-before.json || true
+          echo "python_fixes=false" >> $GITHUB_OUTPUT
+          
+          # Run pip-audit with fix capability
+          pip install pip-audit
+          pip-audit --fix --require-hashes=false --skip-editable || true
+          
+          if git diff backend/requirements.txt; then
+            echo "python_fixes=true" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Try to fix npm vulnerabilities
+        id: npm_fix
+        run: |
+          cd frontend
+          npm audit fix || true
+          
+          if git diff package-lock.json; then
+            echo "npm_fixes=true" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Create Pull Request for Security Fixes
+        if: steps.python_fix.outputs.python_fixes == 'true' || steps.npm_fix.outputs.npm_fixes == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: automated security dependency updates'
+          title: 'chore: fix security vulnerabilities in dependencies'
+          body: |
+            ## 🔒 Security Updates
+            
+            This automated PR fixes security vulnerabilities detected in dependencies.
+            
+            ### Changes
+            - Updated Python packages via Safety/pip-audit
+            - Updated npm packages via npm audit
+            
+            ### Review Checklist
+            - [ ] Review dependency changes
+            - [ ] Run tests locally
+            - [ ] Verify no breaking changes
+            
+            **Note:** This is an automated PR created by the security scanning workflow.
+          branch: security-updates-${{ github.run_id }}
+          delete-branch: true
+          labels: 'security,automated'
+
+  tuffleHog-secrets:
+    name: Secret Detection (TruffleHog)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  sast-eslint:
+    name: JavaScript/TypeScript SAST (ESLint)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run ESLint with SARIF format
+        run: |
+          cd frontend && npm run lint -- --format json > eslint-report.json || true
+
+      - name: Upload ESLint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: frontend/eslint-report.json
+
+  sast-bandit:
+    name: Python SAST (Bandit)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit with SARIF output
+        run: |
+          bandit -r backend/app -f sarif -o bandit-results.sarif || true
+          bandit -r backend/app -ll
+
+      - name: Upload Bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-results
+          path: bandit-results.sarif

@@ -235,8 +235,17 @@ ARCHITECTURE_FOCUSED_PROMPT = """Focus specifically on architectural concerns:
 - **Dependency Direction**: Violations of dependency rules
 - **Layer Violations**: Business logic in presentation layer, etc.
 - **Code Duplication**: Repeated logic that should be abstracted
+- **Architectural Drift**: Changes that violate the intended architecture
+- **Layer Violations**: Cross-layer dependencies that break separation
 
-Reference the dependency graph context to identify violations."""
+CRITICAL: Analyze the dependency graph context provided and identify:
+1. **Architectural Drift**: Components that have evolved away from their intended purpose
+2. **Layer Violations**: Dependencies that cross architectural layer boundaries inappropriately
+3. **Circular Dependencies**: Import cycles that indicate tight coupling
+4. **God Classes/Objects**: Classes with too many responsibilities
+5. **Feature Envy**: Methods that use more data from other classes than their own
+
+Reference the dependency graph context to identify violations and provide specific recommendations for architectural improvements."""
 
 
 def create_specialized_prompt(

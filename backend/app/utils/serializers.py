@@ -1,5 +1,8 @@
 """
 Serialization utilities for Redis caching
+
+WARNING: Avoid pickle for untrusted data due to security risks (arbitrary code execution).
+Use JSON-based serialization for all user-provided or external data.
 """
 import json
 import pickle
@@ -7,6 +10,9 @@ from typing import Any
 from datetime import datetime, date
 from decimal import Decimal
 from uuid import UUID
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -31,6 +37,8 @@ def serialize_json(data: Any) -> str:
     """
     Serialize data to JSON string
     Handles datetime, Decimal, UUID, and custom objects
+    
+    Preferred method for all serialization tasks.
     """
     try:
         return json.dumps(data, cls=EnhancedJSONEncoder)
@@ -41,6 +49,8 @@ def serialize_json(data: Any) -> str:
 def deserialize_json(json_str: str) -> Any:
     """
     Deserialize JSON string to Python object
+    
+    Safe method that only deserializes valid JSON.
     """
     try:
         return json.loads(json_str)
@@ -50,9 +60,18 @@ def deserialize_json(json_str: str) -> Any:
 
 def serialize_pickle(data: Any) -> bytes:
     """
-    Serialize data using pickle (for complex Python objects)
-    WARNING: Only use for trusted data
+    Serialize data using pickle for complex Python objects.
+    
+    ⚠️  SECURITY WARNING: Only use for trusted data!
+    Pickle can execute arbitrary code during deserialization.
+    Never use pickle to deserialize untrusted data from users,
+    databases, or external sources.
+    
+    Recommended alternatives:
+    - Use JSON with custom encoders for most data types
+    - Use msgpack or protobuf for binary serialization
     """
+    logger.warning("Using pickle serialization. Ensure data is from a trusted source.")
     try:
         return pickle.dumps(data)
     except (TypeError, pickle.PickleError) as e:
@@ -61,10 +80,25 @@ def serialize_pickle(data: Any) -> bytes:
 
 def deserialize_pickle(data: bytes) -> Any:
     """
-    Deserialize pickle data
-    WARNING: Only use for trusted data
+    Deserialize pickle data.
+    
+    ⚠️  SECURITY WARNING: Only use for trusted data!
+    Pickle deserialization can execute arbitrary code.
+    
+    Only deserialize pickled data that:
+    1. Comes from your own application
+    2. Is stored in a controlled, secure location
+    3. Has not been tampered with
+    
+    Never deserialize:
+    - User-provided pickled data
+    - Data from untrusted sources
+    - Data from the internet
     """
+    logger.warning("Deserializing pickle data. Ensure data is from a trusted source.")
     try:
+        # Use pickle.loads() with default protocol for backward compatibility
+        # Consider adding integrity checks (HMAC) for production use
         return pickle.loads(data)
     except (TypeError, pickle.UnpicklingError) as e:
         raise ValueError(f"Cannot deserialize pickle data: {e}")

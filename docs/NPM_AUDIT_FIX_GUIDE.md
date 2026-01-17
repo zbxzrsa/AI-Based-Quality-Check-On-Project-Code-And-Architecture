@@ -1,0 +1,56 @@
+{
+"name": "ai-code-review-frontend",
+"version": "0.1.0",
+"private": true,
+"scripts": {
+"dev": "next dev",
+"build": "next build",
+"start": "next start",
+"lint": "next lint",
+"lint:fix": "next lint --fix",
+"test": "jest",
+"audit": "npm audit",
+"audit:fix": "npm audit fix",
+"audit:fix:force": "npm audit fix --force",
+"type-check": "tsc --noEmit"
+},
+"dependencies": {
+"next": "14.2.5",
+"react": "^18.3.1",
+"react-dom": "^18.3.1",
+"@tanstack/react-query": "^5.51.1",
+"axios": "^1.7.2",
+"clsx": "^2.1.1",
+"tailwind-merge": "^2.4.0",
+"react-hook-form": "^7.52.1",
+"@hookform/resolvers": "^3.9.0",
+"zod": "^3.23.8",
+"lucide-react": "^0.408.0",
+"reactflow": "^11.11.4",
+"d3": "^7.9.0",
+"prismjs": "^1.29.0"
+},
+"devDependencies": {
+"@types/node": "^20",
+"@types/react": "^18",
+"@types/react-dom": "^18",
+"@types/d3": "^7.4.3",
+"@types/prismjs": "^1.26.4",
+"typescript": "^5.5.3",
+"eslint": "^8",
+"eslint-config-next": "14.2.5",
+"eslint-config-prettier": "^9.1.0",
+"eslint-plugin-prettier": "^5.2.1",
+"@typescript-eslint/eslint-plugin": "^7.16.1",
+"@typescript-eslint/parser": "^7.16.1",
+"prettier": "^3.3.3",
+"prettier-plugin-tailwindcss": "^0.6.5",
+"tailwindcss": "^3.4.6",
+"postcss": "^8",
+"autoprefixer": "^10.4.19"
+},
+"engines": {
+"node": ">=18.0.0",
+"npm": ">=9.0.0"
+}
+}

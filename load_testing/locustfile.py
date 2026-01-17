@@ -4,6 +4,14 @@ Load testing script using Locust
 from locust import HttpUser, task, between
 import json
 import random
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Load test credentials from environment variables
+TEST_USER_PASSWORD = os.getenv("TEST_USER_PASSWORD", "TestPassword123!")
+TEST_ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "AdminPassword123!")
 
 
 class AICodeReviewUser(HttpUser):
@@ -19,7 +27,7 @@ class AICodeReviewUser(HttpUser):
         """Authenticate user"""
         response = self.client.post("/api/v1/auth/login", json={
             "email": f"test.user.{random.randint(1, 1000)}@example.com",
-            "password": "TestPassword123!"
+            "password": TEST_USER_PASSWORD
         })
         
         if response.status_code == 200:
@@ -28,7 +36,7 @@ class AICodeReviewUser(HttpUser):
             # Register if login fails
             self.client.post("/api/v1/auth/register", json={
                 "email": f"test.user.{random.randint(1, 10000)}@example.com",
-                "password": "TestPassword123!",
+                "password": TEST_USER_PASSWORD,
                 "full_name": "Test User"
             })
             self.login()
@@ -108,7 +116,7 @@ class AdminUser(HttpUser):
         """Login as admin"""
         response = self.client.post("/api/v1/auth/login", json={
             "email": "admin@example.com",
-            "password": "AdminPassword123!"
+            "password": TEST_ADMIN_PASSWORD
         })
         if response.status_code == 200:
             self.token = response.json()["access_token"]

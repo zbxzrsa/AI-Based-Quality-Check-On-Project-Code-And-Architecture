@@ -32,6 +32,7 @@ class ReviewResult(BaseModel):
     issues: List[ReviewIssue]
     summary: str
     risk_score: int  # 0-100
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class AIReasoningEngine:
@@ -213,12 +214,12 @@ class AIReasoningEngine:
         pr_id: str
     ) -> Dict[str, Any]:
         """
-        Assemble context for code review
-        
+        Assemble context for code review including dependency graph from Neo4j
+
         Args:
             project_id: Project ID
             pr_id: Pull request ID
-            
+
         Returns:
             Context dictionary with all assembled data
         """
@@ -227,49 +228,79 @@ class AIReasoningEngine:
         from app.database.postgresql import get_db
         from app.models import PullRequest, Project
         from sqlalchemy import select
-        
+
         context = {}
-        
+
         # Get PR data from PostgreSQL
-        async with get_db() as db:
+        from app.database.postgresql import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
             stmt = select(PullRequest).where(PullRequest.id == pr_id)
             result = await db.execute(stmt)
             pr = result.scalar_one_or_none()
-            
+
             if pr:
                 context['pr_title'] = pr.title
                 context['pr_description'] = pr.description
                 context['file_count'] = pr.files_changed
-            
+
             # Get project data
             stmt = select(Project).where(Project.id == project_id)
             result = await db.execute(stmt)
             project = result.scalar_one_or_none()
-            
+
             if project:
                 context['repo_name'] = project.name
                 context['language'] = project.language
-        
-        # Get dependency graph context from Neo4j
+
+        # Get comprehensive dependency graph context from Neo4j
         driver = await get_neo4j_driver()
         neo4j_service = Neo4jASTService(driver)
-        
+
         try:
+            # Get full dependency graph
             graph = await neo4j_service.get_dependency_graph(project_id)
-            context['dependency_summary'] = f"Project has {graph['metadata']['node_count']} components with {graph['metadata']['edge_count']} dependencies"
-            
-            # Get circular dependencies
+            context['dependency_node_count'] = graph['metadata']['node_count']
+            context['dependency_edge_count'] = graph['metadata']['edge_count']
+
+            # Build detailed dependency summary
+            dependency_sections = []
+
+            # Component count summary
+            dependency_sections.append(f"Project contains {graph['metadata']['node_count']} architectural components with {graph['metadata']['edge_count']} dependencies.")
+
+            # Get circular dependencies with details
             cycles = await neo4j_service.find_circular_deps(project_id)
             if cycles:
-                context['circular_deps'] = f"Warning: {len(cycles)} circular dependencies detected"
-            
-            # Get metrics
+                context['circular_deps_count'] = len(cycles)
+                cycle_details = []
+                for cycle in cycles[:5]:  # Limit to first 5 cycles
+                    cycle_details.append(f"Cycle length {cycle['cycleLength']}: {' -> '.join(cycle['cyclePath'][:5])}...")
+                dependency_sections.append(f"⚠️  WARNING: {len(cycles)} circular dependencies detected. Examples: {'; '.join(cycle_details)}")
+                context['circular_dependencies'] = cycles
+            else:
+                dependency_sections.append("✅ No circular dependencies detected.")
+
+            # Get coupling metrics
             metrics = await neo4j_service.calculate_metrics(project_id)
+            if metrics.get('coupling_metrics'):
+                unstable_modules = [m for m in metrics['coupling_metrics'] if m.get('instability', 0) > 0.8]
+                if unstable_modules:
+                    unstable_names = [m['module'] for m in unstable_modules[:3]]
+                    dependency_sections.append(f"⚠️  High instability modules (instability > 0.8): {', '.join(unstable_names)}")
+
             context['complexity_summary'] = f"Average complexity: {metrics['complexity_metrics']['average_complexity']:.1f}"
-            
+
+            # Create dependency graph subsection for LLM context
+            dependency_graph_context = "\n".join(dependency_sections)
+            context['dependency_graph_summary'] = dependency_graph_context
+
+            # Store full graph data for detailed analysis
+            context['full_dependency_graph'] = graph
+
         except Exception as e:
-            context['dependency_summary'] = "Dependency context unavailable"
-        
+            context['dependency_summary'] = f"Dependency context unavailable: {str(e)}"
+            context['dependency_graph_summary'] = "Unable to fetch dependency graph from Neo4j. Analysis will proceed without architectural context."
+
         return context
     
     def get_usage_stats(self) -> Dict[str, Any]:

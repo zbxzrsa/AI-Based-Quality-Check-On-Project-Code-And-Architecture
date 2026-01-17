@@ -59,13 +59,13 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # ========================================
-  # Celery Worker - Async Task Processing
+  # Celery Worker (High Priority) - Async PR Analysis
   # ========================================
-  celery-worker:
+  celery-worker-high:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ai-review-celery-worker
+    container_name: ai-review-celery-worker-high
     env_file:
       - .env
     environment:
@@ -74,6 +74,7 @@ services:
       - NEO4J_URI=bolt://neo4j:7687
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - CELERY_QUEUES=high_priority
     volumes:
       - ./backend:/app
     depends_on:
@@ -86,7 +87,69 @@ services:
     networks:
       - ai-review-network
     restart: unless-stopped
-    command: celery -A app.tasks.celery_app worker --loglevel=info
+    command: celery -A app.celery_config celery_app worker --queues=high_priority --concurrency=2 --loglevel=info
+
+  # ========================================
+  # Celery Worker (Low Priority) - Drift Detection
+  # ========================================
+  celery-worker-low:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-review-celery-worker-low
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - NEO4J_URI=bolt://neo4j:7687
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_QUEUES=low_priority,default
+    volumes:
+      - ./backend:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    networks:
+      - ai-review-network
+    restart: unless-stopped
+    command: celery -A app.celery_config celery_app worker --queues=low_priority,default --concurrency=1 --loglevel=info
+
+  # ========================================
+  # Celery Beat - Task Scheduler
+  # ========================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-review-celery-beat
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - NEO4J_URI=bolt://neo4j:7687
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend:/app
+      - celery_beat_schedule:/app/celery_beat_schedule
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    networks:
+      - ai-review-network
+    restart: unless-stopped
+    command: celery -A app.celery_config celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
   # ========================================
   # PostgreSQL - Relational Database
@@ -184,4 +247,6 @@ volumes:
   neo4j_plugins:
     driver: local
   redis_data:
+    driver: local
+  celery_beat_schedule:
     driver: local

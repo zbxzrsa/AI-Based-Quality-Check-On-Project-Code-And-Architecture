@@ -1,0 +1,18 @@
+# Bandit configuration file
+exclude:
+    - tests/
+    - .gitignore
+    - deploy.sh
+    - docker-compose.yml
+    - package-lock.json
+    - README.md
+    - frontend/
+    - k8s/
+    - load_testing/
+    - monitoring/
+    - nginx/
+allowlist_files:
+    - Dockerfile
+    - Dockerfile.worker
+allowlist_ids:
+    - B104
