@@ -327,7 +327,7 @@ jobs:
 
       - name: Create Pull Request for Security Fixes
         if: steps.python_fix.outputs.python_fixes == 'true' || steps.npm_fix.outputs.npm_fixes == 'true'
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'chore: automated security dependency updates'
           title: '🔒 Security: Automated vulnerability fixes'
