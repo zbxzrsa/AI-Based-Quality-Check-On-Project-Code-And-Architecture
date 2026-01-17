@@ -17,6 +17,14 @@ const nextConfig = {
     publicRuntimeConfig: {
         apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
     },
+    // Production export configuration for static hosting
+    output: 'export',
+    distDir: 'dist',
+    trailingSlash: true,
+    // Disable server-side rendering for static export
+    experimental: {
+        appDir: true,
+    },
     async rewrites() {
         return [
             {

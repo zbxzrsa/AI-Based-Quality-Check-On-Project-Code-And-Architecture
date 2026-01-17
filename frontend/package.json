@@ -9,7 +9,10 @@
         "start": "next start",
         "lint": "next lint",
         "test": "jest",
-        "audit": "npm audit && npm doctor"
+        "audit": "npm audit && npm doctor",
+        "build:production": "next build",
+        "export": "next export",
+        "postbuild": "npm run export"
     },
     "dependencies": {
         "@hookform/resolvers": "5.2.2",

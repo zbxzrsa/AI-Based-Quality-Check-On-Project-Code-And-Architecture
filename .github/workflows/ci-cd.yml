@@ -221,6 +221,10 @@ jobs:
                   # Check for any remaining peer dependency issues
                   echo "🔍 Checking for peer dependency issues..."
                   npm install --dry-run --legacy-peer-deps || echo "⚠️  Some peer dependency warnings are expected"
+                  
+                  # Verify build works
+                  echo "🔍 Testing build process..."
+                  npm run build:production
 
             - name: Verify environment setup
               run: |
@@ -319,17 +323,54 @@ jobs:
         needs: [backend-tests, frontend-tests, e2e-tests]
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
+        environment:
+            name: production
+            url: https://your-domain.com
+
         steps:
             - uses: actions/checkout@v6
 
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@v5
-              with:
-                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: us-east-1
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
 
-            - name: Deploy to AWS
+            - name: Build and push Docker images
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: ./docker-compose.prod.yml
+                  push: true
+                  tags: |
+                      your-registry/ai-review-frontend:latest
+                      your-registry/ai-review-backend:latest
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Deploy to AWS ECS
+              uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+              with:
+                  task-definition: ai-review-task-definition
+                  service: ai-review-service
+                  cluster: ai-review-cluster
+                  wait-for-service-stability: true
+
+            - name: Health check
               run: |
-                  # Add deployment commands here
-                  echo "Deploying to production..."
+                  echo "Waiting for deployment to be ready..."
+                  sleep 60
+                  
+                  # Check backend health
+                  curl -f https://your-domain.com/api/v1/health || exit 1
+                  
+                  # Check frontend
+                  curl -f https://your-domain.com || exit 1
+                  
+                  echo "✅ Deployment successful!"
+
+            - name: Notify deployment status
+              if: always()
+              run: |
+                  if [ "${{ job.status }}" == "success" ]; then
+                      echo "🎉 Deployment completed successfully!"
+                  else
+                      echo "❌ Deployment failed!"
+                  fi
