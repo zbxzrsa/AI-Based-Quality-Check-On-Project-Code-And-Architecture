@@ -146,7 +146,7 @@ jobs:
             - name: Set up Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: "18"
+                  node-version: "20"
                   cache: "npm"
                   cache-dependency-path: frontend/package-lock.json
 
@@ -154,17 +154,24 @@ jobs:
               run: |
                   # Create .env.local for Next.js build and tests
                   cat > frontend/.env.local << EOF
-                  NEXT_PUBLIC_API_URL=http://localhost:8000
+                  NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
                   NEXT_PUBLIC_APP_ENV=test
-                  NEXT_PUBLIC_GITHUB_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
-                  NEXT_PUBLIC_ANALYTICS_ID=${{ secrets.NEXT_PUBLIC_ANALYTICS_ID }}
-                  # Add other public environment variables here
+                  NEXT_PUBLIC_GITHUB_CLIENT_ID=\${{ secrets.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
+                  NEXT_PUBLIC_ANALYTICS_ID=\${{ secrets.NEXT_PUBLIC_ANALYTICS_ID }}
+                  # Server-side variables for Next.js
+                  JWT_SECRET=test-jwt-secret-for-ci
+                  GITHUB_TOKEN=\${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_WEBHOOK_SECRET=\${{ secrets.GITHUB_WEBHOOK_SECRET }}
                   EOF
 
             - name: Install dependencies
               run: |
                   cd frontend
-                  npm ci
+                  npm ci --prefer-offline --no-audit
+
+            - name: Verify environment setup
+              run: |
+                  bash ../scripts/verify-frontend-env-enhanced.sh
 
             - name: Install Playwright browsers for E2E tests
               run: |

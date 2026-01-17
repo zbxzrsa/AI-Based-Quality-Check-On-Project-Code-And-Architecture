@@ -64,3 +64,9 @@ CMD ["celery", "-A", "app.celery_config", "worker", \
     "--max-tasks-per-child=1000", \
     "--prefetch-multiplier=1", \
     "--time-limit=3600"]
+
+# Alternative CMD for celery-beat (uncomment for beat container)
+# CMD ["celery", "-A", "app.celery_config", "beat", \
+#     "--loglevel=info", \
+#     "--scheduler", "celery.beat.PersistentScheduler", \
+#     "--schedule-filename", "/app/celery_beat_schedule/celerybeat-schedule"]

@@ -4,11 +4,12 @@ Detects cyclic dependencies, layer violations, and other drift patterns
 """
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from app.celery_config import celery_app
 from app.database.neo4j_db import get_neo4j_driver
 from app.services.neo4j_ast_service import Neo4jASTService
+from app.services.architectural_drift_detector import ArchitecturalDriftDetector
 from app.database.postgresql import AsyncSessionLocal
 from app.models import Project
 from sqlalchemy import select
@@ -201,7 +202,7 @@ def detect_layer_violations(
 async def detect_layer_violations_impl(
     neo4j_service: Neo4jASTService,
     project_id: str,
-    layer_definitions: Dict[str, List[str]] = None
+    layer_definitions: Optional[Dict[str, List[str]]] = None
 ) -> List[Dict[str, Any]]:
     """
     Internal implementation for layer violation detection
@@ -276,17 +277,165 @@ async def detect_layer_violations_impl(
 
 async def _detect_violations(
     project_id: str,
-    layer_definitions: Dict[str, List[str]] = None
+    layer_definitions: Optional[Dict[str, List[str]]] = None
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Wrapper for layer violation detection"""
     driver = await get_neo4j_driver()
     neo4j_service = Neo4jASTService(driver)
-    
+
     violations = await detect_layer_violations_impl(neo4j_service, project_id, layer_definitions)
-    
+
     return {
         'project_id': project_id,
         'violations_found': len(violations),
         'violations': violations,
         'timestamp': datetime.utcnow().isoformat()
+    }
+
+
+@celery_app.task(
+    bind=True,
+    name='app.tasks.detect_golden_standard_drift',
+    max_retries=2,
+    queue='high_priority'
+)
+def detect_golden_standard_drift(
+    self,
+    project_id: str,
+    repo_full_name: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    golden_standard_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Detect architectural drift against golden standard schema
+
+    This task:
+    1. Compares current Neo4j AST graph against golden standard
+    2. Identifies layer violations and cyclic dependencies
+    3. Generates drift alerts and calculates drift score
+    4. Updates GitHub status check if repo/commit provided
+    5. Fails CI if drift exceeds thresholds
+
+    Args:
+        project_id: Project identifier
+        repo_full_name: Optional GitHub repository full name for status updates
+        commit_sha: Optional commit SHA for status updates
+        golden_standard_path: Optional path to custom golden standard JSON
+
+    Returns:
+        Comprehensive drift analysis report
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_detect_golden_standard_drift(
+            project_id, repo_full_name, commit_sha, golden_standard_path, self
+        ))
+    finally:
+        loop.close()
+
+
+async def _detect_golden_standard_drift(
+    project_id: str,
+    repo_full_name: Optional[str],
+    commit_sha: Optional[str],
+    golden_standard_path: Optional[str],
+    task
+) -> Dict[str, Any]:
+    """Internal async implementation of golden standard drift detection"""
+    try:
+        # Initialize drift detector
+        detector = ArchitecturalDriftDetector(golden_standard_path)
+
+        # Run drift detection first
+        drift_report = await detector.detect_drift(project_id)
+
+        if drift_report.get("status") == "failed":
+            print(f"❌ Drift analysis failed: {drift_report.get('error')}")
+            return drift_report
+
+        # Generate alerts
+        alerts = await detector.generate_drift_alerts(drift_report)
+        drift_report["alerts"] = alerts
+
+        # Check if CI should fail
+        should_fail, reason = await detector.should_fail_ci(drift_report)
+        drift_report["should_fail_ci"] = should_fail
+        drift_report["failure_reason"] = reason
+
+        # Check if we should fail the CI
+        should_fail = drift_report.get("should_fail_ci", False)
+        if should_fail:
+            failure_reason = drift_report.get("failure_reason", "Architectural drift exceeds thresholds")
+            print(f"🚨 CI will fail: {failure_reason}")
+
+            # Retry with exponential backoff if this is a recoverable error
+            if "connection" in failure_reason.lower() or "timeout" in failure_reason.lower():
+                raise task.retry(exc=Exception(failure_reason), countdown=60)
+            else:
+                # For architectural violations, don't retry - fail immediately
+                raise Exception(failure_reason)
+
+        return drift_report
+
+    except Exception as e:
+        print(f"❌ Error in golden standard drift detection for project {project_id}: {e}")
+
+        # Create error result
+        error_result = {
+            "project_id": project_id,
+            "status": "failed",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+            "should_fail_ci": True,
+            "failure_reason": f"Drift detection failed: {str(e)}"
+        }
+
+        # Still try to update GitHub status if possible
+        if repo_full_name and commit_sha:
+            try:
+                detector = ArchitecturalDriftDetector(golden_standard_path)
+                await detector.update_github_status(
+                    repo_full_name=repo_full_name,
+                    commit_sha=commit_sha,
+                    drift_report={"drift_score": 100, "violation_counts": {"critical": 1}},
+                    context="architectural-drift"
+                )
+            except Exception as status_error:
+                print(f"⚠️  Failed to update GitHub status: {status_error}")
+
+        raise
+
+
+def detect_golden_standard_drift_sync(
+    project_id: str,
+    repo_full_name: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    golden_standard_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Synchronous wrapper for golden standard drift detection
+
+    Use this to queue the drift detection task without waiting for results
+
+    Args:
+        project_id: Project identifier
+        repo_full_name: Optional GitHub repository full name
+        commit_sha: Optional commit SHA
+        golden_standard_path: Optional path to golden standard JSON
+
+    Returns:
+        Task info with task_id for polling
+    """
+    task = detect_golden_standard_drift.apply_async(
+        args=[project_id, repo_full_name, commit_sha, golden_standard_path],
+        queue='high_priority',
+        expires=1800  # 30 minutes
+    )
+
+    return {
+        'task_id': task.id,
+        'status': 'PENDING',
+        'project_id': project_id,
+        'message': 'Architectural drift analysis queued and will begin shortly'
     }

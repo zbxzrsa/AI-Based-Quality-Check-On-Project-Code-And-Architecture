@@ -1,0 +1,166 @@
+{
+  "version": "1.0.0",
+  "name": "AI-Based Quality Check - Golden Architecture Standard",
+  "description": "Predefined architectural layers and rules for clean architecture compliance",
+  "layers": {
+    "presentation": {
+      "name": "Presentation Layer",
+      "description": "UI components, controllers, and API endpoints",
+      "file_patterns": [
+        "*controller*",
+        "*handler*",
+        "*api*",
+        "*endpoint*",
+        "*route*",
+        "*view*",
+        "*component*",
+        "*page*",
+        "*ui*",
+        "*frontend*"
+      ],
+      "allowed_dependencies": [
+        "service",
+        "domain",
+        "infrastructure"
+      ],
+      "forbidden_dependencies": [
+        "repository",
+        "database",
+        "storage"
+      ]
+    },
+    "service": {
+      "name": "Service Layer",
+      "description": "Business logic and application services",
+      "file_patterns": [
+        "*service*",
+        "*business*",
+        "*logic*",
+        "*manager*",
+        "*orchestrator*"
+      ],
+      "allowed_dependencies": [
+        "domain",
+        "repository",
+        "infrastructure"
+      ],
+      "forbidden_dependencies": [
+        "presentation",
+        "controller"
+      ]
+    },
+    "domain": {
+      "name": "Domain Layer",
+      "description": "Domain models, entities, and business rules",
+      "file_patterns": [
+        "*model*",
+        "*entity*",
+        "*domain*",
+        "*dto*",
+        "*schema*",
+        "*types*"
+      ],
+      "allowed_dependencies": [
+        "infrastructure"
+      ],
+      "forbidden_dependencies": [
+        "presentation",
+        "service",
+        "repository",
+        "database",
+        "storage"
+      ]
+    },
+    "repository": {
+      "name": "Repository Layer",
+      "description": "Data access objects and repository patterns",
+      "file_patterns": [
+        "*repository*",
+        "*dao*",
+        "*data*",
+        "*persistence*"
+      ],
+      "allowed_dependencies": [
+        "domain",
+        "infrastructure",
+        "database"
+      ],
+      "forbidden_dependencies": [
+        "presentation",
+        "service"
+      ]
+    },
+    "infrastructure": {
+      "name": "Infrastructure Layer",
+      "description": "External services, utilities, and infrastructure concerns",
+      "file_patterns": [
+        "*util*",
+        "*helper*",
+        "*config*",
+        "*client*",
+        "*provider*",
+        "*adapter*",
+        "*middleware*",
+        "*cache*",
+        "*logger*",
+        "*security*"
+      ],
+      "allowed_dependencies": [
+        "domain"
+      ],
+      "forbidden_dependencies": [
+        "presentation",
+        "service",
+        "repository"
+      ]
+    },
+    "database": {
+      "name": "Database Layer",
+      "description": "Database connections, migrations, and direct database operations",
+      "file_patterns": [
+        "*db*",
+        "*database*",
+        "*migration*",
+        "*sql*",
+        "*connection*"
+      ],
+      "allowed_dependencies": [
+        "infrastructure"
+      ],
+      "forbidden_dependencies": [
+        "presentation",
+        "service",
+        "domain",
+        "repository"
+      ]
+    }
+  },
+  "global_rules": {
+    "cyclic_dependencies": {
+      "enabled": true,
+      "severity": "critical",
+      "description": "No circular dependencies allowed between modules"
+    },
+    "layer_isolation": {
+      "enabled": true,
+      "severity": "high",
+      "description": "Layers must only depend on allowed layers"
+    },
+    "utility_isolation": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Utility files should not depend on business logic"
+    }
+  },
+  "drift_thresholds": {
+    "critical_violations": 0,
+    "high_violations": 3,
+    "medium_violations": 10,
+    "low_violations": 25
+  },
+  "metadata": {
+    "created_at": "2024-01-17T12:00:00Z",
+    "author": "AI-Based Quality Check System",
+    "framework": "Clean Architecture with Layer Isolation"
+  }
+}

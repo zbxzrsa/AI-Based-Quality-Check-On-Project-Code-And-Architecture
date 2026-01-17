@@ -1,0 +1,585 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="26" failures="17" errors="0" time="3.184">
+  <testsuite name="ArchitectureTimeline Component" errors="0" failures="17" skipped="0" timestamp="2026-01-17T07:19:19" time="1.614" tests="18">
+    <testcase classname="ArchitectureTimeline Component" name="renders without crashing with valid data" time="0.049">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:99:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders SVG container with correct dimensions" time="0.007">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:104:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="displays metric lines for all data series" time="0.01">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:113:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders data points as circles" time="0.009">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:121:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders event markers correctly" time="0.007">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:129:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="displays event labels" time="0.006">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:137:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders legend with correct metric labels" time="0.008">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:149:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="handles empty data gracefully" time="0.012">
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="handles large datasets efficiently" time="0.008">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:189:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="updates when data prop changes" time="0.007">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:199:32)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="applies responsive container styling" time="0.007">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:220:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="handles different chart dimensions" time="0.007">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:227:32)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="includes accessibility features" time="0.011">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:246:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="handles edge case: single data point" time="0.009">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:258:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="validates prop types and handles invalid data" time="0.041">
+      <failure>Error: expect(received).not.toThrow()
+
+Error name:    &quot;TypeError&quot;
+Error message: &quot;_d3.axisBottom(...).ticks is not a function&quot;
+
+      69 |
+      70 |         // Axes
+    &gt; 71 |         const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(d3.timeFormat(&apos;%b %Y&apos;) as any);
+         |                                             ^
+      72 |         const yAxis = d3.axisLeft(yScale);
+      73 |
+      74 |         g.append(&apos;g&apos;)
+
+      at ticks (src/components/visualizations/ArchitectureTimeline.tsx:71:45)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookPassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13336:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15484:13)
+      at recursivelyTraversePassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15439:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15519:11)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18432:9)
+      at node_modules/react-dom/cjs/react-dom-client.development.js:17923:15
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:291:10)
+      at src/components/visualizations/__tests__/ArchitectureTimeline.test.tsx:283:13
+      at Object.&lt;anonymous&gt; (node_modules/expect/build/toThrowMatchers.js:74:11)
+      at Object.throwingMatcher [as toThrow] (node_modules/expect/build/index.js:320:21)
+      at Object.toThrow (src/components/visualizations/__tests__/ArchitectureTimeline.test.tsx:284:12)
+    at Object.toThrow (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:284:12)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders correctly with realistic backend JSON response" time="0.008">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:304:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="renders within performance budget" time="0.008">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:323:11)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="ArchitectureTimeline Component" name="cleans up resources on unmount" time="0.009">
+      <failure>TypeError: _d3.axisBottom(...).ticks is not a function
+    at ticks (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\ArchitectureTimeline.tsx:71:45)
+    at Object.react_stack_bottom_frame (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+    at commitPassiveMountOnFiber (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+    at flushPassiveEffects (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17923:15
+    at flushActQueue (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:590:34)
+    at Object.&lt;anonymous&gt;.process.env.NODE_ENV.exports.act (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\react\cjs\react.development.js:884:10)
+    at D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+    at renderRoot (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+    at render (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+    at Object.&lt;anonymous&gt; (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\src\components\visualizations\__tests__\ArchitectureTimeline.test.tsx:334:31)
+    at Promise.then.completed (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at _runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:121:9)
+    at run (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (D:\Desktop\AI-Based-Quality-Check-On-Project-Code-And-Architecture\frontend\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Jest Setup Verification" errors="0" failures="0" skipped="0" timestamp="2026-01-17T07:19:20" time="0.219" tests="8">
+    <testcase classname="Jest Setup Verification" name="should have environment variables configured" time="0.003">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have localStorage mocked" time="0.001">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have window.location mocked" time="0.002">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have window.matchMedia mocked" time="0.002">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have fetch mocked" time="0.003">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have custom matchers" time="0.004">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have DOM mocks" time="0.002">
+    </testcase>
+    <testcase classname="Jest Setup Verification" name="should have SVG mocks" time="0.004">
+    </testcase>
+  </testsuite>
+</testsuites>

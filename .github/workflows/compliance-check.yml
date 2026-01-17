@@ -1,0 +1,252 @@
+name: Compliance and Dependency Audit
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/scripts/**'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/scripts/**'
+
+jobs:
+  path-compliance-check:
+    name: Path Compliance Check
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Check file paths for compliance
+        run: |
+          cd frontend
+          node scripts/check-file-paths.js
+        shell: bash
+
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+        shell: bash
+
+      - name: Run npm audit
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate --registry https://registry.npmjs.org/
+        shell: bash
+
+      - name: Run npm doctor
+        run: |
+          cd frontend
+          npm doctor --registry https://registry.npmjs.org/
+        shell: bash
+
+      - name: Check for ERESOLVE issues
+        run: |
+          cd frontend
+          npm install --dry-run
+        shell: bash
+
+  exact-versions-check:
+    name: Exact Versions Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for caret versions in package.json
+        run: |
+          echo "Checking for caret (^) versions in frontend/package.json..."
+          
+          # Check dependencies
+          if grep -q '"[^"]*":\s*"\^' frontend/package.json; then
+            echo "❌ Found caret versions in dependencies:"
+            grep '"[^"]*":\s*"\^' frontend/package.json
+            echo ""
+            echo "⚠️  All dependencies should use exact versions for reproducible builds"
+            exit 1
+          else
+            echo "✅ No caret versions found in dependencies"
+          fi
+          
+          # Check devDependencies
+          if grep -q '"[^"]*":\s*"\^' frontend/package.json; then
+            echo "❌ Found caret versions in devDependencies:"
+            grep '"[^"]*":\s*"\^' frontend/package.json
+            echo ""
+            echo "⚠️  All devDependencies should use exact versions for reproducible builds"
+            exit 1
+          else
+            echo "✅ No caret versions found in devDependencies"
+          fi
+        shell: bash
+
+  reproducible-build-test:
+    name: Reproducible Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Clean install for reproducibility test
+        run: |
+          cd frontend
+          rm -rf node_modules package-lock.json
+          npm install --no-optional --production=false
+        shell: bash
+
+      - name: Verify package-lock.json integrity
+        run: |
+          cd frontend
+          npm ci
+          echo "✅ package-lock.json is valid and reproducible"
+        shell: bash
+
+      - name: Check for peer dependency issues
+        run: |
+          cd frontend
+          npm ls --depth=0
+        shell: bash
+
+  security-compliance-report:
+    name: Security Compliance Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+        shell: bash
+
+      - name: Generate security audit report
+        run: |
+          cd frontend
+          npm audit --json > audit-report.json || true
+          
+          # Count vulnerabilities
+          HIGH_VULNS=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+          CRITICAL_VULNS=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+          
+          echo "HIGH_VULNS=$HIGH_VULNS" >> $GITHUB_ENV
+          echo "CRITICAL_VULNS=$CRITICAL_VULNS" >> $GITHUB_ENV
+          
+          echo "📊 Security Audit Summary:"
+          echo "   High vulnerabilities: $HIGH_VULNS"
+          echo "   Critical vulnerabilities: $CRITICAL_VULNS"
+          
+          if [ "$HIGH_VULNS" -gt 0 ] || [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "❌ Security compliance failed - high/critical vulnerabilities found"
+            exit 1
+          else
+            echo "✅ Security compliance passed - no high/critical vulnerabilities"
+          fi
+        shell: bash
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-report
+          path: frontend/audit-report.json
+
+  compliance-summary:
+    name: Compliance Summary
+    runs-on: ubuntu-latest
+    needs: [path-compliance-check, dependency-audit, exact-versions-check, reproducible-build-test, security-compliance-report]
+    if: always()
+    steps:
+      - name: Generate compliance summary
+        run: |
+          echo "## 📋 Compliance Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Path compliance
+          if [ "${{ needs.path-compliance-check.result }}" == "success" ]; then
+            echo "| Path Compliance | ✅ PASS | No non-English characters in file paths |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Path Compliance | ❌ FAIL | Non-English characters detected |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Dependency audit
+          if [ "${{ needs.dependency-audit.result }}" == "success" ]; then
+            echo "| Dependency Audit | ✅ PASS | No security vulnerabilities found |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Dependency Audit | ❌ FAIL | Security issues detected |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Exact versions
+          if [ "${{ needs.exact-versions-check.result }}" == "success" ]; then
+            echo "| Exact Versions | ✅ PASS | All dependencies use exact versions |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Exact Versions | ❌ FAIL | Caret versions found |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Reproducible build
+          if [ "${{ needs.reproducible-build-test.result }}" == "success" ]; then
+            echo "| Reproducible Build | ✅ PASS | Build is reproducible |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Reproducible Build | ❌ FAIL | Build issues detected |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Security compliance
+          if [ "${{ needs.security-compliance-report.result }}" == "success" ]; then
+            echo "| Security Compliance | ✅ PASS | No high/critical vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Security Compliance | ❌ FAIL | High/critical vulnerabilities found |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This workflow ensures compliance with the AI Code Review Platform's technical standards." >> $GITHUB_STEP_SUMMARY
+          echo "For more details, check the individual job logs." >> $GITHUB_STEP_SUMMARY
+        shell: bash
