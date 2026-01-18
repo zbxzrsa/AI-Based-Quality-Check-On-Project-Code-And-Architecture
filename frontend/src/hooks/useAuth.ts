@@ -63,8 +63,8 @@ export function useRegister() {
       return response.data;
     },
     onSuccess: () => {
-      // Redirect to login page
-      router.push('/auth/login?registered=true');
+      // Registration successful - redirect to main page
+      router.push('/');
     },
   });
 }
@@ -88,8 +88,8 @@ export function useLogout() {
       // Clear user data
       queryClient.setQueryData(['user'], null);
       
-      // Redirect to login
-      router.push('/auth/login');
+      // Redirect to main page
+      router.push('/');
     },
   });
 }

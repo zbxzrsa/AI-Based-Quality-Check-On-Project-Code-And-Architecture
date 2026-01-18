@@ -185,7 +185,7 @@ services:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
     environment:
-      - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+      - NEO4J_AUTH=neo4j/your-new-password-here
       - NEO4J_dbms_memory_heap_initial__size=512m
       - NEO4J_dbms_memory_heap_max__size=2G
       - NEO4J_dbms_memory_pagecache_size=1G
@@ -200,7 +200,7 @@ services:
       - ai-review-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} 'RETURN 1'"]
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p your-new-password-here 'RETURN 1' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5

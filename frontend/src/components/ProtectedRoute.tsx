@@ -18,10 +18,6 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     const { isAuthenticated, isLoading, user } = useIsAuthenticated();
 
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
-            router.push('/auth/login?redirect=' + window.location.pathname);
-        }
-
         if (!isLoading && isAuthenticated && requiredRole && user?.role !== requiredRole) {
             router.push('/unauthorized');
         }
@@ -33,10 +29,6 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
                 <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
             </div>
         );
-    }
-
-    if (!isAuthenticated) {
-        return null;
     }
 
     if (requiredRole && user?.role !== requiredRole) {
