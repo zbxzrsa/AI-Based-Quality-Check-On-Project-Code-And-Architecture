@@ -2,7 +2,7 @@
 Immutable Audit Trail System
 """
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, JSON, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -31,7 +31,7 @@ class AuditLog(Base):
     current_hash = Column(String(64), nullable=False)
     
     # Event details
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     event_type = Column(String(50), nullable=False)  # create, update, delete, access, etc.
     resource_type = Column(String(50), nullable=False)  # user, project, pr, etc.
     resource_id = Column(String(100), nullable=False)
@@ -120,7 +120,7 @@ class AuditTrailService:
         # Create log entry
         log_entry = AuditLog(
             previous_hash=previous_hash,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             event_type=event_type,
             resource_type=resource_type,
             resource_id=resource_id,
@@ -226,7 +226,7 @@ class AuditTrailService:
             "total_logs": len(logs),
             "verified": len(breaks) == 0,
             "breaks": breaks,
-            "verified_at": datetime.utcnow().isoformat(),
+            "verified_at": datetime.now(timezone.utc).isoformat(),
         }
     
     async def search_logs(

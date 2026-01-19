@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { NextResponse } from 'next/server';
 
 export const authOptions = {
   providers: [
@@ -10,44 +11,69 @@ export const authOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('Email and password are required');
+        }
+
         try {
-          const res = await fetch(`${process.env.NEXTAUTH_URL}/api/v1/auth/login`, {
+          const apiUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+          const res = await fetch(`${apiUrl}/api/v1/auth/login`, {
             method: 'POST',
-            body: JSON.stringify(credentials),
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
             headers: { 'Content-Type': 'application/json' },
           });
 
+          if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Authentication failed');
+          }
+
           const user = await res.json();
 
-          if (res.ok && user) {
-            return user;
+          if (!user) {
+            throw new Error('Invalid response from authentication server');
           }
-          return null;
+
+          return {
+            id: user.id || user._id,
+            email: user.email,
+            name: user.name || user.email.split('@')[0],
+            ...user,
+          };
         } catch (error) {
-          console.error('Auth error:', error);
-          return null;
+          console.error('Authentication error:', error);
+          throw new Error(error instanceof Error ? error.message : 'Authentication failed');
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }: { token: any; user: any }) {
+    async jwt({ token, user }) {
       if (user) {
-        token.accessToken = user.token;
         token.user = user;
       }
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
-      session.accessToken = token.accessToken;
-      session.user = token.user;
+    async session({ session, token }) {
+      if (token?.user) {
+        session.user = token.user;
+      }
       return session;
     },
   },
   pages: {
     signIn: '/auth/signin',
+    error: '/auth/error',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);

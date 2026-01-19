@@ -25,22 +25,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
 
       - name: Install Dependencies
         run: |
           # Backend dependencies
           pip install bandit safety pip-audit
           pip install -r backend/requirements.txt
-          
+
           # Frontend dependencies
           cd frontend && npm ci
 
@@ -49,7 +49,7 @@ jobs:
         id: critical-security
         run: |
           echo "🔍 Running Critical Security Checks..."
-          
+
           # Secrets detection
           echo "  - Checking for secrets..."
           secrets_found=false
@@ -101,18 +101,18 @@ jobs:
         id: reproducible-build
         run: |
           echo "🔍 Running Reproducible Build Test..."
-          
+
           # Clean install
           cd frontend
           rm -rf node_modules package-lock.json
           npm install --no-optional --production=false
-          
+
           # Verify package-lock.json
           npm ci
-          
+
           # Check for peer dependency issues
           peer_issues=$(npm ls --depth=0 2>&1 | grep -c "UNMET" || echo "0")
-          
+
           if [ "$peer_issues" -eq 0 ]; then
             echo "reproducible-build-passed=true" >> $GITHUB_OUTPUT
             echo "✅ Reproducible build test PASSED"
@@ -125,22 +125,21 @@ jobs:
       # Check 3: AI-Augmented Review Comments
       - name: Check for AI Review Comments
         id: ai-review
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           echo "🔍 Checking for AI-Augmented Review Comments..."
-          
-          # Get PR comments using safe command substitution
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          REPO="${{ github.repository }}"
-          
-          # Use printf to safely handle user input
-          comments=$(printf '%s' "$PR_NUMBER" | xargs -I {} gh api repos/"$REPO"/pulls/{} /comments)
-          
-          # Count AI review comments (comments containing specific markers)
-          ai_comments=$(echo "$comments" | jq '[.[] | select(.body | contains("🤖 AI-Augmented Review") or contains("## 🤖 AI-Augmented Review"))] | length')
-          
+
+          # Get PR comments using environment variables
+          comments=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '.[] | select(.body | contains("🤖 AI-Augmented Review") or contains("## 🤖 AI-Augmented Review"))')
+
+          # Count AI review comments
+          ai_comments=$(echo "$comments" | wc -l || echo "0")
+
           echo "ai-review-comment-count=$ai_comments" >> $GITHUB_OUTPUT
           echo "Found $ai_comments AI review comments"
-          
+
           if [ "$ai_comments" -gt 0 ]; then
             echo "✅ AI review comments found"
           else
@@ -154,12 +153,12 @@ jobs:
           critical_passed="${{ steps.critical-security.outputs.critical-security-passed }}"
           reproducible_passed="${{ steps.reproducible-build.outputs.reproducible-build-passed }}"
           ai_comments="${{ steps.ai-review.outputs.ai-review-comment-count }}"
-          
+
           echo "📊 Compliance Status:"
           echo "  Critical Security: $critical_passed"
           echo "  Reproducible Build: $reproducible_passed"
           echo "  AI Review Comments: $ai_comments"
-          
+
           if [ "$critical_passed" = "true" ] && [ "$reproducible_passed" = "true" ]; then
             echo "compliance-passed=true" >> $GITHUB_OUTPUT
             echo "✅ All compliance requirements PASSED"
@@ -192,7 +191,7 @@ jobs:
 
           echo "### 📋 Compliance Requirements" >> compliance-summary.md
           echo "" >> compliance-summary.md
-          
+
           # Critical Security Status
           if [ "${{ needs.compliance-gate.outputs.critical-security-passed }}" = "true" ]; then
             echo "✅ **Critical Security Checks:** PASSED" >> compliance-summary.md
@@ -228,7 +227,7 @@ jobs:
 
           echo "### 🎯 Merge Readiness" >> compliance-summary.md
           echo "" >> compliance-summary.md
-          
+
           if [ "${{ needs.compliance-gate.outputs.compliance-passed }}" = "true" ]; then
             echo "✅ **Ready for Merge** - All critical compliance requirements met" >> compliance-summary.md
             echo "" >> compliance-summary.md

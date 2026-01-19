@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "prisma": "^7.2.0"
+  },
+  "_npx": {
+    "packages": [
+      "prisma"
+    ]
+  }
+}

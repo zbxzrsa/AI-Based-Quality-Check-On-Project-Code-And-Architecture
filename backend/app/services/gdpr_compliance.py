@@ -85,7 +85,7 @@ class GDPRComplianceService:
         
         deletion_report = {
             "user_id": user_id,
-            "deleted_at": datetime.utcnow().isoformat(),
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
             "reason": reason,
             "items_deleted": {},
         }
@@ -150,7 +150,7 @@ class GDPRComplianceService:
                 full_name="Deleted User",
                 hashed_password="DELETED",
                 is_active=False,
-                deleted_at=datetime.utcnow(),
+                deleted_at=datetime.now(timezone.utc),
             )
         )
         
@@ -161,7 +161,7 @@ class GDPRComplianceService:
         
         return {
             "user_id": user_id,
-            "anonymized_at": datetime.utcnow().isoformat(),
+            "anonymized_at": datetime.now(timezone.utc).isoformat(),
             "status": "completed",
         }
     
@@ -190,7 +190,7 @@ class GDPRComplianceService:
             "consent_type": consent_type,
             "granted": granted,
             "purpose": purpose,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ip_address": None,  # Would get from request
         }
         
@@ -211,7 +211,7 @@ class GDPRComplianceService:
         items_to_delete = []
         
         # Check old audit logs (default: 7 years)
-        cutoff_date = datetime.utcnow() - timedelta(days=2555)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=2555)
         
         result = await self.db.execute(
             select(AuditLog)
@@ -224,12 +224,12 @@ class GDPRComplianceService:
             items_to_delete.append({
                 "type": "audit_log",
                 "id": str(log.id),
-                "age_days": (datetime.utcnow() - log.timestamp).days,
+                "age_days": (datetime.now(timezone.utc) - log.timestamp).days,
                 "action": "archive_or_delete",
             })
         
         # Check inactive users (e.g., not logged in for 2 years)
-        inactive_cutoff = datetime.utcnow() - timedelta(days=730)
+        inactive_cutoff = datetime.now(timezone.utc) - timedelta(days=730)
         
         result = await self.db.execute(
             select(User)
@@ -295,7 +295,7 @@ class GDPRComplianceService:
             "pull_requests": pull_requests,
             "audit_logs": audit_logs,
             "consent": consent,
-            "exported_at": datetime.utcnow().isoformat(),
+            "exported_at": datetime.now(timezone.utc).isoformat(),
         }
     
     def _generate_export_readme(self, user_data: Dict[str, Any]) -> str:

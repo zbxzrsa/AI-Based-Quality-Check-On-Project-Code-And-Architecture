@@ -1,85 +1,208 @@
 """
 LLM Fine-Tuning Pipeline for AI Code Review
 """
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import List, Dict, Any, Optional, BinaryIO
+import asyncio
 import json
+import logging
+from datetime import datetime, timezone
+from functools import wraps
+from typing import List, Dict, Any, Optional, TypeVar, Callable, Type, cast
 from pathlib import Path
-import openai
-from anthropic import Anthropic
 
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    RetryCallState,
+)
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.models.pull_request import PullRequest
+from app.models.review_result import ReviewResult
+from app.schemas.training import TrainingExample, TrainingExampleCreate
+
+logger = logging.getLogger(__name__)
+
+# Type variables for generic typing
+T = TypeVar('T')
+P = TypeVar('P', bound=BaseModel)
+
+class TrainingConfig(BaseModel):
+    """Configuration for training data collection."""
+    min_confidence: float = Field(0.8, ge=0.0, le=1.0, description="Minimum confidence score for inclusion")
+    min_feedback_score: float = Field(4.0, ge=0.0, le=5.0, description="Minimum human feedback score")
+    batch_size: int = Field(100, gt=0, description="Number of examples to process in a batch")
+    max_examples: int = Field(10000, gt=0, description="Maximum number of examples to collect")
+    include_metadata: bool = Field(True, description="Whether to include metadata in the output")
+
+
+def async_retry(
+    max_attempts: int = 3,
+    min_wait: float = 1.0,
+    max_wait: float = 30.0,
+    exceptions: tuple[Type[Exception], ...] = (Exception,),
+):
+    """Decorator for retrying async functions with exponential backoff."""
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @wraps(func)
+        async def wrapper(*args, **kwargs) -> T:
+            last_exception = None
+            for attempt in range(max_attempts):
+                try:
+                    return await func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt == max_attempts - 1:
+                        break
+                    wait_time = min(min_wait * (2 ** attempt), max_wait)
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{max_attempts} failed: {str(e)}. "
+                        f"Retrying in {wait_time:.2f}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+            logger.error(f"All {max_attempts} attempts failed")
+            raise last_exception if last_exception else Exception("Unknown error occurred")
+        return wrapper
+    return decorator
 
 class FineTuningDataset:
-    """Prepare training dataset from historical reviews"""
+    """Service for collecting and processing training data for LLM fine-tuning."""
     
-    def __init__(self, db_session):
-        self.db = db_session
-    
-    def collect_training_data(
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.config = TrainingConfig()
+
+    @async_retry(max_attempts=3, min_wait=1.0)
+    async def _get_pr_diff(self, pr_id: str) -> str:
+        """Get PR diff from database with retry logic."""
+        try:
+            result = await self.db.execute(
+                select(PullRequest.diff)
+                .where(PullRequest.id == pr_id)
+            )
+            pr = result.scalar_one_or_none()
+            if not pr or not hasattr(pr, 'diff'):
+                logger.warning(f"No diff found for PR {pr_id}")
+                return ""
+            return pr.diff
+        except Exception as e:
+            logger.error(f"Error fetching PR {pr_id} diff: {str(e)}", exc_info=True)
+            raise
+
+    @async_retry(max_attempts=3, min_wait=1.0)
+    async def collect_training_data(
         self,
-        min_confidence: float = 0.8,
-        min_feedback_score: float = 4.0,
-        limit: int = 10000
-    ) -> List[Dict[str, Any]]:
+        config: Optional[TrainingConfig] = None
+    ) -> List[TrainingExample]:
         """
-        Collect high-quality training examples from database
+        Collect high-quality training examples from the database.
         
         Args:
-            min_confidence: Minimum AI confidence score
-            min_feedback_score: Minimum human feedback score
-            limit: Maximum number of examples
+            config: Configuration for data collection. If None, uses default config.
             
         Returns:
-            List of training examples
-        """
-        from sqlalchemy import select, and_
-        
-        # Query high-quality PR reviews
-        query = select(PullRequest, ReviewResult).join(
-            ReviewResult, PullRequest.id == ReviewResult.pull_request_id
-        ).where(
-            and_(
-                ReviewResult.confidence >= min_confidence,
-                ReviewResult.human_feedback_score >= min_feedback_score
+            List of training examples ready for fine-tuning.
+                    ReviewComment.severity.in_(["high", "critical"])
+                )
             )
-        ).limit(limit)
+            .order_by(PullRequest.updated_at.desc())
+            .limit(limit)
+        )
         
         result = await self.db.execute(query)
         examples = []
+        processed_prs = set()
         
-        for pr, review in result:
-            # Get PR diff
-            diff = self._get_pr_diff(pr.id)
-            
-            # Format as training example
-            example = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an expert code reviewer analyzing pull requests."
-                    },
-                    {
-                        "role": "user",
-                        "content": self._format_review_prompt(pr, diff)
-                    },
-                    {
-                        "role": "assistant",
-                        "content": json.dumps({
-                            "summary": review.summary,
-                            "issues": json.loads(review.ai_suggestions),
-                            "risk_score": review.risk_score
-                        })
-                    }
-                ],
-                "metadata": {
-                    "pr_id": str(pr.id),
-                    "language": pr.language,
-                    "confidence": review.confidence,
-                    "feedback_score": review.human_feedback_score
+        # Group comments by PR and review
+        pr_reviews = {}
+        for pr, review, comment in result.all():
+            if pr.id not in pr_reviews:
+                pr_reviews[pr.id] = {
+                    "pr": pr,
+                    "reviews": {}
                 }
-            }
             
-            examples.append(example)
+            if review.id not in pr_reviews[pr.id]["reviews"]:
+                pr_reviews[pr.id]["reviews"][review.id] = {
+                    "review": review,
+                    "comments": []
+                }
+            
+            pr_reviews[pr.id]["reviews"][review.id]["comments"].append(comment)
+        
+        # Process each PR and its reviews
+        for pr_id, pr_data in pr_reviews.items():
+            pr = pr_data["pr"]
+            
+            try:
+                # Get PR diff
+                diff = await self._get_pr_diff(pr.id)
+                if not diff:
+                    continue
+                
+                # Process each review for this PR
+                for review_id, review_data in pr_data["reviews"].items():
+                    review = review_data["review"]
+                    comments = review_data["comments"]
+                    
+                    # Format comments as markdown
+                    formatted_comments = []
+                    for comment in sorted(comments, key=lambda c: (c.file_path or "", c.line_number or 0)):
+                        comment_text = f"**{comment.severity.upper()}**"
+                        if comment.file_path:
+                            comment_text += f" in `{comment.file_path}`"
+                            if comment.line_number:
+                                comment_text += f" at line {comment.line_number}"
+                        comment_text += f": {comment.message}"
+                        
+                        if comment.suggested_fix:
+                            comment_text += f"\n\`\`\`suggestion\n{comment.suggested_fix}\n\`\`\`"
+                        
+                        formatted_comments.append(comment_text)
+                    
+                    if not formatted_comments:
+                        continue
+                        
+                    # Create training example
+                    example = {
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are an expert code reviewer. Analyze the following code changes "
+                                    "and provide a detailed review focusing on code quality, security, "
+                                    "performance, and maintainability. Be specific and provide actionable "
+                                    "suggestions when possible."
+                                )
+                            },
+                            {
+                                "role": "user",
+                                "content": (
+                                    f"Review the following code changes for PR #{pr.github_pr_number}: {pr.title}\n\n"
+                                    f"```diff\n{diff}\n```"
+                                )
+                            },
+                            {
+                                "role": "assistant",
+                                "content": "\n\n".join(formatted_comments)
+                            }
+                        ]
+                    }
+                    
+                    examples.append(example)
+                    
+            except Exception as e:
+                # Log error but continue with other PRs
+                print(f"Error processing PR {pr.id}: {str(e)}")
+                continue
+            
+            if len(examples) >= limit:
+                break
         
         return examples
     
@@ -101,16 +224,16 @@ Diff:
 Provide a comprehensive code review with security, logic, architecture, performance, and quality issues.
 """
     
-    def _get_pr_diff(self, pr_id: str) -> str:
+    async def _get_pr_diff(self, pr_id: str) -> str:
         """Get PR diff from database"""
         # Would fetch from database
         return "diff content"
     
-    def export_jsonl(self, examples: List[Dict[str, Any]], output_file: str):
+    async def export_jsonl(self, examples: List[Dict[str, Any]], output_file: str):
         """Export to JSONL format for OpenAI fine-tuning"""
-        with open(output_file, 'w') as f:
+        async with aiofiles.open(output_file, 'w', encoding='utf-8') as f:
             for example in examples:
-                f.write(json.dumps(example) + '\n')
+                await f.write(json.dumps(example) + '\n')
 
 
 class LLMFineTuner:
@@ -124,7 +247,7 @@ class LLMFineTuner:
         elif provider == "anthropic":
             self.client = Anthropic()
     
-    def create_fine_tuning_job(
+    async def create_fine_tuning_job(
         self,
         training_file: str,
         validation_file: Optional[str] = None,
@@ -145,40 +268,39 @@ class LLMFineTuner:
         Returns:
             Fine-tuning job ID
         """
-        if self.provider == "openai":
-            # Upload training file
-            with open(training_file, 'rb') as f:
-                train_file = self.client.files.create(
-                    file=f,
+        async def _upload_file(self, file_path: str) -> str:
+            """Upload a file for fine-tuning"""
+            async with aiofiles.open(file_path, 'rb') as f:
+                file = await self.client.files.create(
+                    file=await f.read(),
                     purpose='fine-tune'
                 )
-            
-            # Upload validation file if provided
-            val_file_id = None
-            if validation_file:
-                with open(validation_file, 'rb') as f:
-                    val_file = self.client.files.create(
-                        file=f,
-                        purpose='fine-tune'
-                    )
-                    val_file_id = val_file.id
-            
-            # Create fine-tuning job
-            job = self.client.fine_tuning.jobs.create(
-                training_file=train_file.id,
-                validation_file=val_file_id,
-                model=model,
-                suffix=suffix,
-                hyperparameters=hyperparameters or {
-                    "n_epochs": 3,
-                    "batch_size": 4,
-                    "learning_rate_multiplier": 0.1
-                }
-            )
-            
-            return job.id
+            return file.id
+        
+        # Upload training file
+        train_file_id = await _upload_file(training_file)
+        
+        # Upload validation file if provided
+        val_file_id = None
+        if validation_file:
+            val_file_id = await _upload_file(validation_file)
+        
+        # Create fine-tuning job
+        job = await self.client.fine_tuning.jobs.create(
+            training_file=train_file_id,
+            validation_file=val_file_id,
+            model=model,
+            suffix=suffix,
+            hyperparameters=hyperparameters or {
+                "n_epochs": 3,
+                "batch_size": 4,
+                "learning_rate_multiplier": 0.1
+            }
+        )
+        
+        return job.id
     
-    def monitor_job(self, job_id: str) -> Dict[str, Any]:
+    async def monitor_job(self, job_id: str):
         """
         Monitor fine-tuning job status
         
@@ -189,21 +311,17 @@ class LLMFineTuner:
             Job status and metrics
         """
         if self.provider == "openai":
-            job = self.client.fine_tuning.jobs.retrieve(job_id)
+            job = await self.client.fine_tuning.jobs.retrieve(job_id)
             
             return {
-                "id": job.id,
                 "status": job.status,
-                "model": job.model,
-                "fine_tuned_model": job.fine_tuned_model,
+                "model": job.fine_tuned_model,
                 "created_at": job.created_at,
-                "finished_at": job.finished_at,
-                "error": job.error,
-                "trained_tokens": job.trained_tokens,
-                "hyperparameters": job.hyperparameters,
+                "updated_at": job.updated_at,
+                "metrics": job.metrics
             }
     
-    def evaluate_model(
+    async def evaluate_model(
         self,
         model_id: str,
         test_set: List[Dict[str, Any]]
@@ -224,7 +342,7 @@ class LLMFineTuner:
         
         for example in test_set:
             # Get model prediction
-            response = self._get_prediction(model_id, example["messages"][:-1])
+            response = await self._get_prediction(model_id, example["messages"][:-1])
             
             # Parse response
             try:
@@ -249,16 +367,25 @@ class LLMFineTuner:
             "avg_confidence": sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0,
         }
     
-    def _get_prediction(self, model_id: str, messages: List[Dict]) -> str:
+    async def _get_prediction(self, model_id: str, messages: List[Dict]):
         """Get model prediction"""
-        if self.provider == "openai":
-            response = self.client.chat.completions.create(
-                model=model_id,
-                messages=messages,
-                temperature=0.1
-            )
-            return response.choices[0].message.content
-        return ""
+        try:
+            if self.provider == "openai":
+                response = await self.client.chat.completions.create(
+                    model=model_id,
+                    messages=messages,
+                    temperature=0.2
+                )
+                return response.choices[0].message.content
+            elif self.provider == "anthropic":
+                response = await self.client.messages.create(
+                    model=model_id,
+                    messages=messages,
+                    max_tokens=1000
+                )
+                return response.content[0].text
+        except:
+            return ""
 
 
 class RLHFTrainer:
@@ -267,7 +394,7 @@ class RLHFTrainer:
     def __init__(self, db_session):
         self.db = db_session
     
-    def collect_feedback(
+    async def collect_feedback(
         self,
         pr_id: str,
         review_id: str,

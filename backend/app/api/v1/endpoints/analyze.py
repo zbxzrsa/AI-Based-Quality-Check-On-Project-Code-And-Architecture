@@ -60,60 +60,71 @@ class ArchitectureAnalyzer:
         self.temp_dirs = []
     
     async def analyze_repository(self, request: AnalyzeRequest) -> Dict[str, Any]:
-        """Main analysis orchestrator."""
+        """Main analysis orchestrator with async file operations."""
         analysis_id = f"analysis_{hash(request.repositoryUrl)}_{hash(str(request))}"
+        temp_dirs = []
         
         try:
             # Stage 1: Repository Cloning
             self._send_progress("cloning", 10, "Cloning repository...")
             repo_path = self._clone_repository(request.repositoryUrl)
+            temp_dirs.append(repo_path)
             
-            # Stage 2: Code Analysis
-            self._send_progress("analyzing", 30, "Analyzing code structure...")
-            code_hierarchy = self._analyze_code_structure(repo_path)
-            
-            # Stage 3: Complexity Metrics
-            if request.includeComplexityMetrics:
-                self._send_progress("metrics", 60, "Calculating complexity metrics...")
-                metrics = self._calculate_complexity_metrics(code_hierarchy)
-            else:
-                metrics = {}
-            
-            # Stage 4: Architecture Analysis
-            if request.includeArchitectureAnalysis:
-                self._send_progress("architecture", 80, "Analyzing architectural patterns...")
-                architecture_summary = self._analyze_architecture(code_hierarchy, metrics)
-            else:
-                architecture_summary = {}
-            
-            # Stage 5: Neo4j Integration
-            self._send_progress("neo4j", 90, "Storing in Neo4j database...")
-            self._store_in_neo4j(code_hierarchy, architecture_summary, metrics)
-            
-            # Stage 6: Completion
-            self._send_progress("completed", 100, "Analysis complete!")
-            
-            result = {
-                "repositoryUrl": request.repositoryUrl,
-                "analysisId": analysis_id,
-                "status": "completed",
-                "architectureSummary": architecture_summary,
-                "codeHierarchy": code_hierarchy,
-                "metrics": metrics
-            }
-            
-            return result
-            
+            try:
+                # Stage 2: Code Analysis
+                self._send_progress("analyzing", 30, "Analyzing code structure...")
+                code_hierarchy = await self._analyze_code_structure(repo_path)
+                
+                # Stage 3: Complexity Metrics
+                if request.includeComplexityMetrics:
+                    self._send_progress("metrics", 60, "Calculating complexity metrics...")
+                    metrics = await asyncio.to_thread(self._calculate_complexity_metrics, code_hierarchy)
+                else:
+                    metrics = {}
+                
+                # Stage 4: Architecture Analysis
+                if request.includeArchitectureAnalysis:
+                    self._send_progress("architecture", 80, "Analyzing architectural patterns...")
+                    architecture_summary = await asyncio.to_thread(self._analyze_architecture, code_hierarchy, metrics)
+                else:
+                    architecture_summary = {}
+                
+                # Stage 5: Neo4j Integration
+                self._send_progress("neo4j", 90, "Storing in Neo4j database...")
+                await asyncio.to_thread(self._store_in_neo4j, code_hierarchy, architecture_summary, metrics)
+                
+                # Stage 6: Completion
+                self._send_progress("completed", 100, "Analysis complete!")
+                
+                return {
+                    "repositoryUrl": request.repositoryUrl,
+                    "analysisId": analysis_id,
+                    "status": "completed",
+                    "architectureSummary": architecture_summary,
+                    "codeHierarchy": code_hierarchy,
+                    "metrics": metrics
+                }
+                
+            finally:
+                # Cleanup temporary directory
+                try:
+                    shutil.rmtree(repo_path, ignore_errors=True)
+                    if repo_path in temp_dirs:
+                        temp_dirs.remove(repo_path)
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup temp dir {repo_path}: {e}", exc_info=True)
+                    
         except Exception as e:
-            logger.error(f"Analysis failed: {str(e)}")
+            logger.error(f"Analysis failed: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
+            
         finally:
-            # Cleanup temporary directories
-            for temp_dir in self.temp_dirs:
+            # Cleanup any remaining temporary directories
+            for temp_dir in temp_dirs:
                 try:
                     shutil.rmtree(temp_dir, ignore_errors=True)
                 except Exception as e:
-                    logger.warning(f"Failed to cleanup temp dir {temp_dir}: {e}")
+                    logger.warning(f"Failed to cleanup temp dir {temp_dir}: {e}", exc_info=True)
 
     def _send_progress(self, stage: str, progress: int, message: str):
         """Send progress update via Server-Sent Events."""
@@ -147,38 +158,52 @@ class ArchitectureAnalyzer:
             logger.error(f"Failed to clone repository: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to clone repository: {str(e)}")
 
-    def _analyze_code_structure(self, repo_path: str) -> Dict[str, Any]:
-        """Analyze code structure using AST parsing."""
+    async def _analyze_code_structure(self, repo_path: str) -> Dict[str, Any]:
+        """Analyze code structure using AST parsing with async file operations."""
         code_hierarchy = {
-            "files": []
+            "files": [],
+            "summary": {
+                "total_files": 0,
+                "file_types": {}
+            }
         }
         
         repo_dir = Path(repo_path)
+        if not repo_dir.exists():
+            raise ValueError(f"Repository directory not found: {repo_path}")
         
-        # Find all Python files
-        python_files = list(repo_dir.rglob("*.py"))
-        js_files = list(repo_dir.rglob("*.js"))
-        ts_files = list(repo_dir.rglob("*.ts"))
-        jsx_files = list(repo_dir.rglob("*.jsx"))
-        tsx_files = list(repo_dir.rglob("*.tsx"))
+        # Count files by extension and collect Python files for analysis
+        python_files = []
+        for file_path in repo_dir.rglob('*'):
+            if file_path.is_file():
+                suffix = file_path.suffix.lower()
+                code_hierarchy["summary"]["file_types"][suffix] = code_hierarchy["summary"]["file_types"].get(suffix, 0) + 1
+                if suffix == '.py':
+                    python_files.append(file_path)
         
-        all_files = python_files + js_files + ts_files + jsx_files + tsx_files
+        # Process Python files in parallel with limited concurrency
+        semaphore = asyncio.Semaphore(10)  # Limit concurrent file operations
         
-        logger.info(f"Found {len(all_files)} source files to analyze")
+        async def process_file(file_path: Path) -> Optional[Dict[str, Any]]:
+            async with semaphore:
+                try:
+                    return await self._analyze_file(file_path, repo_dir)
+                except Exception as e:
+                    logger.warning(f"Failed to analyze file {file_path}: {str(e)}", exc_info=True)
+                    return None
         
-        for file_path in all_files:
-            try:
-                file_info = self._analyze_file(file_path, repo_dir)
-                if file_info:
-                    code_hierarchy["files"].append(file_info)
-            except Exception as e:
-                logger.warning(f"Failed to analyze file {file_path}: {str(e)}")
-                continue
+        # Analyze Python files concurrently
+        tasks = [process_file(file_path) for file_path in python_files]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Filter out None results and exceptions
+        code_hierarchy["files"] = [r for r in results if isinstance(r, dict)]
+        code_hierarchy["summary"]["total_files"] = len(code_hierarchy["files"])
         
         return code_hierarchy
 
-    def _analyze_file(self, file_path: Path, repo_root: Path) -> Optional[Dict[str, Any]]:
-        """Analyze individual file using AST parsing."""
+    async def _analyze_file(self, file_path: Path, repo_root: Path) -> Optional[Dict[str, Any]]:
+        """Analyze individual file using AST parsing with async file I/O."""
         try:
             relative_path = str(file_path.relative_to(repo_root))
             
@@ -187,18 +212,28 @@ class ArchitectureAnalyzer:
             if file_type == "unknown":
                 return None
             
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
+            # Use aiofiles for async file reading
+            try:
+                async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = await f.read()
+            except UnicodeDecodeError:
+                logger.warning(f"Failed to decode file {file_path}, trying with different encoding")
+                try:
+                    async with aiofiles.open(file_path, 'r', encoding='latin-1') as f:
+                        content = await f.read()
+                except Exception as e:
+                    logger.error(f"Failed to read file {file_path} with fallback encoding: {str(e)}")
+                    return None
             
             # Parse AST for Python files
             if file_type == "python":
-                return self._analyze_python_file(content, relative_path, file_type)
+                return await self._analyze_python_file(content, relative_path, file_type)
             else:
                 # For non-Python files, do basic analysis
-                return self._analyze_generic_file(content, relative_path, file_type)
+                return await self._analyze_generic_file(content, relative_path, file_type)
                 
         except Exception as e:
-            logger.warning(f"Failed to analyze file {file_path}: {str(e)}")
+            logger.warning(f"Failed to analyze file {file_path}: {str(e)}", exc_info=True)
             return None
 
     def _get_file_type(self, suffix: str) -> str:
