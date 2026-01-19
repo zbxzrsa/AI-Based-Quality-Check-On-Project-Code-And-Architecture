@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from './api/auth/[...nextauth]/route';
 import { Providers } from '@/providers';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/toaster';
+import { BackendStatus } from '@/components/common/backend-status';
 import '@/styles/globals.css';
 
 const inter = Inter({
@@ -32,14 +33,21 @@ export default function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const session = getServerSession(authOptions);
-    
     return (
-        <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+        <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
             <body className="min-h-screen bg-background font-sans antialiased">
-                <Providers>
-                    <AuthProvider>{children}</AuthProvider>
-                </Providers>
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    <Providers>
+                        <AuthProvider>{children}</AuthProvider>
+                    </Providers>
+                    <Toaster />
+                    <BackendStatus />
+                </ThemeProvider>
             </body>
         </html>
     );

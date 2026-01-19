@@ -1,8 +1,8 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { NextResponse } from 'next/server';
+import type { NextAuthOptions } from 'next-auth';
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -16,8 +16,10 @@ export const authOptions = {
         }
 
         try {
-          const apiUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-          const res = await fetch(`${apiUrl}/api/v1/auth/login`, {
+          const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+          
+          // Step 1: Authenticate and get tokens
+          const loginRes = await fetch(`${backendUrl}/api/v1/auth/login`, {
             method: 'POST',
             body: JSON.stringify({
               email: credentials.email,
@@ -26,22 +28,37 @@ export const authOptions = {
             headers: { 'Content-Type': 'application/json' },
           });
 
-          if (!res.ok) {
-            const error = await res.json().catch(() => ({}));
-            throw new Error(error.message || 'Authentication failed');
+          if (!loginRes.ok) {
+            const error = await loginRes.json().catch(() => ({}));
+            throw new Error(error.detail || 'Authentication failed');
           }
 
-          const user = await res.json();
+          const authData = await loginRes.json();
 
-          if (!user) {
+          if (!authData.access_token) {
             throw new Error('Invalid response from authentication server');
           }
 
+          // Step 2: Get user details using access token
+          const meRes = await fetch(`${backendUrl}/api/v1/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${authData.access_token}`,
+            },
+          });
+
+          if (!meRes.ok) {
+            throw new Error('Failed to fetch user details');
+          }
+
+          const userData = await meRes.json();
+
           return {
-            id: user.id || user._id,
-            email: user.email,
-            name: user.name || user.email.split('@')[0],
-            ...user,
+            id: userData.id,
+            email: userData.email,
+            name: userData.full_name || userData.email.split('@')[0],
+            role: userData.role,
+            accessToken: authData.access_token,
+            refreshToken: authData.refresh_token,
           };
         } catch (error) {
           console.error('Authentication error:', error);
@@ -53,13 +70,23 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.user = user;
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.role = user.role;
+        token.accessToken = user.accessToken;
+        token.refreshToken = user.refreshToken;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token?.user) {
-        session.user = token.user;
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.role = token.role as string;
+        session.user.accessToken = token.accessToken as string;
+        session.user.refreshToken = token.refreshToken as string;
       }
       return session;
     },
@@ -69,10 +96,10 @@ export const authOptions = {
     error: '/auth/error',
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
 };
 

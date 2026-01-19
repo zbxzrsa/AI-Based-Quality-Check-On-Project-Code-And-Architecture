@@ -49,6 +49,7 @@ class PullRequest(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     github_pr_number = Column(Integer, nullable=False)
     title = Column(String(512), nullable=False)
     description = Column(Text, nullable=True)
@@ -61,14 +62,17 @@ class PullRequest(Base):
     risk_score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    analyzed_at = Column(DateTime, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     merged_at = Column(DateTime, nullable=True)
     closed_at = Column(DateTime, nullable=True)
 
     # Relationships
     project = relationship("Project", back_populates="pull_requests")
+    author = relationship("User", back_populates="pull_requests")
     reviews = relationship("CodeReview", back_populates="pull_request", cascade="all, delete-orphan")
     architecture_analyses = relationship("ArchitectureAnalysis", back_populates="pull_request", cascade="all, delete-orphan")
+    review_result = relationship("ReviewResult", back_populates="pull_request", uselist=False)
 
     def __repr__(self):
         return f"<PullRequest {self.github_pr_number}: {self.title}>"

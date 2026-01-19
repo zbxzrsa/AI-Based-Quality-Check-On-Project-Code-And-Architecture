@@ -10,6 +10,17 @@ import enum
 
 from app.database.postgresql import Base
 
+# Import models from separate files
+from app.models.code_review import (
+    CodeReview, 
+    ReviewComment, 
+    ArchitectureAnalysis, 
+    ArchitectureViolation,
+    PRStatus as CodeReviewPRStatus,
+    ReviewStatus,
+    PullRequest as CodeReviewPullRequest
+)
+
 
 class UserRole(str, enum.Enum):
     """User role enum"""
@@ -76,31 +87,8 @@ class Project(Base):
     pull_requests = relationship("PullRequest", back_populates="project")
 
 
-class PullRequest(Base):
-    """Pull Request model"""
-    __tablename__ = "pull_requests"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    github_pr_number = Column(Integer, nullable=False)
-    title = Column(String(500), nullable=False)
-    description = Column(Text)
-    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    status = Column(SQLEnum(PRStatus), nullable=False, default=PRStatus.pending)
-    risk_score = Column(Float)
-    branch_name = Column(String(255))
-    commit_sha = Column(String(40))
-    files_changed = Column(Integer, default=0)
-    lines_added = Column(Integer, default=0)
-    lines_deleted = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    analyzed_at = Column(DateTime(timezone=True))
-    reviewed_at = Column(DateTime(timezone=True))
-    
-    # Relationships
-    project = relationship("Project", back_populates="pull_requests")
-    author = relationship("User", back_populates="pull_requests")
-    review_result = relationship("ReviewResult", back_populates="pull_request", uselist=False)
+# Use PullRequest from code_review module
+PullRequest = CodeReviewPullRequest
 
 
 class ReviewResult(Base):

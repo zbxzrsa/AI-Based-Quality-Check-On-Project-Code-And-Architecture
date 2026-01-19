@@ -10,7 +10,7 @@ import json
 import logging
 
 from app.database.postgresql import get_db
-from app.models import Project, PullRequest, User, PRStatus, CodeReview, ReviewComment, ArchitectureAnalysis
+from app.models import Project, PullRequest, User, PRStatus, ReviewResult, ArchitecturalBaseline, CodeReview, ReviewComment, ArchitectureAnalysis
 from app.schemas.auth import Message
 from app.schemas.code_review import CodeReviewResult, ReviewComment as ReviewCommentSchema, ReviewSeverity
 from app.schemas.architecture import ArchitectureReport, ArchitectureViolation

@@ -10,7 +10,7 @@ from enum import Enum
 import logging
 
 from app.services.llm_client import get_llm_client
-from app.services.ast_parser import ASTParser
+from app.services.parsers.factory import ParserFactory
 from app.services.architecture_analyzer import ArchitectureAnalyzer
 from app.schemas.code_review import CodeReviewResult, ReviewComment, ReviewSeverity
 
@@ -21,7 +21,7 @@ class CodeReviewer:
     
     def __init__(self, llm_provider: str = "openai"):
         self.llm = get_llm_client(llm_provider)
-        self.ast_parser = ASTParser()
+        self.parser_factory = ParserFactory
         self.arch_analyzer = ArchitectureAnalyzer()
     
     async def review_pull_request(
@@ -103,8 +103,14 @@ class CodeReviewer:
         )
         
         try:
-            # Parse AST for the file
-            ast_info = await self.ast_parser.parse_file(file_change['file_path'])
+            # Parse AST for the file - get appropriate parser based on file extension
+            parser = self.parser_factory.get_parser_by_filename(file_change['file_path'])
+            
+            if parser:
+                ast_info = await parser.parse_file(file_change['file_path'])
+            else:
+                # No parser available for this file type, skip AST analysis
+                ast_info = None
             
             # Generate LLM prompt for code review
             prompt = self._create_review_prompt(

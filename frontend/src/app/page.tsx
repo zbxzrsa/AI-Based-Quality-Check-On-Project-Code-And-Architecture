@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useIsAuthenticated } from '../hooks/useAuth';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
 import { Shield, Code, GitPullRequest, Users, TrendingUp, Database, Cpu, Lock } from 'lucide-react';
 
 export default function Home() {
