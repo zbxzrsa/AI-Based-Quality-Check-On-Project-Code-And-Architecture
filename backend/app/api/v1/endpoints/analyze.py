@@ -19,6 +19,7 @@ import re
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
+import aiofiles
 
 from app.services.llm_client import LLMClient, LLMProvider
 from app.services.neo4j_ast_service_extended import Neo4jASTService
@@ -186,8 +187,8 @@ class ArchitectureAnalyzer:
             if file_type == "unknown":
                 return None
             
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
+            async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = await f.read()
             
             # Parse AST for Python files
             if file_type == "python":
@@ -217,44 +218,8 @@ class ArchitectureAnalyzer:
         try:
             tree = ast.parse(content)
             
-            classes = []
-            functions = []
-            
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    methods = []
-                    for item in node.body:
-                        if isinstance(item, ast.FunctionDef):
-                            methods.append({
-                                "name": item.name,
-                                "line": item.lineno,
-                                "complexity": self._calculate_complexity(item)
-                            })
-                    
-                    classes.append({
-                        "name": node.name,
-                        "line": node.lineno,
-                        "methods": methods
-                    })
-                
-                elif isinstance(node, ast.FunctionDef):
-                    # Check if this function is not inside a class
-                    is_inside_class = False
-                    for parent in ast.walk(tree):
-                        if isinstance(parent, ast.ClassDef):
-                            for child in ast.walk(parent):
-                                if child is node:
-                                    is_inside_class = True
-                                    break
-                            if is_inside_class:
-                                break
-                    
-                    if not is_inside_class:
-                        functions.append({
-                            "name": node.name,
-                            "line": node.lineno,
-                            "complexity": self._calculate_complexity(node)
-                        })
+            classes = await self._extract_classes_from_ast(tree)
+            functions = await self._extract_functions_from_ast(tree)
             
             return {
                 "path": relative_path,
@@ -265,7 +230,55 @@ class ArchitectureAnalyzer:
             
         except SyntaxError as e:
             logger.warning(f"Syntax error in {relative_path}: {str(e)}")
-            return None
+            return {
+                "path": relative_path,
+                "type": file_type,
+                "classes": [],
+                "functions": []
+            }
+
+    async def _extract_classes_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
+        """Extract class information from AST."""
+        classes = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                methods = []
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef):
+                        methods.append({
+                            "name": item.name,
+                            "line": item.lineno,
+                            "complexity": self._calculate_complexity(item)
+                        })
+                
+                classes.append({
+                    "name": node.name,
+                    "line": node.lineno,
+                    "methods": methods
+                })
+        return classes
+
+    async def _extract_functions_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
+        """Extract function information from AST."""
+        functions = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                if not self._is_function_inside_class(node, tree):
+                    functions.append({
+                        "name": node.name,
+                        "line": node.lineno,
+                        "complexity": self._calculate_complexity(node)
+                    })
+        return functions
+
+    def _is_function_inside_class(self, function_node: ast.FunctionDef, tree: ast.AST) -> bool:
+        """Check if a function is inside a class."""
+        for parent in ast.walk(tree):
+            if isinstance(parent, ast.ClassDef):
+                for child in ast.walk(parent):
+                    if child is function_node:
+                        return True
+        return False
 
     async def _analyze_generic_file(self, content: str, relative_path: str, file_type: str) -> Dict[str, Any]:
         """Basic analysis for non-Python files."""
@@ -379,16 +392,7 @@ class ArchitectureAnalyzer:
         """Analyze architectural patterns and purpose using Ollama."""
         try:
             # Prepare data for LLM analysis
-            architecture_data = {
-                "total_files": len(code_hierarchy["files"]),
-                "total_classes": sum(len(f["classes"]) for f in code_hierarchy["files"]),
-                "total_functions": sum(len(f["functions"]) for f in code_hierarchy["files"]),
-                "avg_complexity": metrics.get("cyclomaticComplexity", 0),
-                "coupling": metrics.get("coupling", 0),
-                "cohesion": metrics.get("cohesion", 0),
-                "code_smells": metrics.get("codeSmells", 0),
-                "file_types": list(set(f["type"] for f in code_hierarchy["files"] if f["type"] != "unknown"))
-            }
+            architecture_data = self._prepare_architecture_data(code_hierarchy, metrics)
             
             # Use Ollama for architectural analysis
             ollama_client = LLMClient(LLMProvider.OLLAMA)
@@ -420,6 +424,19 @@ class ArchitectureAnalyzer:
         except Exception as e:
             logger.error(f"Architecture analysis failed: {str(e)}")
             return {}
+
+    def _prepare_architecture_data(self, code_hierarchy: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare architecture data for LLM analysis."""
+        return {
+            "total_files": len(code_hierarchy["files"]),
+            "total_classes": sum(len(f["classes"]) for f in code_hierarchy["files"]),
+            "total_functions": sum(len(f["functions"]) for f in code_hierarchy["files"]),
+            "avg_complexity": metrics.get("cyclomaticComplexity", 0),
+            "coupling": metrics.get("coupling", 0),
+            "cohesion": metrics.get("cohesion", 0),
+            "code_smells": metrics.get("codeSmells", 0),
+            "file_types": list(set(f["type"] for f in code_hierarchy["files"] if f["type"] != "unknown"))
+        }
 
     async def _generate_architectural_purpose_ollama(
         self, 

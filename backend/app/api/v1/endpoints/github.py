@@ -171,8 +171,8 @@ async def handle_pull_request_event(
                 existing_pr.status = PRStatus.approved
             else:
                 existing_pr.status = PRStatus.rejected
-            
-            existing_pr.reviewed_at = datetime.utcnow()
+        
+            existing_pr.reviewed_at = datetime.now(datetime.utcnow().tzinfo)
             await db.commit()
         
         return {"message": "PR closed"}

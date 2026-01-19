@@ -4,19 +4,19 @@ Structured logging configuration for the application
 import logging
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 
-class CustomJsonFormatter(jsonlogger.JsonFormatter):
+class CustomJsonFormatter(JsonFormatter):
     """Custom JSON formatter with additional fields"""
     
     def add_fields(self, log_record: Dict[str, Any], record: logging.LogRecord, message_dict: Dict[str, Any]) -> None:
         super().add_fields(log_record, record, message_dict)
         
         # Add timestamp
-        log_record['timestamp'] = datetime.utcnow().isoformat()
+        log_record['timestamp'] = datetime.now(timezone.utc).isoformat()
         
         # Add log level
         log_record['level'] = record.levelname
@@ -74,6 +74,9 @@ def setup_logging(level: str = "INFO", enable_json: bool = True) -> None:
     logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 
+# Create logger instance
+logger = logging.getLogger(__name__)
+
 # Request logging middleware
 async def log_request(request, call_next):
     """
@@ -81,8 +84,6 @@ async def log_request(request, call_next):
     """
     import time
     from uuid import uuid4
-    
-    logger = logging.getLogger(__name__)
     
     # Generate request ID
     request_id = str(uuid4())
@@ -136,8 +137,6 @@ async def log_request(request, call_next):
 # Error logging
 def log_exception(exc: Exception, context: Dict[str, Any] = None):
     """Log exception with context"""
-    logger = logging.getLogger(__name__)
-    
     extra = context or {}
     extra['exception_type'] = type(exc).__name__
     extra['exception_message'] = str(exc)

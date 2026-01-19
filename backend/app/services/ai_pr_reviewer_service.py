@@ -46,7 +46,15 @@ class AIReviewService:
             llm_client: LLM client for AI analysis
         """
         self.llm_client = llm_client
-        self.ai_reviewer = AIPRReviewer(llm_client)
+        # Get API key based on provider
+        if llm_client.provider == LLMProvider.OPENAI:
+            api_key = getattr(llm_client.client, 'api_key', 'unknown')
+        elif llm_client.provider == LLMProvider.ANTHROPIC:
+            api_key = getattr(llm_client.client, 'api_key', 'unknown')
+        else:
+            api_key = "ollama"  # Ollama doesn't need API key
+        
+        self.ai_reviewer = AIPRReviewer(api_key, llm_client.model)
         self.logger = logger
         
     async def review_pull_request(self, request: ReviewRequest) -> ReviewResponse:
@@ -177,24 +185,49 @@ class AIReviewService:
         recommendations = []
         
         # Count issue types
-        security_issues_count = sum(len(r.review_result.security_issues) for r in responses)
-        architectural_issues_count = sum(len(r.review_result.architectural_issues) for r in responses)
+        issue_counts = self._count_issues_by_type(responses)
         
-        if security_issues_count > 0:
-            recommendations.append("Prioritize security issue fixes across all reviewed PRs")
-        
-        if architectural_issues_count > 0:
-            recommendations.append("Review and update architectural guidelines")
-        
-        non_compliant_count = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.NON_COMPLIANT)
-        if non_compliant_count > len(responses) * 0.3:  # More than 30% non-compliant
-            recommendations.append("Consider mandatory code review training for the team")
-        
-        avg_score = sum(r.review_result.safety_score for r in responses) / len(responses)
-        if avg_score < 70:
-            recommendations.append("Implement stricter quality gates in CI/CD pipeline")
+        # Generate recommendations based on issue counts
+        recommendations.extend(self._generate_security_recommendations(issue_counts["security"]))
+        recommendations.extend(self._generate_architectural_recommendations(issue_counts["architectural"]))
+        recommendations.extend(self._generate_compliance_recommendations(responses))
+        recommendations.extend(self._generate_quality_recommendations(responses))
         
         return recommendations
+
+    def _count_issues_by_type(self, responses: List[ReviewResponse]) -> Dict[str, int]:
+        """Count issues by type across all responses."""
+        return {
+            "security": sum(len(r.review_result.security_issues) for r in responses),
+            "architectural": sum(len(r.review_result.architectural_issues) for r in responses),
+            "refactoring": sum(len(r.review_result.refactoring_suggestions) for r in responses)
+        }
+
+    def _generate_security_recommendations(self, security_issues_count: int) -> List[str]:
+        """Generate security-specific recommendations."""
+        if security_issues_count > 0:
+            return ["Prioritize security issue fixes across all reviewed PRs"]
+        return []
+
+    def _generate_architectural_recommendations(self, architectural_issues_count: int) -> List[str]:
+        """Generate architectural-specific recommendations."""
+        if architectural_issues_count > 0:
+            return ["Review and update architectural guidelines"]
+        return []
+
+    def _generate_compliance_recommendations(self, responses: List[ReviewResponse]) -> List[str]:
+        """Generate compliance-specific recommendations."""
+        non_compliant_count = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.NON_COMPLIANT)
+        if non_compliant_count > len(responses) * 0.3:  # More than 30% non-compliant
+            return ["Consider mandatory code review training for the team"]
+        return []
+
+    def _generate_quality_recommendations(self, responses: List[ReviewResponse]) -> List[str]:
+        """Generate quality-specific recommendations."""
+        avg_score = sum(r.review_result.safety_score for r in responses) / len(responses)
+        if avg_score < 70:
+            return ["Implement stricter quality gates in CI/CD pipeline"]
+        return []
 
     def export_review_report(self, response: ReviewResponse, format: str = "json") -> str:
         """

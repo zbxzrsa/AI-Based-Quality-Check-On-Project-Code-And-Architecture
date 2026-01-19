@@ -1,7 +1,7 @@
 """
 Authentication endpoints
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -120,11 +120,12 @@ async def login(
     refresh_token = create_refresh_token({"sub": str(user.id)})
     
     # Store session in Redis
-    await cache.set_session(str(user.id), {
+    session_data = {
         "email": user.email,
         "role": user.role.value,
-        "logged_in_at": datetime.utcnow().isoformat()
-    })
+        "logged_in_at": datetime.now(timezone.utc).isoformat()
+    }
+    await cache.set_session(str(user.id), session_data)
     
     return TokenResponse(
         access_token=access_token,

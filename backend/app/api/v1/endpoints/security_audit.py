@@ -3,7 +3,7 @@ Security Audit API Endpoints
 RESTful API for security audit and compliance management
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
@@ -316,7 +316,7 @@ async def get_scan_summary(
                 "compliance_score": metrics.compliance_score,
                 "frameworks_compliant": metrics.frameworks_compliant
             },
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         raise HTTPException(

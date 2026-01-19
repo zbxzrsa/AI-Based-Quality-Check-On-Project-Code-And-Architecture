@@ -5,7 +5,7 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
 
@@ -105,7 +105,7 @@ class DatabaseManager:
             logger.error(f"Failed to initialize PostgreSQL: {e}")
             raise
         finally:
-            db_state["postgres"]["last_check"] = datetime.utcnow()
+            db_state["postgres"]["last_check"] = datetime.now(timezone.utc)
     
     @classmethod
     @retry_on_failure()
@@ -126,7 +126,7 @@ class DatabaseManager:
             logger.error(f"Failed to initialize Neo4j: {e}")
             raise
         finally:
-            db_state["neo4j"]["last_check"] = datetime.utcnow()
+            db_state["neo4j"]["last_check"] = datetime.now(timezone.utc)
     
     @classmethod
     @retry_on_failure()
@@ -146,7 +146,7 @@ class DatabaseManager:
             logger.error(f"Failed to initialize Redis: {e}")
             raise
         finally:
-            db_state["redis"]["last_check"] = datetime.utcnow()
+            db_state["redis"]["last_check"] = datetime.now(timezone.utc)
     
     @classmethod
     async def close_databases(cls):
@@ -181,7 +181,7 @@ class DatabaseManager:
                 "last_check": db_state["redis"]["last_check"],
                 "error": db_state["redis"]["error"],
             },
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     
     @classmethod

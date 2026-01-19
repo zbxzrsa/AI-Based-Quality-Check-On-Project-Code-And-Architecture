@@ -15,6 +15,12 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+# Constants for repeated literals
+UUID_GENERATE_FUNCTION = 'uuid_generate_v4()'
+TIMESTAMP_NOW_FUNCTION = 'now()'
+CREATED_AT_DESC = 'created_at DESC'
+USERS_ID = 'users.id'
+
 
 def upgrade() -> None:
     # Create custom ENUM types
@@ -42,26 +48,26 @@ def upgrade() -> None:
     # Create users table
     op.create_table(
         'users',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('email', sa.String(length=255), nullable=False),
         sa.Column('password_hash', sa.String(length=255), nullable=False),
         sa.Column('role', user_role_enum, nullable=False, server_default='developer'),
         sa.Column('full_name', sa.String(length=255), nullable=True),
         sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=True),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
+        sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('email')
     )
     op.create_index('idx_users_email', 'users', ['email'])
     op.create_index('idx_users_role', 'users', ['role'])
     op.create_index('idx_users_is_active', 'users', ['is_active'])
-    op.create_index('idx_users_created_at', 'users', [sa.text('created_at DESC')])
+    op.create_index('idx_users_created_at', 'users', [sa.text(CREATED_AT_DESC)])
     
     # Create projects table
     op.create_table(
         'projects',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('owner_id', sa.UUID(), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
@@ -69,9 +75,9 @@ def upgrade() -> None:
         sa.Column('github_webhook_secret', sa.String(length=255), nullable=True),
         sa.Column('language', sa.String(length=50), nullable=True),
         sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=True),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='CASCADE'),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
+        sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
+        sa.ForeignKeyConstraint(['owner_id'], [USERS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('github_repo_url')
     )
@@ -79,12 +85,12 @@ def upgrade() -> None:
     op.create_index('idx_projects_github_url', 'projects', ['github_repo_url'])
     op.create_index('idx_projects_is_active', 'projects', ['is_active'])
     op.create_index('idx_projects_name', 'projects', ['name'])
-    op.create_index('idx_projects_created_at', 'projects', [sa.text('created_at DESC')])
+    op.create_index('idx_projects_created_at', 'projects', [sa.text(CREATED_AT_DESC)])
     
     # Create pull_requests table
     op.create_table(
         'pull_requests',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('project_id', sa.UUID(), nullable=False),
         sa.Column('github_pr_number', sa.Integer(), nullable=False),
         sa.Column('title', sa.String(length=500), nullable=False),
@@ -97,11 +103,11 @@ def upgrade() -> None:
         sa.Column('files_changed', sa.Integer(), server_default=sa.text('0'), nullable=True),
         sa.Column('lines_added', sa.Integer(), server_default=sa.text('0'), nullable=True),
         sa.Column('lines_deleted', sa.Integer(), server_default=sa.text('0'), nullable=True),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
         sa.Column('analyzed_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column('reviewed_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.CheckConstraint('risk_score >= 0 AND risk_score <= 1'),
-        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['author_id'], [USERS_ID], ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('project_id', 'github_pr_number')
@@ -111,13 +117,13 @@ def upgrade() -> None:
     op.create_index('idx_pr_author', 'pull_requests', ['author_id'])
     op.create_index('idx_pr_status', 'pull_requests', ['status'])
     op.create_index('idx_pr_risk_score', 'pull_requests', [sa.text('risk_score DESC')])
-    op.create_index('idx_pr_created_at', 'pull_requests', [sa.text('created_at DESC')])
+    op.create_index('idx_pr_created_at', 'pull_requests', [sa.text(CREATED_AT_DESC)])
     op.create_index('idx_pr_project_status', 'pull_requests', ['project_id', 'status'])
     
     # Create review_results table
     op.create_table(
         'review_results',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('pull_request_id', sa.UUID(), nullable=False),
         sa.Column('ai_suggestions', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('architectural_impact', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
@@ -126,7 +132,7 @@ def upgrade() -> None:
         sa.Column('confidence_score', sa.Float(), nullable=True),
         sa.Column('total_issues', sa.Integer(), server_default=sa.text('0'), nullable=True),
         sa.Column('critical_issues', sa.Integer(), server_default=sa.text('0'), nullable=True),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
         sa.CheckConstraint('confidence_score >= 0 AND confidence_score <= 1'),
         sa.ForeignKeyConstraint(['pull_request_id'], ['pull_requests.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
@@ -134,14 +140,14 @@ def upgrade() -> None:
     )
     op.create_index('idx_review_pr', 'review_results', ['pull_request_id'])
     op.create_index('idx_review_confidence', 'review_results', [sa.text('confidence_score DESC')])
-    op.create_index('idx_review_created_at', 'review_results', [sa.text('created_at DESC')])
+    op.create_index('idx_review_created_at', 'review_results', [sa.text(CREATED_AT_DESC)])
     op.create_index('idx_review_ai_suggestions', 'review_results', ['ai_suggestions'], postgresql_using='gin')
     op.create_index('idx_review_security_issues', 'review_results', ['security_issues'], postgresql_using='gin')
     
     # Create audit_logs table
     op.create_table(
         'audit_logs',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('user_id', sa.UUID(), nullable=True),
         sa.Column('action', audit_action_enum, nullable=False),
         sa.Column('entity_type', sa.String(length=100), nullable=False),
@@ -149,8 +155,8 @@ def upgrade() -> None:
         sa.Column('changes', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('ip_address', postgresql.INET(), nullable=True),
         sa.Column('user_agent', sa.Text(), nullable=True),
-        sa.Column('timestamp', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='SET NULL'),
+        sa.Column('timestamp', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
+        sa.ForeignKeyConstraint(['user_id'], [USERS_ID], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_audit_user', 'audit_logs', ['user_id'])
@@ -163,7 +169,7 @@ def upgrade() -> None:
     # Create architectural_baselines table
     op.create_table(
         'architectural_baselines',
-        sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
+        sa.Column('id', sa.UUID(), server_default=sa.text(UUID_GENERATE_FUNCTION), nullable=False),
         sa.Column('project_id', sa.UUID(), nullable=False),
         sa.Column('version', sa.String(length=50), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
@@ -171,7 +177,7 @@ def upgrade() -> None:
         sa.Column('metrics', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('commit_sha', sa.String(length=40), nullable=True),
         sa.Column('is_current', sa.Boolean(), server_default=sa.text('false'), nullable=True),
-        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('now()'), nullable=True),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text(TIMESTAMP_NOW_FUNCTION), nullable=True),
         sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('project_id', 'version')
@@ -179,7 +185,7 @@ def upgrade() -> None:
     op.create_index('idx_baseline_project', 'architectural_baselines', ['project_id'])
     op.create_index('idx_baseline_version', 'architectural_baselines', ['version'])
     op.create_index('idx_baseline_is_current', 'architectural_baselines', ['is_current'])
-    op.create_index('idx_baseline_created_at', 'architectural_baselines', [sa.text('created_at DESC')])
+    op.create_index('idx_baseline_created_at', 'architectural_baselines', [sa.text(CREATED_AT_DESC)])
     op.create_index('idx_baseline_project_current', 'architectural_baselines', ['project_id', 'is_current'])
     op.create_index('idx_baseline_graph', 'architectural_baselines', ['graph_snapshot'], postgresql_using='gin')
     op.create_index('idx_baseline_metrics', 'architectural_baselines', ['metrics'], postgresql_using='gin')
