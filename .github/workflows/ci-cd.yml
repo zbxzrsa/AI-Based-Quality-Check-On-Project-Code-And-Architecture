@@ -365,7 +365,7 @@ jobs:
                   cache-to: type=gha,mode=max
 
             - name: Deploy to AWS ECS
-              uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+              uses: aws-actions/amazon-ecs-deploy-task-definition@v2
               with:
                   task-definition: ai-review-task-definition
                   service: ai-review-service
