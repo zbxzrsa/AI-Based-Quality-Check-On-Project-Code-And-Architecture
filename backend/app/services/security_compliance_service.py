@@ -7,7 +7,7 @@ Implements the Security and Audit Compliance module (Chapter 8.2.1).
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -78,10 +78,14 @@ class SecurityComplianceService:
                 vulnerability = self._create_vulnerability_score(vuln_id, vuln_data)
                 vulnerabilities.append(vulnerability)
             except Exception as e:
-                logger.error(f"Error parsing vulnerability {vuln_id}: {e}")
+                # Sanitize user-controlled data before logging
+                safe_vuln_id = str(vuln_id).replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+                logger.error(f"Error parsing vulnerability {safe_vuln_id}: {e}")
                 continue
         
-        logger.info(f"Parsed {len(vulnerabilities)} vulnerabilities from audit report")
+        # Sanitize the count before logging
+        safe_count = str(len(vulnerabilities)).replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+        logger.info(f"Parsed {safe_count} vulnerabilities from audit report")
         return vulnerabilities
     
     def _create_vulnerability_score(self, vuln_id: str, vuln_data: Dict) -> VulnerabilityScore:
@@ -180,7 +184,7 @@ class SecurityComplianceService:
                     RETURN p
                 """, {
                     'project_id': project_id,
-                    'audit_time': datetime.utcnow().isoformat(),
+                    'audit_time': datetime.now(timezone.utc).isoformat(),
                     'vuln_count': len(vulnerabilities)
                 })
                 
@@ -211,8 +215,8 @@ class SecurityComplianceService:
                         'cvss_score': vuln.cvss_score,
                         'compliance_impact': vuln.compliance_impact,
                         'project_id': project_id,
-                        'created_at': datetime.utcnow().isoformat(),
-                        'discovered_at': datetime.utcnow().isoformat()
+                        'created_at': datetime.now(timezone.utc).isoformat(),
+                        'discovered_at': datetime.now(timezone.utc).isoformat()
                     })
                 
                 # Update project compliance score
@@ -225,7 +229,7 @@ class SecurityComplianceService:
                 """, {
                     'project_id': project_id,
                     'compliance_score': compliance_score,
-                    'update_time': datetime.utcnow().isoformat()
+                    'update_time': datetime.now(timezone.utc).isoformat()
                 })
             
             logger.info(f"Successfully saved {len(vulnerabilities)} vulnerabilities for project {project_id}")
@@ -324,7 +328,7 @@ class SecurityComplianceService:
                     ORDER BY v.created_at
                 """, {
                     'project_id': project_id,
-                    'start_date': (datetime.utcnow().timestamp() - days * 24 * 3600) * 1000
+                    'start_date': (datetime.now(timezone.utc).timestamp() - days * 24 * 3600) * 1000
                 })
                 
                 trends = {

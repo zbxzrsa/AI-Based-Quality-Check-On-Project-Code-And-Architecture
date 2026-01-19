@@ -2,7 +2,7 @@
 Extended Neo4j service with AST and architecture analysis operations
 """
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from app.services.neo4j_service import Neo4jService as BaseNeo4jService
@@ -233,7 +233,7 @@ class Neo4jASTService(BaseNeo4jService):
             drift_report = {
                 "project_id": project_id,
                 "baseline_version": baseline_version,
-                "comparison_timestamp": datetime.utcnow().isoformat(),
+                "comparison_timestamp": datetime.now(timezone.utc).isoformat(),
                 "current_nodes": {item['nodeType']: item['count'] for item in current_data},
                 "current_dependencies": dep_data['dependencyCount'] if dep_data else 0,
                 "drift_detected": False,  # Simplified - would compare with baseline
@@ -354,7 +354,7 @@ class Neo4jASTService(BaseNeo4jService):
                     "total_complexity": complexity_data['totalComplexity'] if complexity_data else 0
                 },
                 "coupling_metrics": coupling_data,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
     async def delete_project_graph(self, project_id: str) -> bool:

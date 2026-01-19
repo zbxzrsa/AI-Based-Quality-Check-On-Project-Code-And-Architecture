@@ -4,7 +4,7 @@ Handles storage and retrieval of security scan results and audit logs in Neo4j
 """
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from uuid import uuid4
 
@@ -143,7 +143,7 @@ class SecurityAuditService:
                 "action": action,
                 "entityType": entity_type,
                 "entityId": entity_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "developerId": developer_id,
                 "developerEmail": developer_email,
                 "scanData": scan_data,

@@ -15,7 +15,7 @@ class FineTuningDataset:
     def __init__(self, db_session):
         self.db = db_session
     
-    async def collect_training_data(
+    def collect_training_data(
         self,
         min_confidence: float = 0.8,
         min_feedback_score: float = 4.0,
@@ -49,7 +49,7 @@ class FineTuningDataset:
         
         for pr, review in result:
             # Get PR diff
-            diff = await self._get_pr_diff(pr.id)
+            diff = self._get_pr_diff(pr.id)
             
             # Format as training example
             example = {
@@ -101,7 +101,7 @@ Diff:
 Provide a comprehensive code review with security, logic, architecture, performance, and quality issues.
 """
     
-    async def _get_pr_diff(self, pr_id: str) -> str:
+    def _get_pr_diff(self, pr_id: str) -> str:
         """Get PR diff from database"""
         # Would fetch from database
         return "diff content"
@@ -124,7 +124,7 @@ class LLMFineTuner:
         elif provider == "anthropic":
             self.client = Anthropic()
     
-    async def create_fine_tuning_job(
+    def create_fine_tuning_job(
         self,
         training_file: str,
         validation_file: Optional[str] = None,
@@ -178,7 +178,7 @@ class LLMFineTuner:
             
             return job.id
     
-    async def monitor_job(self, job_id: str) -> Dict[str, Any]:
+    def monitor_job(self, job_id: str) -> Dict[str, Any]:
         """
         Monitor fine-tuning job status
         
@@ -203,7 +203,7 @@ class LLMFineTuner:
                 "hyperparameters": job.hyperparameters,
             }
     
-    async def evaluate_model(
+    def evaluate_model(
         self,
         model_id: str,
         test_set: List[Dict[str, Any]]
@@ -224,7 +224,7 @@ class LLMFineTuner:
         
         for example in test_set:
             # Get model prediction
-            response = await self._get_prediction(model_id, example["messages"][:-1])
+            response = self._get_prediction(model_id, example["messages"][:-1])
             
             # Parse response
             try:
@@ -249,7 +249,7 @@ class LLMFineTuner:
             "avg_confidence": sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0,
         }
     
-    async def _get_prediction(self, model_id: str, messages: List[Dict]) -> str:
+    def _get_prediction(self, model_id: str, messages: List[Dict]) -> str:
         """Get model prediction"""
         if self.provider == "openai":
             response = self.client.chat.completions.create(
@@ -267,7 +267,7 @@ class RLHFTrainer:
     def __init__(self, db_session):
         self.db = db_session
     
-    async def collect_feedback(
+    def collect_feedback(
         self,
         pr_id: str,
         review_id: str,
@@ -292,13 +292,13 @@ class RLHFTrainer:
             "feedback_type": feedback_type,
             "rating": rating,
             "comments": comments,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now()
         }
         
         # Would insert into feedback table
         return feedback
     
-    async def create_preference_dataset(self) -> List[Dict[str, Any]]:
+    def create_preference_dataset(self) -> List[Dict[str, Any]]:
         """
         Create preference dataset from human feedback
         
@@ -321,7 +321,7 @@ class RLHFTrainer:
         
         return preference_pairs
     
-    async def train_reward_model(
+    def train_reward_model(
         self,
         preference_data: List[Dict[str, Any]]
     ) -> str:
@@ -338,7 +338,7 @@ class RLHFTrainer:
         # Using frameworks like TRL (Transformer Reinforcement Learning)
         pass
     
-    async def run_ppo_training(
+    def run_ppo_training(
         self,
         base_model: str,
         reward_model: str,
@@ -369,7 +369,7 @@ class FineTuningPipeline:
         self.tuner = LLMFineTuner()
         self.rlhf = RLHFTrainer(db_session)
     
-    async def run_full_pipeline(
+    def run_full_pipeline(
         self,
         domain: str = "general",
         use_rlhf: bool = False
@@ -388,7 +388,7 @@ class FineTuningPipeline:
         
         # Step 1: Collect training data
         print("Collecting training data...")
-        examples = await self.dataset.collect_training_data(
+        examples = self.dataset.collect_training_data(
             limit=10000
         )
         
@@ -411,7 +411,7 @@ class FineTuningPipeline:
         
         # Step 3: Create fine-tuning job
         print("Starting fine-tuning job...")
-        job_id = await self.tuner.create_fine_tuning_job(
+        job_id = self.tuner.create_fine_tuning_job(
             training_file=f"train_{domain}.jsonl",
             validation_file=f"val_{domain}.jsonl",
             suffix=f"{domain}-review"
@@ -429,7 +429,7 @@ class FineTuningPipeline:
         # Step 6: RLHF (optional)
         if use_rlhf:
             print("Running RLHF training...")
-            preference_data = await self.rlhf.create_preference_dataset()
+            preference_data = self.rlhf.create_preference_dataset()
             # Would run RLHF
         
         return results

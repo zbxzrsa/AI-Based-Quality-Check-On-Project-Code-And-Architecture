@@ -65,33 +65,33 @@ class ArchitectureAnalyzer:
         
         try:
             # Stage 1: Repository Cloning
-            await self._send_progress("cloning", 10, "Cloning repository...")
-            repo_path = await self._clone_repository(request.repositoryUrl)
+            self._send_progress("cloning", 10, "Cloning repository...")
+            repo_path = self._clone_repository(request.repositoryUrl)
             
             # Stage 2: Code Analysis
-            await self._send_progress("analyzing", 30, "Analyzing code structure...")
-            code_hierarchy = await self._analyze_code_structure(repo_path)
+            self._send_progress("analyzing", 30, "Analyzing code structure...")
+            code_hierarchy = self._analyze_code_structure(repo_path)
             
             # Stage 3: Complexity Metrics
             if request.includeComplexityMetrics:
-                await self._send_progress("metrics", 60, "Calculating complexity metrics...")
-                metrics = await self._calculate_complexity_metrics(code_hierarchy)
+                self._send_progress("metrics", 60, "Calculating complexity metrics...")
+                metrics = self._calculate_complexity_metrics(code_hierarchy)
             else:
                 metrics = {}
             
             # Stage 4: Architecture Analysis
             if request.includeArchitectureAnalysis:
-                await self._send_progress("architecture", 80, "Analyzing architectural patterns...")
-                architecture_summary = await self._analyze_architecture(code_hierarchy, metrics)
+                self._send_progress("architecture", 80, "Analyzing architectural patterns...")
+                architecture_summary = self._analyze_architecture(code_hierarchy, metrics)
             else:
                 architecture_summary = {}
             
             # Stage 5: Neo4j Integration
-            await self._send_progress("neo4j", 90, "Storing in Neo4j database...")
-            await self._store_in_neo4j(code_hierarchy, architecture_summary, metrics)
+            self._send_progress("neo4j", 90, "Storing in Neo4j database...")
+            self._store_in_neo4j(code_hierarchy, architecture_summary, metrics)
             
             # Stage 6: Completion
-            await self._send_progress("completed", 100, "Analysis complete!")
+            self._send_progress("completed", 100, "Analysis complete!")
             
             result = {
                 "repositoryUrl": request.repositoryUrl,
@@ -115,7 +115,7 @@ class ArchitectureAnalyzer:
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp dir {temp_dir}: {e}")
 
-    async def _send_progress(self, stage: str, progress: int, message: str):
+    def _send_progress(self, stage: str, progress: int, message: str):
         """Send progress update via Server-Sent Events."""
         progress_data = {
             "type": "progress",
@@ -128,7 +128,7 @@ class ArchitectureAnalyzer:
         # This would be handled by the streaming response in the endpoint
         logger.info(f"Progress: {stage} - {progress}% - {message}")
 
-    async def _clone_repository(self, repo_url: str) -> str:
+    def _clone_repository(self, repo_url: str) -> str:
         """Clone repository to temporary directory."""
         try:
             # Create temporary directory
@@ -147,7 +147,7 @@ class ArchitectureAnalyzer:
             logger.error(f"Failed to clone repository: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to clone repository: {str(e)}")
 
-    async def _analyze_code_structure(self, repo_path: str) -> Dict[str, Any]:
+    def _analyze_code_structure(self, repo_path: str) -> Dict[str, Any]:
         """Analyze code structure using AST parsing."""
         code_hierarchy = {
             "files": []
@@ -168,7 +168,7 @@ class ArchitectureAnalyzer:
         
         for file_path in all_files:
             try:
-                file_info = await self._analyze_file(file_path, repo_dir)
+                file_info = self._analyze_file(file_path, repo_dir)
                 if file_info:
                     code_hierarchy["files"].append(file_info)
             except Exception as e:
@@ -177,7 +177,7 @@ class ArchitectureAnalyzer:
         
         return code_hierarchy
 
-    async def _analyze_file(self, file_path: Path, repo_root: Path) -> Optional[Dict[str, Any]]:
+    def _analyze_file(self, file_path: Path, repo_root: Path) -> Optional[Dict[str, Any]]:
         """Analyze individual file using AST parsing."""
         try:
             relative_path = str(file_path.relative_to(repo_root))
@@ -187,15 +187,15 @@ class ArchitectureAnalyzer:
             if file_type == "unknown":
                 return None
             
-            async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = await f.read()
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
             
             # Parse AST for Python files
             if file_type == "python":
-                return await self._analyze_python_file(content, relative_path, file_type)
+                return self._analyze_python_file(content, relative_path, file_type)
             else:
                 # For non-Python files, do basic analysis
-                return await self._analyze_generic_file(content, relative_path, file_type)
+                return self._analyze_generic_file(content, relative_path, file_type)
                 
         except Exception as e:
             logger.warning(f"Failed to analyze file {file_path}: {str(e)}")
@@ -213,13 +213,13 @@ class ArchitectureAnalyzer:
         else:
             return 'unknown'
 
-    async def _analyze_python_file(self, content: str, relative_path: str, file_type: str) -> Dict[str, Any]:
+    def _analyze_python_file(self, content: str, relative_path: str, file_type: str) -> Dict[str, Any]:
         """Analyze Python file using AST."""
         try:
             tree = ast.parse(content)
             
-            classes = await self._extract_classes_from_ast(tree)
-            functions = await self._extract_functions_from_ast(tree)
+            classes = self._extract_classes_from_ast(tree)
+            functions = self._extract_functions_from_ast(tree)
             
             return {
                 "path": relative_path,
@@ -237,7 +237,7 @@ class ArchitectureAnalyzer:
                 "functions": []
             }
 
-    async def _extract_classes_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
+    def _extract_classes_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
         """Extract class information from AST."""
         classes = []
         for node in ast.walk(tree):
@@ -258,7 +258,7 @@ class ArchitectureAnalyzer:
                 })
         return classes
 
-    async def _extract_functions_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
+    def _extract_functions_from_ast(self, tree: ast.AST) -> List[Dict[str, Any]]:
         """Extract function information from AST."""
         functions = []
         for node in ast.walk(tree):
@@ -280,7 +280,7 @@ class ArchitectureAnalyzer:
                         return True
         return False
 
-    async def _analyze_generic_file(self, content: str, relative_path: str, file_type: str) -> Dict[str, Any]:
+    def _analyze_generic_file(self, content: str, relative_path: str, file_type: str) -> Dict[str, Any]:
         """Basic analysis for non-Python files."""
         # Simple regex-based analysis for JavaScript/TypeScript
         import re
@@ -325,7 +325,7 @@ class ArchitectureAnalyzer:
         
         return complexity
 
-    async def _calculate_complexity_metrics(self, code_hierarchy: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_complexity_metrics(self, code_hierarchy: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate overall complexity metrics."""
         total_complexity = 0
         total_functions = 0
@@ -388,7 +388,7 @@ class ArchitectureAnalyzer:
         
         return smells
 
-    async def _analyze_architecture(self, code_hierarchy: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_architecture(self, code_hierarchy: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze architectural patterns and purpose using Ollama."""
         try:
             # Prepare data for LLM analysis
@@ -398,17 +398,17 @@ class ArchitectureAnalyzer:
             ollama_client = LLMClient(LLMProvider.OLLAMA)
             
             # Generate architectural purpose summary
-            architectural_purpose = await self._generate_architectural_purpose_ollama(
+            architectural_purpose = self._generate_architectural_purpose_ollama(
                 architecture_data, ollama_client
             )
             
             # Detect architectural patterns
-            detected_patterns = await self._detect_architectural_patterns_ollama(
+            detected_patterns = self._detect_architectural_patterns_ollama(
                 architecture_data, ollama_client
             )
             
             # Identify potential issues
-            potential_issues = await self._identify_potential_issues_ollama(
+            potential_issues = self._identify_potential_issues_ollama(
                 architecture_data, metrics, ollama_client
             )
             
@@ -438,7 +438,7 @@ class ArchitectureAnalyzer:
             "file_types": list(set(f["type"] for f in code_hierarchy["files"] if f["type"] != "unknown"))
         }
 
-    async def _generate_architectural_purpose_ollama(
+    def _generate_architectural_purpose_ollama(
         self, 
         architecture_data: Dict[str, Any], 
         ollama_client: LLMClient
@@ -464,7 +464,7 @@ class ArchitectureAnalyzer:
                 code_structure_summary
             )
             
-            response = await ollama_client.generate_completion(
+            response = ollama_client.generate_completion(
                 system_prompt="You are an expert software architect analyzing codebase architecture.",
                 user_prompt=prompt,
                 temperature=0.3,
@@ -484,7 +484,7 @@ class ArchitectureAnalyzer:
             logger.error(f"Failed to generate architectural purpose with Ollama: {str(e)}")
             return "Unable to determine architectural purpose due to analysis error."
 
-    async def _detect_architectural_patterns_ollama(
+    def _detect_architectural_patterns_ollama(
         self, 
         architecture_data: Dict[str, Any], 
         ollama_client: LLMClient
@@ -506,7 +506,7 @@ class ArchitectureAnalyzer:
                 code_structure
             )
             
-            response = await ollama_client.generate_completion(
+            response = ollama_client.generate_completion(
                 system_prompt="You are an expert software architect identifying architectural patterns.",
                 user_prompt=prompt,
                 temperature=0.3,
@@ -529,7 +529,7 @@ class ArchitectureAnalyzer:
             logger.error(f"Failed to detect architectural patterns with Ollama: {str(e)}")
             return []
 
-    async def _identify_potential_issues_ollama(
+    def _identify_potential_issues_ollama(
         self, 
         architecture_data: Dict[str, Any], 
         metrics: Dict[str, Any], 
@@ -550,7 +550,7 @@ class ArchitectureAnalyzer:
                 code_structure
             )
             
-            response = await ollama_client.generate_completion(
+            response = ollama_client.generate_completion(
                 system_prompt="You are an expert software architect identifying code quality issues.",
                 user_prompt=prompt,
                 temperature=0.3,
@@ -587,7 +587,7 @@ class ArchitectureAnalyzer:
         - Code Smells: {architecture_data['code_smells']}
         """
 
-    async def _detect_architectural_patterns(self, architecture_data: Dict[str, Any]) -> List[str]:
+    def _detect_architectural_patterns(self, architecture_data: Dict[str, Any]) -> List[str]:
         """Detect architectural patterns using LLM."""
         patterns = []
         
@@ -620,7 +620,7 @@ class ArchitectureAnalyzer:
             try:
                 # Use Ollama for pattern detection as well
                 ollama_client = LLMClient(LLMProvider.OLLAMA)
-                response = await ollama_client.generate_completion(
+                response = ollama_client.generate_completion(
                     system_prompt="You are an expert software architect identifying architectural patterns.",
                     user_prompt=prompt,
                     temperature=0.3,
@@ -634,7 +634,7 @@ class ArchitectureAnalyzer:
         
         return list(set(patterns))  # Remove duplicates
 
-    async def _identify_potential_issues(self, architecture_data: Dict[str, Any], metrics: Dict[str, Any]) -> List[str]:
+    def _identify_potential_issues(self, architecture_data: Dict[str, Any], metrics: Dict[str, Any]) -> List[str]:
         """Identify potential architectural issues."""
         issues = []
         
@@ -651,7 +651,7 @@ class ArchitectureAnalyzer:
         
         return issues
 
-    async def _store_in_neo4j(self, code_hierarchy: Dict[str, Any], architecture_summary: Dict[str, Any], metrics: Dict[str, Any]):
+    def _store_in_neo4j(self, code_hierarchy: Dict[str, Any], architecture_summary: Dict[str, Any], metrics: Dict[str, Any]):
         """Store analysis results in Neo4j."""
         try:
             # This would integrate with the existing Neo4j service

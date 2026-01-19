@@ -15,7 +15,7 @@ from app.services.llm_client import LLMProvider
 from app.services.ai_reasoning import AIReasoningEngine
 
 
-async def test_ast_neo4j_integration():
+def test_ast_neo4j_integration():
     """Test the AST to Neo4j integration"""
     print("🔍 Testing AST to Neo4j Integration")
     print("=" * 50)
@@ -70,7 +70,7 @@ async def test_ast_neo4j_integration():
     return True
 
 
-async def test_llm_agentic_reasoning():
+def test_llm_agentic_reasoning():
     """Test the LLM agentic reasoning with dependency graph context"""
     print("\n🤖 Testing LLM Agentic Reasoning")
     print("=" * 50)
@@ -207,7 +207,7 @@ Average complexity: 8.5
     return True
 
 
-async def test_context_assembly():
+def test_context_assembly():
     """Test the context assembly functionality"""
     print("\n🔧 Testing Context Assembly")
     print("=" * 50)
@@ -249,7 +249,7 @@ async def test_context_assembly():
     return True
 
 
-async def main():
+def main():
     """Run all integration tests"""
     print("🚀 Starting AST and LLM Integration Tests")
     print("=" * 60)
@@ -257,13 +257,13 @@ async def main():
     results = []
 
     # Test 1: AST to Neo4j Integration
-    results.append(await test_ast_neo4j_integration())
+    results.append(test_ast_neo4j_integration())
 
     # Test 2: LLM Agentic Reasoning
-    results.append(await test_llm_agentic_reasoning())
+    results.append(test_llm_agentic_reasoning())
 
     # Test 3: Context Assembly
-    results.append(await test_context_assembly())
+    results.append(test_context_assembly())
 
     # Summary
     print("\n" + "=" * 60)
@@ -279,5 +279,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = main()
     exit(0 if success else 1)

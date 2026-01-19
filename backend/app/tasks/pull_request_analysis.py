@@ -4,7 +4,7 @@ Handles async analysis of PRs using Celery
 """
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from app.celery_config import celery_app
@@ -151,7 +151,7 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> Dict[str, Any]:
             # Update PR with results
             pr.status = PRStatus.reviewed
             pr.risk_score = review.risk_score / 100.0
-            pr.analyzed_at = datetime.utcnow()
+            pr.analyzed_at = datetime.now(timezone.utc)
             
             await db.commit()
             

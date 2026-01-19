@@ -17,6 +17,8 @@ spec:
         app: backend
         tier: api
     spec:
+      serviceAccountName: backend-service-account
+      automountServiceAccountToken: false
       containers:
         - name: backend
           image: your-registry/ai-review-backend:latest

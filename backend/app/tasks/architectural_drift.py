@@ -3,7 +3,7 @@ Architectural drift detection tasks
 Detects cyclic dependencies, layer violations, and other drift patterns
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
 from app.celery_config import celery_app
@@ -65,7 +65,7 @@ async def _detect_drift(project_id: str, baseline_version: str) -> Dict[str, Any
         # Build drift report
         drift_report = {
             'project_id': project_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'baseline_version': baseline_version,
             'cyclic_dependencies': cycles,
             'layer_violations': violations,
@@ -165,7 +165,7 @@ async def _detect_cycles(project_id: str) -> Dict[str, List[Dict[str, Any]]]:
         'project_id': project_id,
         'cycles_found': len(cycles),
         'cycles': cycles,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -289,7 +289,7 @@ async def _detect_violations(
         'project_id': project_id,
         'violations_found': len(violations),
         'violations': violations,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -386,7 +386,7 @@ async def _detect_golden_standard_drift(
             "project_id": project_id,
             "status": "failed",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "should_fail_ci": True,
             "failure_reason": f"Drift detection failed: {str(e)}"
         }

@@ -17,6 +17,8 @@ spec:
         app: celery-worker
         tier: worker
     spec:
+      serviceAccountName: celery-worker-service-account
+      automountServiceAccountToken: false
       containers:
         - name: celery-worker
           image: your-registry/ai-review-backend:latest

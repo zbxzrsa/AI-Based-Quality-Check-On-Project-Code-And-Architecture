@@ -200,9 +200,9 @@ async def sync_project(
             detail="Project not found"
         )
     
-    # Get repository info from GitHub
-    github_client = get_github_client()
-    repo_info = await github_client.get_repository(project.github_repo_url)
+        # Get repository info from GitHub
+        github_client = get_github_client()
+        repo_info = await github_client.get_repository(project.github_repo_url)
     
     # Update project info
     project.language = repo_info.get('language')

@@ -57,7 +57,7 @@ class AIReviewService:
         self.ai_reviewer = AIPRReviewer(api_key, llm_client.model)
         self.logger = logger
         
-    async def review_pull_request(self, request: ReviewRequest) -> ReviewResponse:
+    def review_pull_request(self, request: ReviewRequest) -> ReviewResponse:
         """
         Perform AI review of a pull request.
         
@@ -82,7 +82,7 @@ class AIReviewService:
             # Create response
             response = ReviewResponse(
                 review_id=self._generate_review_id(),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 review_result=review_result,
                 report=report,
                 metadata={
@@ -122,7 +122,7 @@ class AIReviewService:
         
         for request in requests:
             try:
-                response = await self.review_pull_request(request)
+                response = self.review_pull_request(request)
                 responses.append(response)
             except Exception as e:
                 self.logger.error(f"Batch review failed for PR {request.pr_id}: {str(e)}")

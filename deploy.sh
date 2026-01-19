@@ -37,7 +37,7 @@ check_prerequisites() {
     command -v docker >/dev/null 2>&1 || error "Docker is not installed"
     command -v docker-compose >/dev/null 2>&1 || error "Docker Compose is not installed"
     
-    if [ ! -f ".env" ]; then
+    if [[ ! -f ".env" ]]; then
         error ".env file not found. Please create it from .env.example"
     fi
     
@@ -68,7 +68,7 @@ pull_code() {
     git fetch origin
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
     
-    if [ "$CURRENT_BRANCH" != "main" ]; then
+    if [[ "$CURRENT_BRANCH" != "main" ]]; then
         warn "Not on main branch. Current branch: $CURRENT_BRANCH"
         read -p "Continue anyway? (y/N) " -n 1 -r
         echo
@@ -126,7 +126,7 @@ health_check() {
             break
         fi
         
-        if [ $i -eq 30 ]; then
+        if [[ $i -eq 30 ]]; then
             error "Backend health check failed after 30 attempts"
         fi
         

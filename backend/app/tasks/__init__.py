@@ -2,7 +2,7 @@
 Celery tasks for async processing
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from celery import Task
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -145,7 +145,7 @@ def analyze_pull_request(self, pr_id: str, project_id: str):
                 # Update PR
                 pr.status = PRStatus.reviewed
                 pr.risk_score = review.risk_score / 100.0
-                pr.analyzed_at = datetime.utcnow()
+                pr.analyzed_at = datetime.now(timezone.utc)
                 
                 await db.commit()
                 
@@ -242,7 +242,7 @@ def generate_project_documentation(project_id: str):
                 'description': project.description,
                 'language': project.language,
                 'metrics': metrics,
-                'generated_at': datetime.utcnow().isoformat()
+                'generated_at': datetime.now(timezone.utc).isoformat()
             }
             
             return documentation

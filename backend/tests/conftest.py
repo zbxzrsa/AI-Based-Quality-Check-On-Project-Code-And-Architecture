@@ -209,10 +209,10 @@ def neo4j_container():
 def collect_test_results():
     """Collect test results for AI reviewer ingestion"""
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     test_results["test_run_id"] = str(uuid.uuid4())
-    test_results["timestamp"] = datetime.utcnow().isoformat()
+    test_results["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     yield
 
@@ -275,7 +275,7 @@ def pytest_sessionfinish(session, exitstatus):
 # ===== ASYNC EVENT LOOP FIXTURES =====
 
 @pytest.fixture(scope="function")
-async def event_loop_policy():
+def event_loop_policy():
     """
     Fixture to handle async event loop issues in pytest-asyncio
     """

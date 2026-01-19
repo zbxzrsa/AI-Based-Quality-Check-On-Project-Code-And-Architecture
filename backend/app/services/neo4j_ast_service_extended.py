@@ -5,6 +5,7 @@ Provides methods to run Cypher queries and analyze architectural drift
 from typing import List, Dict, Any, Optional
 from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession
 import logging
+from datetime import datetime, timezone
 
 from app.core.config import settings
 from app.services import cypher_queries
@@ -301,7 +302,6 @@ class Neo4jASTService:
             Comprehensive drift report
         """
         import asyncio
-        from datetime import datetime
         
         # Run all detection tasks in parallel
         cycles, violations, metrics = await asyncio.gather(
@@ -313,7 +313,7 @@ class Neo4jASTService:
         # Generate comprehensive report
         report = {
             'project_id': project_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'baseline_version': baseline_version,
             'cyclic_dependencies': {
                 'count': len(cycles),

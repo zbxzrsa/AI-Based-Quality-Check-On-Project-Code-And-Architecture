@@ -128,8 +128,12 @@ jobs:
         run: |
           echo "🔍 Checking for AI-Augmented Review Comments..."
           
-          # Get PR comments
-          comments=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments)
+          # Get PR comments using safe command substitution
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          
+          # Use printf to safely handle user input
+          comments=$(printf '%s' "$PR_NUMBER" | xargs -I {} gh api repos/"$REPO"/pulls/{} /comments)
           
           # Count AI review comments (comments containing specific markers)
           ai_comments=$(echo "$comments" | jq '[.[] | select(.body | contains("🤖 AI-Augmented Review") or contains("## 🤖 AI-Augmented Review"))] | length')
