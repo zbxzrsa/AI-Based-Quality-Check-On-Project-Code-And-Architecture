@@ -1,21 +1,21 @@
 # Base dependencies for production deployment
 # Core framework and database
 fastapi==0.128.7
-uvicorn[standard]==0.32.0
+uvicorn[standard]==0.41.0
 sqlalchemy==2.0.46
 asyncpg==0.31.0
 psycopg[binary]==3.3.2
-alembic==1.13.3
+alembic==1.18.4
 
 # Graph database
 neo4j==6.1.0
 
 # Cache and message queue
 redis==7.1.1
-celery==5.4.0
+celery==5.6.2
 
 # Authentication and security
-pyjwt[crypto]==2.9.0
+pyjwt[crypto]==2.11.0
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==5.0.0
@@ -24,32 +24,32 @@ cryptography==46.0.5
 # Configuration
 pydantic==2.12.5
 pydantic-settings==2.12.0
-python-dotenv==1.0.1
+python-dotenv==1.2.1
 
 # External APIs
-requests==2.32.3
-httpx==0.27.2
-pygithub==2.5.0
+requests==2.32.5
+httpx==0.28.1
+pygithub==2.8.1
 github3-py==4.0.1
 openai==1.54.5
-anthropic==0.39.0
+anthropic==0.82.0
 
 # Utilities
-python-multipart==0.0.12
-email-validator==2.2.0
+python-multipart==0.0.22
+email-validator==2.3.0
 python-dateutil==2.9.0.post0
 pytz==2024.2
 chardet==5.2.0
 
 # Logging and monitoring
 python-json-logger==3.2.1
-prometheus-client==0.21.0
+prometheus-client==0.24.1
 
 # Code analysis
-ast-comments==1.2.2
+ast-comments==1.2.3
 astroid==3.3.5
 javalang==0.13.0
-tree-sitter==0.23.2
+tree-sitter==0.25.2
 networkx==3.4.2
 esprima==4.0.1
 

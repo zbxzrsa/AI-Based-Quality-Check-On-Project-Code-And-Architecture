@@ -1,7 +1,7 @@
 # LLM Integration Dependencies
-llama-cpp-python==0.2.90
+llama-cpp-python==0.3.16
 huggingface-hub==0.26.2
 sentence-transformers==3.3.1
-torch==2.5.1
+torch==2.10.0
 transformers==4.46.3
-accelerate==1.2.1
+accelerate==1.12.0
