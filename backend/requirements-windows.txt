@@ -3,11 +3,11 @@
 # Use psycopg3 for PostgreSQL instead (synchronous only)
 
 # FastAPI and Web Framework
-fastapi==0.129.0
+fastapi==0.135.1
 uvicorn[standard]==0.32.0
 python-multipart==0.0.12
 pydantic==2.12.5
-pydantic-settings==2.13.0
+pydantic-settings==2.13.1
 email-validator==2.2.0
 
 # Database Drivers

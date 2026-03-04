@@ -1,6 +1,6 @@
 # Base dependencies for production deployment
 # Core framework and database
-fastapi==0.129.0
+fastapi==0.135.1
 uvicorn[standard]==0.32.0
 sqlalchemy==2.0.47
 asyncpg==0.31.0
@@ -23,7 +23,7 @@ cryptography==46.0.5
 
 # Configuration
 pydantic==2.12.5
-pydantic-settings==2.13.0
+pydantic-settings==2.13.1
 python-dotenv==1.0.1
 
 # External APIs
