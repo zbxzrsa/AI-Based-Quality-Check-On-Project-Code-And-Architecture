@@ -15,11 +15,11 @@ email-validator==2.2.0
 psycopg[binary]==3.3.3
 # asyncpg requires C++ build tools - SKIPPED for Windows
 neo4j==6.1.0
-redis==7.2.0
+redis==7.2.1
 
 # SQLAlchemy (ORM for PostgreSQL)
 # Note: Will use psycopg3 adapter instead of asyncpg
-SQLAlchemy==2.0.47
+SQLAlchemy==2.0.48
 alembic==1.13.3
 
 # Authentication & Security
