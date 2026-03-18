@@ -183,7 +183,7 @@ describe('ApiClient', () => {
 
   describe('Default Export', () => {
     it('should export a default apiClientEnhanced instance', () => {
-      const { apiClientEnhanced } = require('../api-client-enhanced');
+      const { apiClientEnhanced } = require('../api-client');
 
       expect(apiClientEnhanced).toBeDefined();
       expect(apiClientEnhanced).toBeInstanceOf(ApiClient);
@@ -191,7 +191,7 @@ describe('ApiClient', () => {
 
     it('should configure default instance with environment variable', () => {
       // The default instance should use NEXT_PUBLIC_API_URL or fallback
-      const { apiClientEnhanced } = require('../api-client-enhanced');
+      const { apiClientEnhanced } = require('../api-client');
 
       expect(apiClientEnhanced).toBeDefined();
     });
