@@ -4,14 +4,15 @@ Error Types Module
 Defines error categories, data classes, and type definitions.
 """
 
-from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from enum import Enum
+from typing import Any
 
 
 class DatabaseErrorCategory(Enum):
     """Categories of database connectivity errors for classification"""
+
     CONNECTION_TIMEOUT = "connection_timeout"
     AUTHENTICATION_FAILURE = "authentication_failure"
     ENCODING_ERROR = "encoding_error"
@@ -26,14 +27,15 @@ class DatabaseErrorCategory(Enum):
 @dataclass
 class DatabaseErrorInfo:
     """Structured database error information with classification"""
+
     category: DatabaseErrorCategory
     component: str
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime
-    resolution_steps: List[str]
-    error_code: Optional[str] = None
-    connection_params: Optional[Dict[str, str]] = None
+    resolution_steps: list[str]
+    error_code: str | None = None
+    connection_params: dict[str, str] | None = None
 
     def __post_init__(self):
         """Validate database error info"""
@@ -42,7 +44,7 @@ class DatabaseErrorInfo:
         if not self.message:
             raise ValueError("message is required")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "category": self.category.value,

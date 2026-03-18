@@ -8,7 +8,7 @@ Example:
     class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
         def __init__(self, db: Session):
             super().__init__(User, db)
-        
+
         async def get_by_email(self, email: str) -> Optional[User]:
             result = await self.db.execute(
                 select(User).where(User.email == email)
@@ -16,11 +16,12 @@ Example:
             return result.scalar_one_or_none()
 """
 
-from typing import Generic, TypeVar, Type, Optional, List, Any
+from typing import Any, Generic, TypeVar
+
+from fastapi import HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
-from fastapi import HTTPException
 
 ModelType = TypeVar("ModelType", bound=Any)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -30,14 +31,14 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     """
     Generic repository base class for database CRUD operations.
-    
+
     Provides common database operations with automatic error handling
     and transaction management.
-    
+
     Attributes:
         model: The SQLAlchemy model class
         db: The async database session
-    
+
     Example:
         class ProjectRepository(BaseRepository[Project, ProjectCreate, ProjectUpdate]):
             async def get_by_name(self, name: str) -> Optional[Project]:
@@ -47,10 +48,10 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                 return result.scalar_one_or_none()
     """
 
-    def __init__(self, model: Type[ModelType], db: AsyncSession):
+    def __init__(self, model: type[ModelType], db: AsyncSession):
         """
         Initialize the repository.
-        
+
         Args:
             model: The SQLAlchemy model class
             db: The async database session
@@ -58,52 +59,45 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.model = model
         self.db = db
 
-    async def get(self, id: str) -> Optional[ModelType]:
+    async def get(self, id: str) -> ModelType | None:
         """
         Get a single record by ID.
-        
+
         Args:
             id: The record ID
-            
+
         Returns:
             The model instance or None if not found
         """
         try:
-            result = await self.db.execute(
-                select(self.model).where(self.model.id == id)
-            )
+            result = await self.db.execute(select(self.model).where(self.model.id == id))
             return result.scalar_one_or_none()
         except Exception as e:
             await self.db.rollback()
             raise e
 
-    async def get_multi(
-        self, 
-        skip: int = 0, 
-        limit: int = 100,
-        **filters: Any
-    ) -> List[ModelType]:
+    async def get_multi(self, skip: int = 0, limit: int = 100, **filters: Any) -> list[ModelType]:
         """
         Get multiple records with optional filtering and pagination.
-        
+
         Args:
             skip: Number of records to skip
             limit: Maximum number of records to return
             **filters: Additional filter criteria
-            
+
         Returns:
             List of model instances
         """
         try:
             query = select(self.model)
-            
+
             # Apply filters
             for key, value in filters.items():
                 if hasattr(self.model, key) and value is not None:
                     query = query.where(getattr(self.model, key) == value)
-            
+
             query = query.offset(skip).limit(limit)
-            
+
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
@@ -113,10 +107,10 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def create(self, schema: CreateSchemaType) -> ModelType:
         """
         Create a new record.
-        
+
         Args:
             schema: The creation schema with data
-            
+
         Returns:
             The created model instance
         """
@@ -130,38 +124,30 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             await self.db.rollback()
             raise e
 
-    async def update(
-        self, 
-        id: str, 
-        schema: UpdateSchemaType,
-        raise_not_found: bool = True
-    ) -> Optional[ModelType]:
+    async def update(self, id: str, schema: UpdateSchemaType, raise_not_found: bool = True) -> ModelType | None:
         """
         Update an existing record.
-        
+
         Args:
             id: The record ID
             schema: The update schema with data
             raise_not_found: Whether to raise 404 if record not found
-            
+
         Returns:
             The updated model instance or None if not found
         """
         try:
             instance = await self.get(id)
-            
+
             if not instance:
                 if raise_not_found:
-                    raise HTTPException(
-                        status_code=404, 
-                        detail=f"{self.model.__name__} not found"
-                    )
+                    raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
                 return None
-            
+
             update_data = schema.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 setattr(instance, key, value)
-            
+
             await self.db.commit()
             await self.db.refresh(instance)
             return instance
@@ -174,25 +160,22 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def delete(self, id: str, raise_not_found: bool = True) -> bool:
         """
         Delete a record.
-        
+
         Args:
             id: The record ID
             raise_not_found: Whether to raise 404 if record not found
-            
+
         Returns:
             True if deleted, False if not found
         """
         try:
             instance = await self.get(id)
-            
+
             if not instance:
                 if raise_not_found:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"{self.model.__name__} not found"
-                    )
+                    raise HTTPException(status_code=404, detail=f"{self.model.__name__} not found")
                 return False
-            
+
             await self.db.delete(instance)
             await self.db.commit()
             return True
@@ -205,10 +188,10 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def exists(self, id: str) -> bool:
         """
         Check if a record exists.
-        
+
         Args:
             id: The record ID
-            
+
         Returns:
             True if exists, False otherwise
         """

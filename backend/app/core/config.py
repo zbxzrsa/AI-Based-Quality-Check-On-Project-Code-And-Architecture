@@ -1,16 +1,17 @@
 """
 Application configuration settings with comprehensive validation
 """
+
+import os
+
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
-import os
 
 
 class Settings(BaseSettings):
     """
     Application settings with secure environment variable handling.
-    
+
     Implements comprehensive validation for:
     - Required field validation (JWT_SECRET, database credentials)
     - Optional field handling with sensible defaults
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     - Database URL validation
     - Celery configuration validation
     - Environment-specific configuration (development, staging, production)
-    
+
     Validates Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
     """
 
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = Field(
         default="dev-secret-key-change-in-production-32chars",
         description="JWT signing secret - must be 32+ characters",
-        min_length=32
+        min_length=32,
     )
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
@@ -49,19 +50,13 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = Field(default="ai_code_review", description="PostgreSQL database name")
     POSTGRES_USER: str = Field(default="postgres", description="PostgreSQL username")
     POSTGRES_PASSWORD: str = Field(
-        default="postgres123",
-        description="PostgreSQL password - must be non-empty",
-        min_length=1
+        default="postgres123", description="PostgreSQL password - must be non-empty", min_length=1
     )
 
     # Neo4j - REQUIRED graph database (Requirement 1.1, 1.2, 1.3)
     NEO4J_URI: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
     NEO4J_USER: str = Field(default="neo4j", description="Neo4j username")
-    NEO4J_PASSWORD: str = Field(
-        default="neo4j123",
-        description="Neo4j password - must be non-empty",
-        min_length=1
-    )
+    NEO4J_PASSWORD: str = Field(default="neo4j123", description="Neo4j password - must be non-empty", min_length=1)
     NEO4J_DATABASE: str = "neo4j"
 
     # Redis - REQUIRED cache/session store (Requirement 1.1, 1.2, 1.3)
@@ -75,38 +70,33 @@ class Settings(BaseSettings):
     # ========================================
 
     # External APIs - Optional integrations
-    GITHUB_TOKEN: Optional[str] = Field(default=None, description="GitHub API token")
-    GITHUB_WEBHOOK_SECRET: Optional[str] = Field(default=None, description="GitHub webhook secret")
-    GITHUB_CLIENT_ID: Optional[str] = Field(default=None, description="GitHub OAuth client ID")
-    GITHUB_CLIENT_SECRET: Optional[str] = Field(default=None, description="GitHub OAuth client secret")
-    OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
-    ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic Claude API key")
-    OLLAMA_BASE_URL: Optional[str] = Field(default=None, description="Ollama local LLM base URL")
-    
+    GITHUB_TOKEN: str | None = Field(default=None, description="GitHub API token")
+    GITHUB_WEBHOOK_SECRET: str | None = Field(default=None, description="GitHub webhook secret")
+    GITHUB_CLIENT_ID: str | None = Field(default=None, description="GitHub OAuth client ID")
+    GITHUB_CLIENT_SECRET: str | None = Field(default=None, description="GitHub OAuth client secret")
+    OPENAI_API_KEY: str | None = Field(default=None, description="OpenAI API key")
+    ANTHROPIC_API_KEY: str | None = Field(default=None, description="Anthropic Claude API key")
+    OLLAMA_BASE_URL: str | None = Field(default=None, description="Ollama local LLM base URL")
+
     # OpenRouter Configuration (support多模型访问)
-    OPENROUTER_API_KEY: Optional[str] = Field(default=None, description="OpenRouter API key")
+    OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API key")
     OPENROUTER_BASE_URL: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter base URL")
-    DEFAULT_LLM_PROVIDER: str = Field(default="openai", description="Default LLM provider (openai, anthropic, openrouter, lmstudio)")
+    DEFAULT_LLM_PROVIDER: str = Field(
+        default="openai", description="Default LLM provider (openai, anthropic, openrouter, lmstudio)"
+    )
     DEFAULT_LLM_MODEL: str = Field(default="gpt-4-turbo-preview", description="Default LLM model")
 
     # LM Studio Configuration (local inference server)
     LMSTUDIO_BASE_URL: str = Field(
-        default="http://10.122.128.180:1234/v1",
-        description="LM Studio server base URL (OpenAI-compatible endpoint)"
+        default="http://10.122.128.180:1234/v1", description="LM Studio server base URL (OpenAI-compatible endpoint)"
     )
     LMSTUDIO_MODEL: str = Field(
         default="llama3.3-8b-instruct-thinking-heretic-uncensored-claude-4.5-opus-high-reasoning-i1",
-        description="LM Studio model identifier (must match the model loaded in LM Studio)"
+        description="LM Studio model identifier (must match the model loaded in LM Studio)",
     )
-    LMSTUDIO_TIMEOUT: int = Field(
-        default=120,
-        description="LM Studio request timeout in seconds"
-    )
-    LMSTUDIO_ENABLED: bool = Field(
-        default=True,
-        description="Enable LM Studio as an LLM provider for project reviews"
-    )
-    
+    LMSTUDIO_TIMEOUT: int = Field(default=120, description="LM Studio request timeout in seconds")
+    LMSTUDIO_ENABLED: bool = Field(default=True, description="Enable LM Studio as an LLM provider for project reviews")
+
     # Local LLM Configuration
     MODELS_DIR: str = "models"
     LLM_ENABLED: bool = True
@@ -121,48 +111,48 @@ class Settings(BaseSettings):
     # CORS Configuration (Requirement 8.5)
     # In production, restrict to specific approved domains only
     # Use CORS_ALLOWED_ORIGINS environment variable to override defaults
-    ALLOWED_ORIGINS: List[str] = [
+    ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
-        "http://localhost:8000", 
+        "http://localhost:8000",
         "http://frontend:3000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
     ]
-    
+
     @field_validator("POSTGRES_PASSWORD", mode="before")
     @classmethod
     def validate_postgres_password(cls, v):
         """确保PostgreSQL密码不包含特殊字符导致连接问题"""
-        if v and any(char in v for char in ['%', '$', '^', '&', '#', '@', '!', '*']):
+        if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             # 如果密码包含特殊字符，使用简化版本
             return "postgres123"
         return v or "postgres123"
-    
+
     @field_validator("REDIS_PASSWORD", mode="before")
     @classmethod
     def validate_redis_password(cls, v):
         """确保Redis密码简单可靠"""
-        if v and any(char in v for char in ['%', '$', '^', '&', '#', '@', '!', '*']):
+        if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             return "redis123"
         return v or "redis123"
-    
+
     @field_validator("NEO4J_PASSWORD", mode="before")
     @classmethod
     def validate_neo4j_password(cls, v):
         """确保Neo4j密码简单可靠"""
-        if v and any(char in v for char in ['%', '$', '^', '&', '#', '@', '!', '*']):
+        if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             return "neo4j123"
         return v or "neo4j123"
-    
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
         """
         Parse CORS_ALLOWED_ORIGINS from environment variable if provided.
-        
+
         Supports comma-separated list of origins.
         Example: CORS_ALLOWED_ORIGINS=https://app.example.com,https://www.example.com
-        
+
         Validates Requirement 8.5
         """
         if isinstance(v, str):
@@ -170,10 +160,10 @@ class Settings(BaseSettings):
             origins = [origin.strip() for origin in v.split(",") if origin.strip()]
             return origins
         return v
-    
+
     CORS_ALLOW_CREDENTIALS: bool = True
-    CORS_ALLOW_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-    CORS_ALLOW_HEADERS: List[str] = [
+    CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    CORS_ALLOW_HEADERS: list[str] = [
         "Content-Type",
         "Authorization",
         "Accept",
@@ -183,7 +173,7 @@ class Settings(BaseSettings):
         "Cache-Control",
         "X-Requested-With",
     ]
-    CORS_EXPOSE_HEADERS: List[str] = [
+    CORS_EXPOSE_HEADERS: list[str] = [
         "X-RateLimit-Limit",
         "X-RateLimit-Remaining",
         "X-RateLimit-Reset",
@@ -215,18 +205,18 @@ class Settings(BaseSettings):
 
     # TLS/SSL Configuration (Requirement 8.5)
     SSL_ENABLED: bool = Field(default=False, description="Enable TLS/SSL for server")
-    SSL_CERT_FILE: Optional[str] = Field(default=None, description="Path to SSL certificate file")
-    SSL_KEY_FILE: Optional[str] = Field(default=None, description="Path to SSL private key file")
-    SSL_CA_FILE: Optional[str] = Field(default=None, description="Path to CA certificate bundle")
+    SSL_CERT_FILE: str | None = Field(default=None, description="Path to SSL certificate file")
+    SSL_KEY_FILE: str | None = Field(default=None, description="Path to SSL private key file")
+    SSL_CA_FILE: str | None = Field(default=None, description="Path to CA certificate bundle")
     SSL_VERIFY_MODE: str = Field(default="CERT_REQUIRED", description="Certificate verification mode")
 
     # Data Encryption at Rest (Requirement 8.4)
-    ENCRYPTION_KEY: Optional[str] = Field(default=None, description="Base64-encoded 32-byte AES-256 encryption key")
-    AWS_KMS_KEY_ID: Optional[str] = Field(default=None, description="AWS KMS key ID for encryption key management")
+    ENCRYPTION_KEY: str | None = Field(default=None, description="Base64-encoded 32-byte AES-256 encryption key")
+    AWS_KMS_KEY_ID: str | None = Field(default=None, description="AWS KMS key ID for encryption key management")
 
     # Celery Configuration (Requirement 1.1, 1.2, 1.3)
-    CELERY_BROKER_URL: Optional[str] = Field(default=None, description="Celery broker URL")
-    CELERY_RESULT_BACKEND: Optional[str] = Field(default=None, description="Celery result backend URL")
+    CELERY_BROKER_URL: str | None = Field(default=None, description="Celery broker URL")
+    CELERY_RESULT_BACKEND: str | None = Field(default=None, description="Celery result backend URL")
 
     # ========================================
     # FIELD VALIDATORS
@@ -337,10 +327,10 @@ class Settings(BaseSettings):
     # VALIDATION METHODS
     # ========================================
 
-    def validate_security_settings(self) -> List[str]:
+    def validate_security_settings(self) -> list[str]:
         """
         Validate security-related settings and return warnings.
-        
+
         Validates Requirements: 1.1, 1.2, 1.3, 1.5
         """
         warnings = []
@@ -362,15 +352,11 @@ class Settings(BaseSettings):
         # BCRYPT rounds validation
         if self.BCRYPT_ROUNDS < 12:
             warnings.append(
-                f"BCRYPT_ROUNDS is {self.BCRYPT_ROUNDS} (minimum 12 required). "
-                "This is a critical security issue."
+                f"BCRYPT_ROUNDS is {self.BCRYPT_ROUNDS} (minimum 12 required). This is a critical security issue."
             )
 
         if self.BCRYPT_ROUNDS > 20:
-            warnings.append(
-                f"BCRYPT_ROUNDS is {self.BCRYPT_ROUNDS} (>20). "
-                "This may significantly impact performance."
-            )
+            warnings.append(f"BCRYPT_ROUNDS is {self.BCRYPT_ROUNDS} (>20). This may significantly impact performance.")
 
         # External API keys validation
         if not self.GITHUB_TOKEN and not self.OPENAI_API_KEY and not self.ANTHROPIC_API_KEY:
@@ -381,10 +367,10 @@ class Settings(BaseSettings):
 
         return warnings
 
-    def validate_database_urls(self) -> List[str]:
+    def validate_database_urls(self) -> list[str]:
         """
         Validate database connection URLs and parameters.
-        
+
         Validates Requirements: 1.1, 1.2, 1.3
         """
         errors = []
@@ -417,10 +403,10 @@ class Settings(BaseSettings):
 
         return errors
 
-    def validate_celery_config(self) -> List[str]:
+    def validate_celery_config(self) -> list[str]:
         """
         Validate Celery configuration.
-        
+
         Validates Requirements: 1.1, 1.2, 1.3
         """
         errors = []
@@ -437,7 +423,7 @@ class Settings(BaseSettings):
     def get_environment_specific_defaults(self) -> dict:
         """
         Get environment-specific default values.
-        
+
         Validates Requirement: 1.5
         """
         defaults = {
@@ -488,7 +474,7 @@ class Settings(BaseSettings):
     def is_ollama_enabled(self) -> bool:
         """Check if Ollama local LLM is enabled (Requirement 1.4)"""
         return bool(self.OLLAMA_BASE_URL)
-    
+
     def is_openrouter_enabled(self) -> bool:
         """Check if OpenRouter integration is enabled"""
         return bool(self.OPENROUTER_API_KEY)
@@ -501,121 +487,118 @@ class Settings(BaseSettings):
         """Check if SSL/TLS is enabled (Requirement 8.5)"""
         return self.SSL_ENABLED and bool(self.SSL_CERT_FILE and self.SSL_KEY_FILE)
 
-    def validate_ssl_config(self) -> List[str]:
+    def validate_ssl_config(self) -> list[str]:
         """
         Validate SSL/TLS configuration.
-        
+
         Validates Requirement 8.5
         """
         errors = []
-        
+
         if self.SSL_ENABLED:
             if not self.SSL_CERT_FILE:
                 errors.append("SSL_CERT_FILE is required when SSL_ENABLED is true")
             if not self.SSL_KEY_FILE:
                 errors.append("SSL_KEY_FILE is required when SSL_ENABLED is true")
-            
+
             # Check if files exist
             if self.SSL_CERT_FILE:
                 from pathlib import Path
+
                 if not Path(self.SSL_CERT_FILE).exists():
                     errors.append(f"SSL certificate file not found: {self.SSL_CERT_FILE}")
-            
+
             if self.SSL_KEY_FILE:
                 if not Path(self.SSL_KEY_FILE).exists():
                     errors.append(f"SSL key file not found: {self.SSL_KEY_FILE}")
-        
+
         return errors
 
-    def validate_cors_config(self) -> List[str]:
+    def validate_cors_config(self) -> list[str]:
         """
         Validate CORS configuration.
-        
+
         Validates Requirement 8.8
         """
         warnings = []
-        
+
         # Check if wildcard origin is used (security risk)
         if "*" in self.ALLOWED_ORIGINS:
             warnings.append(
                 "CORS allows all origins (*). This is a security risk in production. "
                 "Restrict to specific approved domains."
             )
-        
+
         # Check if localhost is allowed in production
         if self.ENVIRONMENT == "production":
             localhost_origins = [
-                origin for origin in self.ALLOWED_ORIGINS
-                if "localhost" in origin or "127.0.0.1" in origin
+                origin for origin in self.ALLOWED_ORIGINS if "localhost" in origin or "127.0.0.1" in origin
             ]
             if localhost_origins:
                 warnings.append(
                     f"CORS allows localhost origins in production: {localhost_origins}. "
                     "Remove these in production environment."
                 )
-        
+
         # Check if credentials are allowed with wildcard
         if self.CORS_ALLOW_CREDENTIALS and "*" in self.ALLOWED_ORIGINS:
             warnings.append(
-                "CORS allows credentials with wildcard origin. "
-                "This is not allowed by browsers and will fail."
+                "CORS allows credentials with wildcard origin. This is not allowed by browsers and will fail."
             )
-        
+
         return warnings
 
-    def validate_rate_limiting_config(self) -> List[str]:
+    def validate_rate_limiting_config(self) -> list[str]:
         """
         Validate rate limiting configuration.
-        
+
         Validates Requirement 8.6
         """
         warnings = []
-        
+
         # Check if rate limit is too high
         if self.RATE_LIMIT_PER_MINUTE > 1000:
             warnings.append(
                 f"Rate limit is very high ({self.RATE_LIMIT_PER_MINUTE} requests/minute). "
                 "Consider reducing for better protection against abuse."
             )
-        
+
         # Check if rate limit is too low
         if self.RATE_LIMIT_PER_MINUTE < 10:
             warnings.append(
                 f"Rate limit is very low ({self.RATE_LIMIT_PER_MINUTE} requests/minute). "
                 "This may impact legitimate users."
             )
-        
+
         return warnings
 
-    def validate_tracing_config(self) -> List[str]:
+    def validate_tracing_config(self) -> list[str]:
         """
         Validate OpenTelemetry tracing configuration.
-        
+
         Validates Requirement 18.1
         """
         warnings = []
-        
+
         # Check if tracing is enabled
         if not self.TRACING_ENABLED:
             warnings.append("OpenTelemetry tracing is disabled. Enable for production observability.")
-        
+
         # Check sample rate
         if self.TRACING_SAMPLE_RATE < 0.0 or self.TRACING_SAMPLE_RATE > 1.0:
-            warnings.append(
-                f"TRACING_SAMPLE_RATE must be between 0.0 and 1.0, got {self.TRACING_SAMPLE_RATE}"
-            )
-        
+            warnings.append(f"TRACING_SAMPLE_RATE must be between 0.0 and 1.0, got {self.TRACING_SAMPLE_RATE}")
+
         # Check if sample rate is too low in production
         if self.ENVIRONMENT == "production" and self.TRACING_SAMPLE_RATE < 0.1:
             warnings.append(
                 f"TRACING_SAMPLE_RATE is very low ({self.TRACING_SAMPLE_RATE}) in production. "
                 "Consider increasing for better observability."
             )
-        
+
         # Check OTLP endpoint
         if self.TRACING_ENABLED and not self.OTLP_ENDPOINT:
             warnings.append("OTLP_ENDPOINT is required when TRACING_ENABLED is true")
-        
+
         return warnings
 
     def is_tracing_enabled(self) -> bool:
@@ -626,7 +609,7 @@ class Settings(BaseSettings):
         env_file="../.env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore"  # Ignore extra environment variables
+        extra="ignore",  # Ignore extra environment variables
     )
 
 

@@ -6,20 +6,18 @@ Handles database error detection, classification, reporting, and tracking.
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Any
 
-from .types import DatabaseErrorCategory, DatabaseErrorInfo
 from .masking import MASKING_RULES
-from .statistics_manager import error_stats
-
-
 from .statistics import ErrorStatistics
+from .statistics_manager import error_stats
+from .types import DatabaseErrorCategory, DatabaseErrorInfo
 
 
 class ErrorReporter:
     """
     Comprehensive error reporting system for database operations.
-    
+
     Features:
     - Error classification and categorization
     - Sensitive data masking
@@ -27,73 +25,73 @@ class ErrorReporter:
     - Recent error history
     - Configurable alerting thresholds
     """
-    
+
     def __init__(self, logger_name: str = __name__):
         self.logger = logging.getLogger(logger_name)
-        self._alert_thresholds: Dict[DatabaseErrorCategory, int] = {
+        self._alert_thresholds: dict[DatabaseErrorCategory, int] = {
             DatabaseErrorCategory.CONNECTION_TIMEOUT: 5,
             DatabaseErrorCategory.AUTHENTICATION_FAILURE: 3,
             DatabaseErrorCategory.POOL_EXHAUSTION: 2,
         }
-    
+
     def classify_error(self, error: Exception) -> DatabaseErrorCategory:
         """
         Classify an error into appropriate category.
-        
+
         Args:
             error: The exception to classify
-            
+
         Returns:
             DatabaseErrorCategory for the error
         """
         error_str = str(error).lower()
-        error_type = type(error).__name__.lower()
-        
+        type(error).__name__.lower()
+
         # Connection timeout
-        if 'timeout' in error_str or 'timed out' in error_str:
+        if "timeout" in error_str or "timed out" in error_str:
             return DatabaseErrorCategory.CONNECTION_TIMEOUT
-        
+
         # Authentication failure
-        if 'auth' in error_str or 'access denied' in error_str or 'permission' in error_str:
+        if "auth" in error_str or "access denied" in error_str or "permission" in error_str:
             return DatabaseErrorCategory.AUTHENTICATION_FAILURE
-        
+
         # Encoding error
-        if 'encoding' in error_str or 'decode' in error_str or 'unicode' in error_str:
+        if "encoding" in error_str or "decode" in error_str or "unicode" in error_str:
             return DatabaseErrorCategory.ENCODING_ERROR
-        
+
         # Compatibility error
-        if 'version' in error_str or 'compatibility' in error_str or 'unsupported' in error_str:
+        if "version" in error_str or "compatibility" in error_str or "unsupported" in error_str:
             return DatabaseErrorCategory.COMPATIBILITY_ERROR
-        
+
         # Pool exhaustion
-        if 'pool' in error_str or 'exhausted' in error_str or 'connection limit' in error_str:
+        if "pool" in error_str or "exhausted" in error_str or "connection limit" in error_str:
             return DatabaseErrorCategory.POOL_EXHAUSTION
-        
+
         # Network error
-        if 'network' in error_str or 'connection refused' in error_str or 'unreachable' in error_str:
+        if "network" in error_str or "connection refused" in error_str or "unreachable" in error_str:
             return DatabaseErrorCategory.NETWORK_ERROR
-        
+
         # Configuration error
-        if 'config' in error_str or 'setting' in error_str or 'invalid' in error_str:
+        if "config" in error_str or "setting" in error_str or "invalid" in error_str:
             return DatabaseErrorCategory.CONFIGURATION_ERROR
-        
+
         # Migration error
-        if 'migration' in error_str or 'schema' in error_str or 'alembic' in error_str:
+        if "migration" in error_str or "schema" in error_str or "alembic" in error_str:
             return DatabaseErrorCategory.MIGRATION_ERROR
-        
+
         # Health check error
-        if 'health' in error_str or 'ping' in error_str or 'check' in error_str:
+        if "health" in error_str or "ping" in error_str or "check" in error_str:
             return DatabaseErrorCategory.HEALTH_CHECK_ERROR
-        
+
         return DatabaseErrorCategory.NETWORK_ERROR
-    
+
     def mask_sensitive_data(self, data: str) -> str:
         """
         Mask sensitive data in error messages.
-        
+
         Args:
             data: String that may contain sensitive data
-            
+
         Returns:
             String with sensitive data masked
         """
@@ -104,14 +102,14 @@ class ErrorReporter:
             except Exception:
                 pass
         return masked_data
-    
-    def extract_error_details(self, error: Exception) -> Dict[str, Any]:
+
+    def extract_error_details(self, error: Exception) -> dict[str, Any]:
         """
         Extract relevant details from an exception.
-        
+
         Args:
             error: The exception to extract details from
-            
+
         Returns:
             Dictionary containing error details
         """
@@ -120,27 +118,27 @@ class ErrorReporter:
             "error_message": self.mask_sensitive_data(str(error)),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
-        if hasattr(error, '__dict__'):
+
+        if hasattr(error, "__dict__"):
             for key, value in error.__dict__.items():
-                if not key.startswith('_'):
+                if not key.startswith("_"):
                     details[key] = self.mask_sensitive_data(str(value))
-        
+
         return details
-    
-    def generate_resolution_steps(self, error: Exception, category: DatabaseErrorCategory) -> List[str]:
+
+    def generate_resolution_steps(self, error: Exception, category: DatabaseErrorCategory) -> list[str]:
         """
         Generate suggested resolution steps based on error category.
-        
+
         Args:
             error: The exception
             category: Error category
-            
+
         Returns:
             List of suggested resolution steps
         """
         steps = []
-        
+
         if category == DatabaseErrorCategory.CONNECTION_TIMEOUT:
             steps = [
                 "Check database server status",
@@ -176,38 +174,35 @@ class ErrorReporter:
                 "Verify configuration",
                 "Contact system administrator",
             ]
-        
+
         return steps
-    
+
     def report_error(
         self,
         error: Exception,
         component: str,
-        context: Optional[Dict[str, Any]] = None,
-        connection_params: Optional[Dict[str, str]] = None,
+        context: dict[str, Any] | None = None,
+        connection_params: dict[str, str] | None = None,
     ) -> DatabaseErrorInfo:
         """
         Report a database error with full context.
-        
+
         Args:
             error: The exception that occurred
             component: Component where error occurred
             context: Additional context information
             connection_params: Connection parameters (masked)
-            
+
         Returns:
             DatabaseErrorInfo object
         """
         category = self.classify_error(error)
-        
+
         # Mask connection parameters
         masked_params = None
         if connection_params:
-            masked_params = {
-                k: self.mask_sensitive_data(str(v))
-                for k, v in connection_params.items()
-            }
-        
+            masked_params = {k: self.mask_sensitive_data(str(v)) for k, v in connection_params.items()}
+
         error_info = DatabaseErrorInfo(
             category=category,
             component=component,
@@ -217,22 +212,22 @@ class ErrorReporter:
             resolution_steps=self.generate_resolution_steps(error, category),
             connection_params=masked_params,
         )
-        
+
         # Update statistics
         error_stats.add_error(error_info)
-        
+
         # Log the error
         self._log_error(error_info, error)
-        
+
         # Check alert threshold
         self._check_alert_threshold(category)
-        
+
         return error_info
-    
+
     def _log_error(self, error_info: DatabaseErrorInfo, original_error: Exception) -> None:
         """Log error with appropriate level based on category."""
         log_message = f"[{error_info.category.value}] {error_info.component}: {error_info.message}"
-        
+
         if error_info.category in [
             DatabaseErrorCategory.AUTHENTICATION_FAILURE,
             DatabaseErrorCategory.CONFIGURATION_ERROR,
@@ -240,33 +235,31 @@ class ErrorReporter:
             self.logger.error(log_message, exc_info=original_error)
         else:
             self.logger.warning(log_message, exc_info=original_error)
-    
+
     def _check_alert_threshold(self, category: DatabaseErrorCategory) -> None:
         """Check if error count exceeds alert threshold."""
         threshold = self._alert_thresholds.get(category)
         if threshold:
             count = error_stats.get_error_count_by_category(category)
             if count >= threshold:
-                self.logger.warning(
-                    f"Alert: {category.value} errors ({count}) exceeded threshold ({threshold})"
-                )
-    
+                self.logger.warning(f"Alert: {category.value} errors ({count}) exceeded threshold ({threshold})")
+
     def get_statistics(self) -> ErrorStatistics:
         """Get current error statistics."""
         return error_stats.get_statistics()
-    
-    def get_recent_errors(self, limit: int = 10) -> List[DatabaseErrorInfo]:
+
+    def get_recent_errors(self, limit: int = 10) -> list[DatabaseErrorInfo]:
         """Get recent errors."""
         return error_stats.get_recent_errors(limit)
-    
+
     def set_alert_threshold(self, category: DatabaseErrorCategory, threshold: int) -> None:
         """Set alert threshold for a category."""
         self._alert_thresholds[category] = threshold
-    
-    def get_error_report(self) -> Dict[str, Any]:
+
+    def get_error_report(self) -> dict[str, Any]:
         """
         Generate a comprehensive error report.
-        
+
         Returns:
             Dictionary containing error report
         """

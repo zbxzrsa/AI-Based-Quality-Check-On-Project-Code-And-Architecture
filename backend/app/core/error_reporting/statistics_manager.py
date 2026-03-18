@@ -4,10 +4,8 @@ Statistics Manager Module
 Global error statistics management.
 """
 
-from typing import Dict, List
-
-from .types import DatabaseErrorCategory, DatabaseErrorInfo
 from .statistics import ErrorStatistics
+from .types import DatabaseErrorCategory, DatabaseErrorInfo
 
 
 class ErrorStatisticsManager:
@@ -32,7 +30,7 @@ class ErrorStatisticsManager:
         """Get error count for a specific component"""
         return self._stats.component_errors.get(component, 0)
 
-    def get_recent_errors(self, limit: int = 10) -> List[DatabaseErrorInfo]:
+    def get_recent_errors(self, limit: int = 10) -> list[DatabaseErrorInfo]:
         """Get most recent errors"""
         return self._stats.recent_errors[-limit:]
 
@@ -40,7 +38,7 @@ class ErrorStatisticsManager:
         """Clear all statistics"""
         self._stats = ErrorStatistics()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Export statistics as dictionary"""
         return self._stats.to_dict()
 
