@@ -1,20 +1,12 @@
 """
 Database models for code review and architecture analysis
 """
+
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import (
-    Column,
-    String,
-    Text,
-    Integer,
-    DateTime,
-    ForeignKey,
-    Enum,
-    func
-)
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.database.postgresql import Base
@@ -38,6 +30,7 @@ class ReviewStatus(str, PyEnum):
 
 class PullRequest(Base):
     """Pull request model"""
+
     __tablename__ = "pull_requests"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
@@ -64,7 +57,9 @@ class PullRequest(Base):
     project = relationship("Project", back_populates="pull_requests")
     author = relationship("User", back_populates="pull_requests")
     reviews = relationship("CodeReview", back_populates="pull_request", cascade="all, delete-orphan")
-    architecture_analyses = relationship("ArchitectureAnalysis", back_populates="pull_request", cascade="all, delete-orphan")
+    architecture_analyses = relationship(
+        "ArchitectureAnalysis", back_populates="pull_request", cascade="all, delete-orphan"
+    )
     review_result = relationship("ReviewResult", back_populates="pull_request", uselist=False)
 
     def __repr__(self):
@@ -73,6 +68,7 @@ class PullRequest(Base):
 
 class CodeReview(Base):
     """Code review model"""
+
     __tablename__ = "code_reviews"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
@@ -93,6 +89,7 @@ class CodeReview(Base):
 
 class ReviewComment(Base):
     """Code review comment model"""
+
     __tablename__ = "review_comments"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
@@ -105,13 +102,13 @@ class ReviewComment(Base):
     rule_id = Column(String(128), nullable=True)
     rule_name = Column(String(256), nullable=True)
     suggested_fix = Column(Text, nullable=True)
-    
+
     # Standards compliance fields
     iso_25010_characteristic = Column(String(128), nullable=True)  # ISO/IEC 25010 quality characteristic
     iso_25010_sub_characteristic = Column(String(128), nullable=True)  # ISO/IEC 25010 sub-characteristic
     iso_23396_practice = Column(String(128), nullable=True)  # ISO/IEC 23396 practice ID
     owasp_reference = Column(String(128), nullable=True)  # OWASP Top 10 reference (e.g., "A01:2021")
-    
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
@@ -123,6 +120,7 @@ class ReviewComment(Base):
 
 class ArchitectureAnalysis(Base):
     """Architecture analysis model"""
+
     __tablename__ = "architecture_analyses"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
@@ -143,6 +141,7 @@ class ArchitectureAnalysis(Base):
 
 class ArchitectureViolation(Base):
     """Architecture violation model"""
+
     __tablename__ = "architecture_violations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.uuid_generate_v4())
@@ -157,7 +156,7 @@ class ArchitectureViolation(Base):
     suggested_fix = Column(Text, nullable=True)
     rule_id = Column(String(128), nullable=True)
     rule_name = Column(String(256), nullable=True)
-    
+
     # Standards compliance fields
     iso_25010_characteristic = Column(String(128), nullable=True)  # ISO/IEC 25010 quality characteristic
     iso_25010_sub_characteristic = Column(String(128), nullable=True)  # ISO/IEC 25010 sub-characteristic

@@ -1,13 +1,16 @@
 """
 Data models for parsed AST elements
 """
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class NodeType(str, Enum):
     """Node type enumeration"""
+
     CLASS = "class"
     FUNCTION = "function"
     METHOD = "method"
@@ -18,73 +21,80 @@ class NodeType(str, Enum):
 
 class Location(BaseModel):
     """Source code location"""
+
     file_path: str
     start_line: int
     end_line: int
-    start_column: Optional[int] = None
-    end_column: Optional[int] = None
+    start_column: int | None = None
+    end_column: int | None = None
 
 
 class ImportNode(BaseModel):
     """Import/dependency node"""
+
     module_name: str
-    imported_names: List[str] = []
+    imported_names: list[str] = []
     is_from_import: bool = False
-    alias: Optional[str] = None
+    alias: str | None = None
     location: Location
 
 
 class ParameterNode(BaseModel):
     """Function/method parameter"""
+
     name: str
-    type_annotation: Optional[str] = None
-    default_value: Optional[str] = None
+    type_annotation: str | None = None
+    default_value: str | None = None
 
 
 class FunctionNode(BaseModel):
     """Function or method node"""
+
     name: str
-    parameters: List[ParameterNode] = []
-    return_type: Optional[str] = None
+    parameters: list[ParameterNode] = []
+    return_type: str | None = None
     complexity: int = 1
     lines_of_code: int = 0
     nesting_depth: int = 0
     is_async: bool = False
     is_method: bool = False
-    decorators: List[str] = []
-    docstring: Optional[str] = None
-    calls: List[str] = []  # Functions called within this function
+    decorators: list[str] = []
+    docstring: str | None = None
+    calls: list[str] = []  # Functions called within this function
     location: Location
 
 
 class PropertyNode(BaseModel):
     """Class property/attribute"""
+
     name: str
-    type_annotation: Optional[str] = None
-    default_value: Optional[str] = None
+    type_annotation: str | None = None
+    default_value: str | None = None
     is_class_variable: bool = False
 
 
 class ClassNode(BaseModel):
     """Class node"""
+
     name: str
-    methods: List[FunctionNode] = []
-    properties: List[PropertyNode] = []
-    base_classes: List[str] = []
-    decorators: List[str] = []
-    docstring: Optional[str] = None
+    methods: list[FunctionNode] = []
+    properties: list[PropertyNode] = []
+    base_classes: list[str] = []
+    decorators: list[str] = []
+    docstring: str | None = None
     lines_of_code: int = 0
     location: Location
 
 
 class ModuleNode(BaseModel):
     """Module/file node"""
+
     name: str
     file_path: str
     language: str
-    imports: List[ImportNode] = []
-    classes: List[ClassNode] = []
-    functions: List[FunctionNode] = []
+    imports: list[ImportNode] = []
+    classes: list[ClassNode] = []
+    functions: list[FunctionNode] = []
     lines_of_code: int = 0
     comment_lines: int = 0
     blank_lines: int = 0
@@ -93,13 +103,15 @@ class ModuleNode(BaseModel):
 
 class ParsedFile(BaseModel):
     """Complete parsed file structure"""
+
     module: ModuleNode
-    metrics: Dict[str, Any] = {}
-    errors: List[str] = []
+    metrics: dict[str, Any] = {}
+    errors: list[str] = []
 
 
 class DependencyEdge(BaseModel):
     """Dependency relationship"""
+
     source: str
     target: str
     type: str  # import, call, inheritance
@@ -108,6 +120,7 @@ class DependencyEdge(BaseModel):
 
 class DependencyGraph(BaseModel):
     """Dependency graph structure"""
-    nodes: List[str] = []
-    edges: List[DependencyEdge] = []
-    metrics: Dict[str, Any] = {}
+
+    nodes: list[str] = []
+    edges: list[DependencyEdge] = []
+    metrics: dict[str, Any] = {}
