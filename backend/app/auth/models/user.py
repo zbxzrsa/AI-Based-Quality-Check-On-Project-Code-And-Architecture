@@ -42,12 +42,12 @@ class User(Base):
     github_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationships
-    owned_projects: Mapped[list["Project"]] = relationship(
+    owned_projects: Mapped[list["Project"]] = relationship(  # noqa: F821
         "Project", back_populates="owner", foreign_keys="Project.owner_id"
     )
-    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")
-    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user")
-    project_accesses: Mapped[list["ProjectAccess"]] = relationship(
+    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")  # noqa: F821
+    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user")  # noqa: F821
+    project_accesses: Mapped[list["ProjectAccess"]] = relationship(  # noqa: F821
         "ProjectAccess", back_populates="user", foreign_keys="ProjectAccess.user_id", cascade="all, delete-orphan"
     )
 

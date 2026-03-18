@@ -16,10 +16,8 @@ from unittest.mock import patch
 import pytest
 from hypothesis import given, strategies as st, settings
 
-from app.core.config_validator import (
+from app.core.config_validator import ConfigValidator
 from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
-    ConfigValidator
-)
 
 
 # Test constants for configuration to avoid literal suspicious strings

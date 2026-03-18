@@ -4,7 +4,6 @@ Authentication and authorization helper utilities.
 This module provides reusable auth check functions following the DRY principle.
 """
 
-
 from fastapi import HTTPException, Request, status
 
 from app.models import User

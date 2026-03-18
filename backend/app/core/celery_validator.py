@@ -9,6 +9,8 @@ Validates Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
 import logging
 from dataclasses import dataclass
 
+import redis
+
 from app.core.config import settings
 from app.core.error_reporter import ErrorReporter
 

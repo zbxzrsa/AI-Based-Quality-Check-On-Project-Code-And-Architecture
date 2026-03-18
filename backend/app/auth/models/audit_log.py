@@ -30,7 +30,7 @@ class AuditLog(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="audit_logs")
+    user: Mapped["User"] = relationship("User", back_populates="audit_logs")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<AuditLog(id={self.id}, user_id={self.user_id}, action={self.action}, success={self.success})>"

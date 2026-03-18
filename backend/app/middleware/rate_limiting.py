@@ -8,17 +8,17 @@ Requirements:
 - 8.3: Implement rate limiting on all API endpoints: 100 requests per minute, 5000 requests per hour
 """
 
+import logging
+import os
+import time
+from collections.abc import Callable
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable, Optional
-import os
-import logging
-import time
-
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 
@@ -99,7 +99,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app,
         rate_limit_per_minute: int = 100,
         rate_limit_per_hour: int = 5000,
-        redis_url: Optional[str] = None,
+        redis_url: str | None = None,
     ):
         """
         Initialize rate limiting middleware.
@@ -194,7 +194,7 @@ class CustomRateLimiter:
             return {"status": "ok"}
     """
 
-    def __init__(self, redis_url: Optional[str] = None):
+    def __init__(self, redis_url: str | None = None):
         """
         Initialize custom rate limiter.
 
@@ -267,9 +267,7 @@ def configure_rate_limiting(app):
         app = FastAPI()
         configure_rate_limiting(app)
     """
-    from slowapi import Limiter
     from slowapi.errors import RateLimitExceeded
-    from starlette.middleware.base import BaseHTTPMiddleware
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)

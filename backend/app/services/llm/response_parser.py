@@ -7,12 +7,14 @@ severity levels, line numbers, and suggestions.
 Validates Requirements: 1.4
 """
 
+import logging
 import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-# Import consolidated enums from common library
 from common.shared.enums import Severity
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

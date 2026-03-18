@@ -25,7 +25,7 @@ class Session(Base):
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False)  # IPv6 max length
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="sessions")
+    user: Mapped["User"] = relationship("User", back_populates="sessions")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<Session(id={self.id}, user_id={self.user_id}, is_valid={self.is_valid})>"

@@ -44,9 +44,7 @@ class RetryConfig:
         return delay
 
 
-def retry_async(
-    config: RetryConfig | None = None, exceptions: tuple = (Exception,), on_retry: Callable | None = None
-):
+def retry_async(config: RetryConfig | None = None, exceptions: tuple = (Exception,), on_retry: Callable | None = None):
     """
     Decorator for retrying async functions with exponential backoff.
 
@@ -113,9 +111,7 @@ def retry_async(
     return decorator
 
 
-def retry_sync(
-    config: RetryConfig | None = None, exceptions: tuple = (Exception,), on_retry: Callable | None = None
-):
+def retry_sync(config: RetryConfig | None = None, exceptions: tuple = (Exception,), on_retry: Callable | None = None):
     """
     Decorator for retrying synchronous functions with exponential backoff.
 

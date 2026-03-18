@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_pr_reviewer import AIPRReviewer, ComplianceStatus, ReviewResult
 from app.services.llm.base import LLMRequest
+from app.services.llm_client import LLMClient, LLMProvider
 from app.services.user_llm_service import UserLLMService
 
 logger = logging.getLogger(__name__)

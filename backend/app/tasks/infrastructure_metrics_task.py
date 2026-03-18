@@ -5,6 +5,7 @@ Collects and sends infrastructure metrics to CloudWatch every minute.
 
 Validates Requirements: 7.4, 7.10
 """
+
 import logging
 
 from celery import shared_task
@@ -38,24 +39,15 @@ def collect_infrastructure_metrics_task():
         else:
             logger.warning("Failed to send infrastructure metrics to CloudWatch")
 
-        return {
-            'success': success,
-            'message': 'Infrastructure metrics collection completed'
-        }
+        return {"success": success, "message": "Infrastructure metrics collection completed"}
 
     except Exception as e:
         logger.error(
             f"Error collecting infrastructure metrics: {e}",
-            extra={
-                'error': str(e),
-                'error_type': type(e).__name__
-            },
-            exc_info=True
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
         )
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @shared_task(name="collect_database_pool_metrics")
@@ -74,38 +66,26 @@ def collect_database_pool_metrics_task():
         pg_stats = get_pool_stats()
         if pg_stats:
             pool_metrics = collector.collect_connection_pool_metrics(
-                pool_name='postgresql',
-                size=pg_stats.get('pool_size', 0),
-                checked_out=pg_stats.get('checked_out', 0),
-                overflow=pg_stats.get('overflow', 0),
-                checked_in=pg_stats.get('checked_in', 0)
+                pool_name="postgresql",
+                size=pg_stats.get("pool_size", 0),
+                checked_out=pg_stats.get("checked_out", 0),
+                overflow=pg_stats.get("overflow", 0),
+                checked_in=pg_stats.get("checked_in", 0),
             )
 
-            collector.send_metrics_to_cloudwatch(
-                pool_metrics,
-                dimensions={'PoolType': 'PostgreSQL'}
-            )
+            collector.send_metrics_to_cloudwatch(pool_metrics, dimensions={"PoolType": "PostgreSQL"})
 
             logger.info("Database pool metrics collected and sent to CloudWatch")
 
-        return {
-            'success': True,
-            'message': 'Database pool metrics collection completed'
-        }
+        return {"success": True, "message": "Database pool metrics collection completed"}
 
     except Exception as e:
         logger.error(
             f"Error collecting database pool metrics: {e}",
-            extra={
-                'error': str(e),
-                'error_type': type(e).__name__
-            },
-            exc_info=True
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
         )
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @shared_task(name="collect_cache_metrics")
@@ -124,35 +104,23 @@ def collect_cache_metrics_task():
         cache_stats = get_cache_stats()
         if cache_stats:
             cache_metrics = collector.collect_cache_metrics(
-                cache_name='redis',
-                hits=cache_stats.get('hits', 0),
-                misses=cache_stats.get('misses', 0),
-                evictions=cache_stats.get('evictions', 0),
-                size=cache_stats.get('size', 0)
+                cache_name="redis",
+                hits=cache_stats.get("hits", 0),
+                misses=cache_stats.get("misses", 0),
+                evictions=cache_stats.get("evictions", 0),
+                size=cache_stats.get("size", 0),
             )
 
-            collector.send_metrics_to_cloudwatch(
-                cache_metrics,
-                dimensions={'CacheType': 'Redis'}
-            )
+            collector.send_metrics_to_cloudwatch(cache_metrics, dimensions={"CacheType": "Redis"})
 
             logger.info("Cache metrics collected and sent to CloudWatch")
 
-        return {
-            'success': True,
-            'message': 'Cache metrics collection completed'
-        }
+        return {"success": True, "message": "Cache metrics collection completed"}
 
     except Exception as e:
         logger.error(
             f"Error collecting cache metrics: {e}",
-            extra={
-                'error': str(e),
-                'error_type': type(e).__name__
-            },
-            exc_info=True
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
         )
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}

@@ -12,6 +12,7 @@ These tasks can be chained together to form a complete workflow.
 
 Validates Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
 """
+
 import asyncio
 import json
 import logging
@@ -44,13 +45,14 @@ logger = logging.getLogger(__name__)
 # WORKFLOW TASKS
 # ========================================
 
+
 @celery_app.task(
     bind=True,
     base=MonitoredTask,
-    name='app.tasks.pull_request_analysis.parse_pull_request_files',
+    name="app.tasks.pull_request_analysis.parse_pull_request_files",
     max_retries=3,
     default_retry_delay=60,
-    queue='high_priority'
+    queue="high_priority",
 )
 def parse_pull_request_files(self, pr_id: str, project_id: str) -> dict[str, Any]:
     """
@@ -112,12 +114,9 @@ async def _parse_pr_files(pr_id: str, project_id: str, task) -> dict[str, Any]:
 
             # Get PR files from GitHub
             github_client = get_github_client()
-            repo_full_name = '/'.join(project.github_repo_url.rsplit('/', 2)[-2:])
+            repo_full_name = "/".join(project.github_repo_url.rsplit("/", 2)[-2:])
 
-            files = await github_client.get_pr_files(
-                repo_full_name,
-                pr.github_pr_number
-            )
+            files = await github_client.get_pr_files(repo_full_name, pr.github_pr_number)
 
             task.update_progress(25, f"Parsing {len(files)} files", TaskProgressStage.PARSING_FILES)
 
@@ -128,82 +127,83 @@ async def _parse_pr_files(pr_id: str, project_id: str, task) -> dict[str, Any]:
             parsed_entities = []
             file_contents = {}
 
-            total_files = len([f for f in files if f['status'] in ['added', 'modified', 'renamed']])
+            total_files = len([f for f in files if f["status"] in ["added", "modified", "renamed"]])
             processed_files = 0
 
             for file_data in files:
-                if file_data['status'] in ['added', 'modified', 'renamed']:
+                if file_data["status"] in ["added", "modified", "renamed"]:
                     try:
                         # Get file content
                         content = await github_client.get_file_content(
-                            repo_full_name,
-                            file_data['filename'],
-                            pr.commit_sha
+                            repo_full_name, file_data["filename"], pr.commit_sha
                         )
 
-                        file_contents[file_data['filename']] = content
+                        file_contents[file_data["filename"]] = content
 
                         # Parse with optimized parser
-                        parsed_file, parse_time = parser.parse_file(
-                            file_data['filename'],
-                            content=content
-                        )
+                        parsed_file, parse_time = parser.parse_file(file_data["filename"], content=content)
 
                         # Extract code entities
                         entities = extractor.extract_from_parsed_file(parsed_file)
 
                         # Add to results
                         for entity in entities:
-                            parsed_entities.append({
-                                'name': entity.name,
-                                'entity_type': entity.entity_type,
-                                'file_path': entity.file_path,
-                                'complexity': entity.complexity,
-                                'lines_of_code': entity.lines_of_code,
-                                'dependencies': entity.dependencies
-                            })
+                            parsed_entities.append(
+                                {
+                                    "name": entity.name,
+                                    "entity_type": entity.entity_type,
+                                    "file_path": entity.file_path,
+                                    "complexity": entity.complexity,
+                                    "lines_of_code": entity.lines_of_code,
+                                    "dependencies": entity.dependencies,
+                                }
+                            )
 
                         processed_files += 1
                         progress = 25 + int((processed_files / total_files) * 50)
                         task.update_progress(
                             progress,
                             f"Parsed {file_data['filename']}: {len(entities)} entities",
-                            TaskProgressStage.PARSING_FILES
+                            TaskProgressStage.PARSING_FILES,
                         )
 
-                        logger.info("Parsed %s: %d entities in %.2fs", file_data['filename'], len(entities), parse_time)
+                        logger.info("Parsed %s: %d entities in %.2fs", file_data["filename"], len(entities), parse_time)
 
                     except Exception as e:
                         # Continue with other files on parse error
-                        logger.warning("Error parsing %s: %s", file_data['filename'], str(e), exc_info=True)
+                        logger.warning("Error parsing %s: %s", file_data["filename"], str(e), exc_info=True)
 
             task.update_progress(80, "Building combined diff", TaskProgressStage.PARSING_FILES)
 
             # Build combined diff for LLM analysis
-            full_diff = "\n\n".join([
-                f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}"
-                for f in files if f.get('patch')
-            ])
+            full_diff = "\n\n".join(
+                [
+                    f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}"
+                    for f in files
+                    if f.get("patch")
+                ]
+            )
 
-            task.update_progress(100, f"Parsed {len(parsed_entities)} entities from {processed_files} files", TaskProgressStage.PARSING_FILES)
+            task.update_progress(
+                100,
+                f"Parsed {len(parsed_entities)} entities from {processed_files} files",
+                TaskProgressStage.PARSING_FILES,
+            )
 
             return {
-                'pr_id': pr_id,
-                'project_id': project_id,
-                'parsed_entities': parsed_entities,
-                'file_contents': file_contents,
-                'full_diff': full_diff,
-                'pr_data': {
-                    'title': pr.title,
-                    'description': pr.description,
-                    'commit_sha': pr.commit_sha,
-                    'files_changed': pr.files_changed,
-                    'github_pr_number': pr.github_pr_number
+                "pr_id": pr_id,
+                "project_id": project_id,
+                "parsed_entities": parsed_entities,
+                "file_contents": file_contents,
+                "full_diff": full_diff,
+                "pr_data": {
+                    "title": pr.title,
+                    "description": pr.description,
+                    "commit_sha": pr.commit_sha,
+                    "files_changed": pr.files_changed,
+                    "github_pr_number": pr.github_pr_number,
                 },
-                'project_data': {
-                    'repo_full_name': repo_full_name,
-                    'language': project.language or 'Python'
-                }
+                "project_data": {"repo_full_name": repo_full_name, "language": project.language or "Python"},
             }
 
         except Exception as e:
@@ -224,10 +224,10 @@ async def _parse_pr_files(pr_id: str, project_id: str, task) -> dict[str, Any]:
 @celery_app.task(
     bind=True,
     base=MonitoredTask,
-    name='app.tasks.pull_request_analysis.build_dependency_graph',
+    name="app.tasks.pull_request_analysis.build_dependency_graph",
     max_retries=3,
     default_retry_delay=60,
-    queue='high_priority'
+    queue="high_priority",
 )
 def build_dependency_graph(self, parse_result: dict[str, Any]) -> dict[str, Any]:
     """
@@ -260,8 +260,8 @@ async def _build_graph(parse_result: dict[str, Any], task) -> dict[str, Any]:
     try:
         task.update_progress(10, "Initializing graph builder", TaskProgressStage.BUILDING_GRAPH)
 
-        project_id = parse_result['project_id']
-        parsed_entities = parse_result['parsed_entities']
+        project_id = parse_result["project_id"]
+        parsed_entities = parse_result["parsed_entities"]
 
         # Initialize graph builder service
         graph_builder = GraphBuilderService()
@@ -270,25 +270,23 @@ async def _build_graph(parse_result: dict[str, Any], task) -> dict[str, Any]:
 
         # Convert parsed entities to CodeEntity objects
         from app.services.code_entity_extractor import CodeEntity
+
         entities = []
         for entity_data in parsed_entities:
             entity = CodeEntity(
-                name=entity_data['name'],
-                entity_type=entity_data['entity_type'],
-                file_path=entity_data['file_path'],
-                complexity=entity_data['complexity'],
-                lines_of_code=entity_data['lines_of_code'],
-                dependencies=entity_data['dependencies']
+                name=entity_data["name"],
+                entity_type=entity_data["entity_type"],
+                file_path=entity_data["file_path"],
+                complexity=entity_data["complexity"],
+                lines_of_code=entity_data["lines_of_code"],
+                dependencies=entity_data["dependencies"],
             )
             entities.append(entity)
 
         task.update_progress(40, "Creating entity nodes in Neo4j", TaskProgressStage.BUILDING_GRAPH)
 
         # Create entity nodes in batch
-        nodes_result = await graph_builder.create_or_update_entity_nodes_batch(
-            entities,
-            project_id=project_id
-        )
+        nodes_result = await graph_builder.create_or_update_entity_nodes_batch(entities, project_id=project_id)
 
         task.update_progress(60, "Building dependency relationships", TaskProgressStage.BUILDING_GRAPH)
 
@@ -300,38 +298,36 @@ async def _build_graph(parse_result: dict[str, Any], task) -> dict[str, Any]:
             for dep_name in entity.dependencies:
                 if dep_name in entity_map:
                     target = entity_map[dep_name]
-                    relationships.append((entity, target, 'DEPENDS_ON', {'weight': 1.0}))
+                    relationships.append((entity, target, "DEPENDS_ON", {"weight": 1.0}))
 
         task.update_progress(80, f"Creating {len(relationships)} relationships", TaskProgressStage.BUILDING_GRAPH)
 
         # Create relationships in batch
-        rels_result = await graph_builder.create_dependency_relationships_batch(
-            relationships,
-            project_id=project_id
-        )
+        rels_result = await graph_builder.create_dependency_relationships_batch(relationships, project_id=project_id)
 
         # Combine results
         graph_stats = {
-            'nodes_created': nodes_result.nodes_created,
-            'nodes_updated': nodes_result.nodes_updated,
-            'relationships_created': rels_result.relationships_created,
-            'relationships_updated': rels_result.relationships_updated,
-            'errors': nodes_result.errors + rels_result.errors
+            "nodes_created": nodes_result.nodes_created,
+            "nodes_updated": nodes_result.nodes_updated,
+            "relationships_created": rels_result.relationships_created,
+            "relationships_updated": rels_result.relationships_updated,
+            "errors": nodes_result.errors + rels_result.errors,
         }
 
         task.update_progress(
             100,
             f"Graph built: {graph_stats['nodes_created']} nodes, {graph_stats['relationships_created']} relationships",
-            TaskProgressStage.BUILDING_GRAPH
+            TaskProgressStage.BUILDING_GRAPH,
         )
 
-        logger.info("Built graph: %d nodes, %d relationships", graph_stats['nodes_created'], graph_stats['relationships_created'])
+        logger.info(
+            "Built graph: %d nodes, %d relationships",
+            graph_stats["nodes_created"],
+            graph_stats["relationships_created"],
+        )
 
         # Return updated result with graph stats
-        return {
-            **parse_result,
-            'graph_stats': graph_stats
-        }
+        return {**parse_result, "graph_stats": graph_stats}
 
     except Exception as e:
         logger.error("Error building dependency graph: %s", str(e), exc_info=True)
@@ -341,10 +337,10 @@ async def _build_graph(parse_result: dict[str, Any], task) -> dict[str, Any]:
 @celery_app.task(
     bind=True,
     base=MonitoredTask,
-    name='app.tasks.pull_request_analysis.analyze_with_llm',
+    name="app.tasks.pull_request_analysis.analyze_with_llm",
     max_retries=3,
     default_retry_delay=60,
-    queue='high_priority'
+    queue="high_priority",
 )
 def analyze_with_llm(self, graph_result: dict[str, Any]) -> dict[str, Any]:
     """
@@ -378,19 +374,17 @@ async def _analyze_with_llm(graph_result: dict[str, Any], task) -> dict[str, Any
     try:
         task.update_progress(10, "Preparing analysis context", TaskProgressStage.ANALYZING_LLM)
 
-        pr_data = graph_result['pr_data']
-        project_data = graph_result['project_data']
-        full_diff = graph_result['full_diff']
-        parsed_entities = graph_result['parsed_entities']
-        graph_stats = graph_result['graph_stats']
+        pr_data = graph_result["pr_data"]
+        project_data = graph_result["project_data"]
+        full_diff = graph_result["full_diff"]
+        parsed_entities = graph_result["parsed_entities"]
+        graph_stats = graph_result["graph_stats"]
 
         task.update_progress(20, "Initializing LLM orchestrator", TaskProgressStage.ANALYZING_LLM)
 
         # Initialize LLM orchestrator with primary/fallback pattern
         orchestrator_config = OrchestratorConfig(
-            primary_provider=LLMProviderType.OPENAI,
-            fallback_provider=LLMProviderType.ANTHROPIC,
-            timeout=30
+            primary_provider=LLMProviderType.OPENAI, fallback_provider=LLMProviderType.ANTHROPIC, timeout=30
         )
         orchestrator = LLMOrchestrator(orchestrator_config)
 
@@ -401,24 +395,24 @@ async def _analyze_with_llm(graph_result: dict[str, Any], task) -> dict[str, Any
 
         # Build context summary
         context_summary = f"""
-Repository: {project_data['repo_full_name']}
-Language: {project_data['language']}
-Files Changed: {pr_data['files_changed']}
+Repository: {project_data["repo_full_name"]}
+Language: {project_data["language"]}
+Files Changed: {pr_data["files_changed"]}
 Entities Analyzed: {len(parsed_entities)}
-Graph Nodes: {graph_stats['nodes_created'] + graph_stats['nodes_updated']}
-Dependencies: {graph_stats['relationships_created'] + graph_stats['relationships_updated']}
+Graph Nodes: {graph_stats["nodes_created"] + graph_stats["nodes_updated"]}
+Dependencies: {graph_stats["relationships_created"] + graph_stats["relationships_updated"]}
 """
 
         task.update_progress(40, "Constructing analysis prompt", TaskProgressStage.ANALYZING_LLM)
 
         # Construct analysis prompt
         prompt = prompt_manager.get_prompt(
-            'code_review',
-            pr_title=pr_data['title'],
-            pr_description=pr_data['description'] or 'No description provided',
+            "code_review",
+            pr_title=pr_data["title"],
+            pr_description=pr_data["description"] or "No description provided",
             diff=full_diff,
             context=context_summary,
-            language=project_data['language']
+            language=project_data["language"],
         )
 
         # Create LLM request
@@ -426,7 +420,7 @@ Dependencies: {graph_stats['relationships_created'] + graph_stats['relationships
             prompt=prompt,
             max_tokens=2000,
             temperature=0.3,
-            system_prompt="You are an expert code reviewer. Analyze the pull request and provide actionable feedback."
+            system_prompt="You are an expert code reviewer. Analyze the pull request and provide actionable feedback.",
         )
 
         task.update_progress(50, "Calling LLM API (with automatic failover)", TaskProgressStage.ANALYZING_LLM)
@@ -438,40 +432,37 @@ Dependencies: {graph_stats['relationships_created'] + graph_stats['relationships
 
         # Parse response into structured format
         from app.services.llm.response_parser import ResponseParser
+
         parser = ResponseParser()
 
         review_data = parser.parse_code_review_response(llm_response.content)
 
         # Calculate metrics
-        total_issues = len(review_data.get('issues', []))
-        critical_issues = sum(1 for issue in review_data.get('issues', [])
-                            if issue.get('severity') == 'critical')
-        risk_score = review_data.get('risk_score', 50)
+        total_issues = len(review_data.get("issues", []))
+        critical_issues = sum(1 for issue in review_data.get("issues", []) if issue.get("severity") == "critical")
+        risk_score = review_data.get("risk_score", 50)
 
         llm_analysis = {
-            'issues': review_data.get('issues', []),
-            'summary': review_data.get('summary', ''),
-            'risk_score': risk_score,
-            'total_issues': total_issues,
-            'critical_issues': critical_issues,
-            'provider_used': llm_response.provider,
-            'tokens_used': llm_response.tokens['total'],
-            'cost': llm_response.cost
+            "issues": review_data.get("issues", []),
+            "summary": review_data.get("summary", ""),
+            "risk_score": risk_score,
+            "total_issues": total_issues,
+            "critical_issues": critical_issues,
+            "provider_used": llm_response.provider,
+            "tokens_used": llm_response.tokens["total"],
+            "cost": llm_response.cost,
         }
 
         task.update_progress(
             100,
             f"Analysis complete: {total_issues} issues found (Risk: {risk_score}/100)",
-            TaskProgressStage.ANALYZING_LLM
+            TaskProgressStage.ANALYZING_LLM,
         )
 
         logger.info("LLM analysis complete: %d issues found (Risk: %d/100)", total_issues, risk_score)
 
         # Return updated result with LLM analysis
-        return {
-            **graph_result,
-            'llm_analysis': llm_analysis
-        }
+        return {**graph_result, "llm_analysis": llm_analysis}
 
     except Exception as e:
         logger.error("Error analyzing with LLM: %s", str(e), exc_info=True)
@@ -481,10 +472,10 @@ Dependencies: {graph_stats['relationships_created'] + graph_stats['relationships
 @celery_app.task(
     bind=True,
     base=MonitoredTask,
-    name='app.tasks.pull_request_analysis.post_review_comments',
+    name="app.tasks.pull_request_analysis.post_review_comments",
     max_retries=3,
     default_retry_delay=60,
-    queue='high_priority'
+    queue="high_priority",
 )
 def post_review_comments(self, analysis_result: dict[str, Any]) -> dict[str, Any]:
     """
@@ -519,10 +510,10 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
         try:
             task.update_progress(10, "Fetching pull request", TaskProgressStage.POSTING_COMMENTS)
 
-            pr_id = analysis_result['pr_id']
-            pr_data = analysis_result['pr_data']
-            project_data = analysis_result['project_data']
-            llm_analysis = analysis_result['llm_analysis']
+            pr_id = analysis_result["pr_id"]
+            pr_data = analysis_result["pr_data"]
+            project_data = analysis_result["project_data"]
+            llm_analysis = analysis_result["llm_analysis"]
 
             # Fetch pull request
             stmt = select(PullRequest).where(PullRequest.id == pr_id)
@@ -536,25 +527,27 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
 
             # Get GitHub client
             github_client = get_github_client()
-            repo_full_name = project_data['repo_full_name']
+            repo_full_name = project_data["repo_full_name"]
 
-            task.update_progress(30, f"Posting {len(llm_analysis['issues'])} review comments", TaskProgressStage.POSTING_COMMENTS)
+            task.update_progress(
+                30, f"Posting {len(llm_analysis['issues'])} review comments", TaskProgressStage.POSTING_COMMENTS
+            )
 
             # Post review comments for each issue
             comments_posted = 0
-            total_issues = len(llm_analysis['issues'])
+            total_issues = len(llm_analysis["issues"])
 
-            for idx, issue in enumerate(llm_analysis['issues']):
+            for idx, issue in enumerate(llm_analysis["issues"]):
                 try:
                     # Only post comments for issues with file/line information
-                    if 'file' in issue and 'line' in issue:
+                    if "file" in issue and "line" in issue:
                         await github_client.post_review_comment(
                             repo_full_name=repo_full_name,
-                            pr_number=pr_data['github_pr_number'],
+                            pr_number=pr_data["github_pr_number"],
                             body=f"**{issue.get('severity', 'info').upper()}**: {issue.get('message', '')}",
-                            commit_id=pr_data['commit_sha'],
-                            path=issue['file'],
-                            line=issue['line']
+                            commit_id=pr_data["commit_sha"],
+                            path=issue["file"],
+                            line=issue["line"],
                         )
                         comments_posted += 1
 
@@ -563,7 +556,7 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
                         task.update_progress(
                             progress,
                             f"Posted {comments_posted}/{total_issues} comments",
-                            TaskProgressStage.POSTING_COMMENTS
+                            TaskProgressStage.POSTING_COMMENTS,
                         )
                 except Exception as e:
                     logger.warning("Error posting comment: %s", str(e), exc_info=True)
@@ -571,16 +564,16 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
             task.update_progress(70, "Updating PR status check", TaskProgressStage.POSTING_COMMENTS)
 
             # Update PR status check
-            risk_score = llm_analysis['risk_score']
-            state = 'success' if risk_score < 70 else 'failure'
+            risk_score = llm_analysis["risk_score"]
+            state = "success" if risk_score < 70 else "failure"
             description = f"AI Review: {llm_analysis['total_issues']} issues (Risk: {risk_score}/100)"
 
             await github_client.update_pr_status(
                 repo_full_name=repo_full_name,
-                commit_sha=pr_data['commit_sha'],
+                commit_sha=pr_data["commit_sha"],
                 state=state,
                 description=description,
-                context='ai-code-review'
+                context="ai-code-review",
             )
 
             task.update_progress(85, "Storing review results in database", TaskProgressStage.POSTING_COMMENTS)
@@ -588,10 +581,10 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
             # Store review results in database
             review_result = ReviewResult(
                 pull_request_id=pr.id,
-                ai_suggestions=json.dumps(llm_analysis['issues']),
+                ai_suggestions=json.dumps(llm_analysis["issues"]),
                 confidence_score=100.0 - risk_score,  # Convert risk to confidence
-                total_issues=llm_analysis['total_issues'],
-                critical_issues=llm_analysis['critical_issues']
+                total_issues=llm_analysis["total_issues"],
+                critical_issues=llm_analysis["critical_issues"],
             )
 
             db.add(review_result)
@@ -603,23 +596,19 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
 
             await db.commit()
 
-            task.update_progress(
-                100,
-                f"Completed: Posted {comments_posted} comments",
-                TaskProgressStage.COMPLETED
-            )
+            task.update_progress(100, f"Completed: Posted {comments_posted} comments", TaskProgressStage.COMPLETED)
 
             logger.info("Posted %d comments and updated PR status", comments_posted)
 
             return {
-                'pr_id': pr_id,
-                'status': 'completed',
-                'comments_posted': comments_posted,
-                'issues_found': llm_analysis['total_issues'],
-                'risk_score': risk_score,
-                'provider_used': llm_analysis['provider_used'],
-                'tokens_used': llm_analysis['tokens_used'],
-                'cost': llm_analysis['cost']
+                "pr_id": pr_id,
+                "status": "completed",
+                "comments_posted": comments_posted,
+                "issues_found": llm_analysis["total_issues"],
+                "risk_score": risk_score,
+                "provider_used": llm_analysis["provider_used"],
+                "tokens_used": llm_analysis["tokens_used"],
+                "cost": llm_analysis["cost"],
             }
 
         except Exception as e:
@@ -639,6 +628,7 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
 # ========================================
 # WORKFLOW ORCHESTRATION
 # ========================================
+
 
 def analyze_pull_request_workflow(pr_id: str, project_id: str) -> dict[str, Any]:
     """
@@ -666,27 +656,27 @@ def analyze_pull_request_workflow(pr_id: str, project_id: str) -> dict[str, Any]
         parse_pull_request_files.s(pr_id, project_id),
         build_dependency_graph.s(),
         analyze_with_llm.s(),
-        post_review_comments.s()
+        post_review_comments.s(),
     )
 
     # Execute workflow
     result = workflow.apply_async(
-        queue='high_priority',
-        expires=3600  # 1 hour
+        queue="high_priority",
+        expires=3600,  # 1 hour
     )
 
     return {
-        'task_id': result.id,
-        'status': 'PENDING',
-        'pr_id': pr_id,
-        'project_id': project_id,
-        'message': 'PR analysis workflow queued and will begin shortly',
-        'workflow_tasks': [
-            'parse_pull_request_files',
-            'build_dependency_graph',
-            'analyze_with_llm',
-            'post_review_comments'
-        ]
+        "task_id": result.id,
+        "status": "PENDING",
+        "pr_id": pr_id,
+        "project_id": project_id,
+        "message": "PR analysis workflow queued and will begin shortly",
+        "workflow_tasks": [
+            "parse_pull_request_files",
+            "build_dependency_graph",
+            "analyze_with_llm",
+            "post_review_comments",
+        ],
     }
 
 
@@ -694,12 +684,9 @@ def analyze_pull_request_workflow(pr_id: str, project_id: str) -> dict[str, Any]
 # LEGACY TASK (kept for backward compatibility)
 # ========================================
 
+
 @celery_app.task(
-    bind=True,
-    name='app.tasks.analyze_pull_request',
-    max_retries=3,
-    default_retry_delay=60,
-    queue='high_priority'
+    bind=True, name="app.tasks.analyze_pull_request", max_retries=3, default_retry_delay=60, queue="high_priority"
 )
 def analyze_pull_request(self, pr_id: str, project_id: str) -> dict[str, Any]:
     """
@@ -754,46 +741,41 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
 
             # Get PR files from GitHub
             github_client = get_github_client()
-            repo_full_name = '/'.join(project.github_repo_url.rsplit('/', 2)[-2:])
+            repo_full_name = "/".join(project.github_repo_url.rsplit("/", 2)[-2:])
 
-            files = await github_client.get_pr_files(
-                repo_full_name,
-                pr.github_pr_number
-            )
+            files = await github_client.get_pr_files(repo_full_name, pr.github_pr_number)
 
             # Build combined diff
-            full_diff = "\n\n".join([
-                f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}"
-                for f in files if f.get('patch')
-            ])
+            full_diff = "\n\n".join(
+                [
+                    f"diff --git a/{f['filename']} b/{f['filename']}\n{f.get('patch', '')}"
+                    for f in files
+                    if f.get("patch")
+                ]
+            )
 
             # Parse changed files and build AST in Neo4j
             driver = await get_neo4j_driver()
             neo4j_service = Neo4jASTService(driver)
 
             for file_data in files:
-                if file_data['status'] in ['added', 'modified', 'renamed']:
+                if file_data["status"] in ["added", "modified", "renamed"]:
                     try:
                         # Get file content
                         content = await github_client.get_file_content(
-                            repo_full_name,
-                            file_data['filename'],
-                            pr.commit_sha
+                            repo_full_name, file_data["filename"], pr.commit_sha
                         )
 
                         # Parse with appropriate parser
-                        parser = ParserFactory.get_parser_by_filename(file_data['filename'])
+                        parser = ParserFactory.get_parser_by_filename(file_data["filename"])
                         if parser:
-                            parsed = parser.parse_file(
-                                file_data['filename'],
-                                content=content
-                            )
+                            parsed = parser.parse_file(file_data["filename"], content=content)
 
                             # Insert into Neo4j
                             await neo4j_service.insert_ast_nodes(parsed, project_id)
                     except Exception as e:
                         # Continue with other files on parse error
-                        logger.warning("Error parsing %s: %s", file_data['filename'], str(e), exc_info=True)
+                        logger.warning("Error parsing %s: %s", file_data["filename"], str(e), exc_info=True)
 
             # Run AI analysis
             ai_engine = AIReasoningEngine()
@@ -803,23 +785,25 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
 
             # Analyze PR with AI
             review = await ai_engine.analyze_pull_request(
-                repo_name=context.get('repo_name', 'Unknown'),
+                repo_name=context.get("repo_name", "Unknown"),
                 pr_title=pr.title,
                 pr_description=pr.description or "",
                 diff=full_diff,
                 file_count=pr.files_changed,
-                language=context.get('language', 'Python'),
-                dependency_context=context.get('dependency_summary'),
-                baseline_rules=None
+                language=context.get("language", "Python"),
+                dependency_context=context.get("dependency_summary"),
+                baseline_rules=None,
             )
 
             # Store review results in PostgreSQL
             review_result = ReviewResult(
                 pull_request_id=pr.id,
                 ai_suggestions=json.dumps([issue.dict() for issue in review.issues]),
-                confidence_score=sum(issue.confidence for issue in review.issues) / len(review.issues) if review.issues else 0.0,
+                confidence_score=sum(issue.confidence for issue in review.issues) / len(review.issues)
+                if review.issues
+                else 0.0,
                 total_issues=len(review.issues),
-                critical_issues=sum(1 for issue in review.issues if issue.severity == 'critical')
+                critical_issues=sum(1 for issue in review.issues if issue.severity == "critical"),
             )
 
             db.add(review_result)
@@ -835,17 +819,17 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
             await github_client.update_pr_status(
                 repo_full_name,
                 pr.commit_sha,
-                state='success' if review.risk_score < 70 else 'failure',
+                state="success" if review.risk_score < 70 else "failure",
                 description=f"AI Review: {len(review.issues)} issues (Risk: {review.risk_score:.0f}/100)",
-                context='ai-code-review'
+                context="ai-code-review",
             )
 
             return {
-                'pr_id': pr_id,
-                'status': 'completed',
-                'issues_found': len(review.issues),
-                'risk_score': review.risk_score,
-                'confidence_score': review_result.confidence_score
+                "pr_id": pr_id,
+                "status": "completed",
+                "issues_found": len(review.issues),
+                "risk_score": review.risk_score,
+                "confidence_score": review_result.confidence_score,
             }
 
         except Exception as e:
@@ -878,13 +862,13 @@ def analyze_pull_request_sync(pr_id: str, project_id: str) -> dict[str, Any]:
     """
     task = analyze_pull_request.apply_async(
         args=[pr_id, project_id],
-        queue='high_priority',
-        expires=3600  # 1 hour
+        queue="high_priority",
+        expires=3600,  # 1 hour
     )
 
     return {
-        'task_id': task.id,
-        'status': 'PENDING',
-        'pr_id': pr_id,
-        'message': 'PR analysis queued and will begin shortly'
+        "task_id": task.id,
+        "status": "PENDING",
+        "pr_id": pr_id,
+        "message": "PR analysis queued and will begin shortly",
     }

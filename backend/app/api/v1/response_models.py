@@ -3,11 +3,24 @@ Unified API response models
 """
 
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Dict, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
 T = TypeVar("T")
+
+
+class APIMetadata(BaseModel):
+    """
+    API response metadata.
+    """
+
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    request_id: str | None = Field(None, description="Unique request identifier")
+    page: int | None = Field(None, description="Current page number (for paginated responses)")
+    page_size: int | None = Field(None, description="Number of items per page")
+    total_items: int | None = Field(None, description="Total number of items (for paginated responses)")
+    total_pages: int | None = Field(None, description="Total number of pages (for paginated responses)")
 
 
 class APIResponse(BaseModel, Generic[T]):
@@ -22,19 +35,6 @@ class APIResponse(BaseModel, Generic[T]):
     message: str | None = Field(None, description="Response message")
     error: Dict[str, Any] | None = Field(None, description="Error details")
     meta: APIMetadata | None = Field(None, description="Metadata about the request")
-
-
-class APIMetadata(BaseModel):
-    """
-    API response metadata.
-    """
-
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    request_id: str | None = Field(None, description="Unique request identifier")
-    page: int | None = Field(None, description="Current page number (for paginated responses)")
-    page_size: int | None = Field(None, description="Number of items per page")
-    total_items: int | None = Field(None, description="Total number of items (for paginated responses)")
-    total_pages: int | None = Field(None, description="Total number of pages (for paginated responses)")
 
 
 class PaginationParams(BaseModel):

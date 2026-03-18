@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer

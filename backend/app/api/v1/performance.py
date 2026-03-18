@@ -20,8 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.performance_optimizer import performance_optimizer
 from app.database.optimizations import DatabaseOptimizer
 from app.database.postgresql import get_db
+from app.shared.cache_manager import get_cache_manager
 
 router = APIRouter(prefix="/performance", tags=["performance"])
+
+cache_manager = get_cache_manager()
 
 
 @router.get("/metrics")
