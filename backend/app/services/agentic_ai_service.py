@@ -14,6 +14,8 @@ Validates Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.9, 3.10, 3.11
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+import re
+import json
 
 from app.shared.llm_provider import LLMOrchestrator, LLMProviderConfig, LLMProviderType
 from app.services.context_builder import create_context_builder
@@ -419,10 +421,7 @@ Provide practical refactoring suggestions with effort and risk estimates."""
         try:
             response = await self.llm.generate(prompt, system_prompt=system_prompt)
             
-            # Parse response - extract structured suggestions from LLM response
-            # NOTE: Need to implement JSON/text parsing based on LLM output format
-            suggestions = []
-            # TODO: Implement proper parsing logic to extract code quality suggestions from response
+            suggestions = self._parse_refactoring_suggestions(response, file_path)
             
             logger.info(
                 f"Generated {len(suggestions)} refactoring suggestions for {file_path}",
@@ -509,6 +508,138 @@ Provide detailed reasoning with explanations and references."""
                 extra={'task_type': task_type, 'error': str(e)}
             )
             raise
+
+    def _parse_refactoring_suggestions(
+        self,
+        response: str,
+        file_path: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse LLM response to extract structured refactoring suggestions.
+        
+        Args:
+            response: LLM text response containing refactoring suggestions
+            file_path: Path to the source file for context
+            
+        Returns:
+            List of structured refactoring suggestions
+        """
+        suggestions = []
+        
+        if not response or not response.strip():
+            return suggestions
+        
+        response_text = response.strip()
+        
+        try:
+            json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                parsed = json.loads(json_str)
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if isinstance(item, dict):
+                            suggestions.append({
+                                'title': item.get('title', item.get('name', 'Untitled')),
+                                'description': item.get('description', item.get('suggestion', '')),
+                                'impact': item.get('impact', item.get('severity', 'MEDIUM')),
+                                'effort': item.get('effort', 'MEDIUM'),
+                                'risk': item.get('risk', 'MEDIUM'),
+                                'code_example': item.get('code_example', item.get('example', '')),
+                                'rationale': item.get('rationale', item.get('reason', '')),
+                                'file_path': file_path,
+                            })
+                    return suggestions
+        except (json.JSONDecodeError, KeyError):
+            pass
+        
+        suggestion_patterns = [
+            r'(?:^|\n)###?\s*(\d+)\.?\s*(.+?)(?=\n###?\s*\d|\n\n|\Z)',
+            r'(?:^|\n)(\d+)\.\s*\*\*(.+?)\*\*[:\s]*(.+?)(?=\n\d+\.|\n\n|\Z)',
+            r'(?:^|\n)-\s*\*\*(.+?)\*\*[:\s]*(.+?)(?=\n-|\n\n|\Z)',
+        ]
+        
+        for pattern in suggestion_patterns:
+            matches = re.finditer(pattern, response_text, re.DOTALL | re.MULTILINE)
+            for match in matches:
+                groups = match.groups()
+                if len(groups) >= 2:
+                    title = groups[1].strip()
+                    description = groups[2].strip() if len(groups) > 2 else ''
+                    
+                    title_lower = title.lower()
+                    impact = 'MEDIUM'
+                    effort = 'MEDIUM'
+                    risk = 'MEDIUM'
+                    
+                    if 'high impact' in title_lower or 'significant' in title_lower:
+                        impact = 'HIGH'
+                    elif 'low impact' in title_lower or 'minor' in title_lower:
+                        impact = 'LOW'
+                    
+                    if 'easy' in title_lower or 'low effort' in title_lower:
+                        effort = 'LOW'
+                    elif 'complex' in title_lower or 'high effort' in title_lower:
+                        effort = 'HIGH'
+                    
+                    if 'safe' in title_lower or 'low risk' in title_lower:
+                        risk = 'LOW'
+                    elif 'risky' in title_lower or 'high risk' in title_lower:
+                        risk = 'HIGH'
+                    
+                    suggestions.append({
+                        'title': title,
+                        'description': description[:500] if description else '',
+                        'impact': impact,
+                        'effort': effort,
+                        'risk': risk,
+                        'code_example': '',
+                        'rationale': '',
+                        'file_path': file_path,
+                    })
+        
+        if not suggestions:
+            lines = response_text.split('\n')
+            current_title = None
+            current_desc = []
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if line.startswith('#') or (line and line[0].isdigit() and '.' in line[:3]):
+                    if current_title:
+                        suggestions.append({
+                            'title': current_title,
+                            'description': ' '.join(current_desc)[:500],
+                            'impact': 'MEDIUM',
+                            'effort': 'MEDIUM',
+                            'risk': 'MEDIUM',
+                            'code_example': '',
+                            'rationale': '',
+                            'file_path': file_path,
+                        })
+                    
+                    clean_title = re.sub(r'^[#\d.]+\s*', '', line).strip()
+                    current_title = clean_title
+                    current_desc = []
+                elif current_title and len(line) > 10:
+                    current_desc.append(line)
+            
+            if current_title:
+                suggestions.append({
+                    'title': current_title,
+                    'description': ' '.join(current_desc)[:500],
+                    'impact': 'MEDIUM',
+                    'effort': 'MEDIUM',
+                    'risk': 'MEDIUM',
+                    'code_example': '',
+                    'rationale': '',
+                    'file_path': file_path,
+                })
+        
+        return suggestions[:10]
 
 
 def create_agentic_ai_service(

@@ -33,8 +33,7 @@ import ReactFlow, {
   useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
-// Placeholder for export functionality
-// TODO: Implement export using html-to-image directly
+import { toPng, toSvg } from 'html-to-image';
 import 'reactflow/dist/style.css';
 import '../styles/responsive.css';
 
@@ -442,11 +441,61 @@ function ArchitectureInner({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { getNodes } = useReactFlow();
+  const { getNodes, getEdges, getViewport } = useReactFlow();
   
-  // TODO: Implement export using html-to-image directly
-  
-  // Use provided data or generate sample data
+  const handleExportPNG = useCallback(async () => {
+    if (!reactFlowWrapper.current) return;
+    
+    setIsExporting(true);
+    try {
+      const flowElement = reactFlowWrapper.current.querySelector('.react-flow');
+      if (!flowElement) {
+        console.error('React Flow element not found');
+        return;
+      }
+      
+      const dataUrl = await toPng(flowElement as HTMLElement, {
+        backgroundColor: '#ffffff',
+        quality: 1,
+        pixelRatio: 2,
+      });
+      
+      const link = document.createElement('a');
+      link.download = `architecture-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to export PNG:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [getNodes, getEdges, getViewport]);
+
+  const handleExportSVG = useCallback(async () => {
+    if (!reactFlowWrapper.current) return;
+    
+    setIsExporting(true);
+    try {
+      const flowElement = reactFlowWrapper.current.querySelector('.react-flow');
+      if (!flowElement) {
+        console.error('React Flow element not found');
+        return;
+      }
+      
+      const dataUrl = await toSvg(flowElement as HTMLElement, {
+        backgroundColor: '#ffffff',
+      });
+      
+      const link = document.createElement('a');
+      link.download = `architecture-${Date.now()}.svg`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to export SVG:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [getNodes, getEdges, getViewport]);
   const architectureData = useMemo(
     () => data || generateSampleData(),
     [data]
@@ -517,26 +566,6 @@ function ArchitectureInner({
     setNodes(newNodes);
     setEdges(newEdges);
   }, [expandedNodes, selectedNodeId, architectureData, setNodes, setEdges]);
-
-  /**
-   * Export the architecture diagram as PNG
-   * Uses react-to-image to capture the ReactFlow viewport
-   */
-  const handleExportPNG = useCallback(async () => {
-    // TODO: Re-enable when html-to-image integration is complete
-    console.warn('Export PNG is temporarily disabled');
-    setIsExporting(false);
-  }, []);
-
-  /**
-   * Export the architecture diagram as SVG
-   * Uses react-to-image to capture the ReactFlow viewport as SVG
-   */
-  const handleExportSVG = useCallback(async () => {
-    // TODO: Re-enable when html-to-image integration is complete
-    console.warn('Export SVG is temporarily disabled');
-    setIsExporting(false);
-  }, []);
 
   return (
     <div ref={reactFlowWrapper} className="w-full h-screen bg-background">
