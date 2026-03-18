@@ -1,9 +1,9 @@
 """
 Enums for the Enterprise RBAC Authentication System.
 """
-# Import consolidated enums from common library
-from common.shared.enums import Role, Permission
 
+# Import consolidated enums from common library
+from common.shared.enums import Permission, Role
 
 # Role-Permission Mapping
 ROLE_PERMISSIONS: dict[Role, list[Permission]] = {

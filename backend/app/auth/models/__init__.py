@@ -1,11 +1,12 @@
 """
 Data models for the Enterprise RBAC Authentication System.
 """
-from .user import Base, User
+
+from .audit_log import AuditLog
+from .enums import ROLE_PERMISSIONS, Permission, Role
 from .project import Project, ProjectAccess
 from .session import Session
-from .audit_log import AuditLog
-from .enums import Role, Permission, ROLE_PERMISSIONS
+from .user import Base, User
 
 __all__ = [
     "Base",
