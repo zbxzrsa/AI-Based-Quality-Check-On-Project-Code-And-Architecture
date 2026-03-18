@@ -308,8 +308,8 @@ class TestArchitectureAnalysis:
         """
         try:
             from app.services.neo4j_service import Neo4jService
-from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
-            
+            from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
+
             service = Neo4jService()
             
             # Test basic graph query

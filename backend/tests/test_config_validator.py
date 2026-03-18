@@ -11,12 +11,8 @@ Validates Requirements: 10.1, 10.2, 10.3, 10.4
 """
 import os
 from unittest.mock import patch
-from app.core.config_validator import (
+from app.core.config_validator import ConfigValidator, ValidationResult, get_config_validator
 from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
-    ConfigValidator,
-    ValidationResult,
-    get_config_validator
-)
 
 
 # Constants for testing to avoid hard-coded credentials in literal strings
