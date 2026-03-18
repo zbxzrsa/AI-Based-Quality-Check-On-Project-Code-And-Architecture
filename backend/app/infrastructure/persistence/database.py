@@ -3,13 +3,14 @@ Infrastructure Layer - Database Persistence Configuration
 
 This module provides database session management and connection pooling.
 """
+
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
-    create_async_engine,
     async_sessionmaker,
+    create_async_engine,
 )
 from sqlalchemy.orm import declarative_base
 
@@ -57,7 +58,7 @@ def get_session_factory():
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for getting database session.
-    
+
     Usage:
         @app.get("/users")
         async def get_users(db: AsyncSession = Depends(get_db_session)):
@@ -79,7 +80,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
     """
     Context manager for database operations outside of FastAPI requests.
-    
+
     Usage:
         async with get_db_context() as db:
             await db.execute(...)

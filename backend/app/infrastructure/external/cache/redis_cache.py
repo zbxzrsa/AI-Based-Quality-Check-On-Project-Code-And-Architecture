@@ -3,12 +3,13 @@ Infrastructure - Cache Service Implementation
 
 Redis-based cache service implementation using dependency inversion.
 """
-from typing import Optional, Dict, Any, List
-import json
 
-from app.domain.services import ICacheService
+import json
+from typing import Any
+
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.domain.services import ICacheService
 
 logger = get_logger(__name__)
 
@@ -16,26 +17,27 @@ logger = get_logger(__name__)
 class RedisCacheService(ICacheService):
     """
     Redis cache service implementation.
-    
+
     Implements ICacheService interface following DIP.
     Business logic depends on abstraction, not this concrete implementation.
     """
-    
+
     def __init__(self, redis_client=None):
         """
         Initialize cache service.
-        
+
         Args:
             redis_client: Optional Redis client. If not provided, will try to get from settings.
         """
         self._client = redis_client
         self._connected = False
-    
+
     async def _get_client(self):
         """Get Redis client, lazy initialization"""
         if self._client is None:
             try:
                 import redis.asyncio as aioredis
+
                 self._client = await aioredis.from_url(
                     settings.REDIS_URL,
                     encoding="utf-8",
@@ -46,8 +48,8 @@ class RedisCacheService(ICacheService):
                 logger.warning(f"Redis connection failed: {e}")
                 self._connected = False
         return self._client
-    
-    async def get(self, key: str) -> Optional[str]:
+
+    async def get(self, key: str) -> str | None:
         """Get value by key"""
         try:
             client = await self._get_client()
@@ -57,7 +59,7 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis get error: {e}")
             return None
-    
+
     async def set(self, key: str, value: str, ttl: int = 300) -> bool:
         """Set value with TTL"""
         try:
@@ -69,7 +71,7 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis set error: {e}")
             return False
-    
+
     async def delete(self, key: str) -> bool:
         """Delete key"""
         try:
@@ -81,7 +83,7 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis delete error: {e}")
             return False
-    
+
     async def exists(self, key: str) -> bool:
         """Check if key exists"""
         try:
@@ -92,14 +94,14 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis exists error: {e}")
             return False
-    
-    async def enqueue_pr_analysis(self, pr_id: str, data: Dict[str, Any]) -> bool:
+
+    async def enqueue_pr_analysis(self, pr_id: str, data: dict[str, Any]) -> bool:
         """Enqueue PR analysis task to Redis queue"""
         try:
             client = await self._get_client()
             if not self._connected:
                 return False
-            
+
             queue_name = "pr_analysis_queue"
             message = json.dumps({"pr_id": pr_id, "data": data})
             await client.rpush(queue_name, message)
@@ -107,8 +109,8 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis enqueue error: {e}")
             return False
-    
-    async def get_json(self, key: str) -> Optional[Dict[str, Any]]:
+
+    async def get_json(self, key: str) -> dict[str, Any] | None:
         """Get JSON value"""
         value = await self.get(key)
         if value:
@@ -117,8 +119,8 @@ class RedisCacheService(ICacheService):
             except json.JSONDecodeError:
                 return None
         return None
-    
-    async def set_json(self, key: str, value: Dict[str, Any], ttl: int = 300) -> bool:
+
+    async def set_json(self, key: str, value: dict[str, Any], ttl: int = 300) -> bool:
         """Set JSON value"""
         try:
             json_str = json.dumps(value)
@@ -126,7 +128,7 @@ class RedisCacheService(ICacheService):
         except Exception as e:
             logger.error(f"Redis set_json error: {e}")
             return False
-    
+
     async def close(self):
         """Close Redis connection"""
         if self._client:
