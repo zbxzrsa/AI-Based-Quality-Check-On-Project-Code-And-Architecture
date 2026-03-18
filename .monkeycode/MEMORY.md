@@ -140,3 +140,17 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
     - services/ApiClient.ts -> 保留但重新导出统一客户端
     - services/api.ts -> 保留简单axios实例
   - 导出别名：apiClient, apiClientEnhanced, optimizedApiClient 用于向后兼容
+
+[Phase 5 清理重复组件]
+
+- Date: 2026-03-18
+- Context: Agent 在执行项目深度审查和优化任务时完成
+- Category: 代码结构
+- Instructions:
+  - 删除未使用的 ErrorBoundary 简化版 (frontend/src/components/common/error-boundary.tsx)
+  - 删除未使用的 CodeDiffViewer 组件 (frontend/src/components/review/CodeDiffViewer.tsx)
+  - 两个 CodeDiff 组件保留因为有不同功能：CodeDiff.tsx 有语法高亮和评论，reviews/code-diff-viewer.tsx 有 split/unified 视图
+  - 检查了 37 处 TODO/FIXME 标记，大部分是功能性待实现，非紧急问题
+  - 检查了超长文件 connection_manager.py (1427行)，需要较大重构工作量，建议后续处理
+  - drift_detector 有 3 个实现但功能定位不同：architectural_drift_detector(通用), neo4j/drift_detector(Neo4j专用), architecture_analyzer/drift_detector(基线比较)
+  - service_consolidator 和 service_merger 配合工作，不需要合并
