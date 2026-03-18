@@ -167,3 +167,23 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 更新 services/index.ts 导出
   - 更新测试文件导入路径
   - 总计删除约 4000+ 行冗余代码
+
+[Phase 7 持续优化]
+
+- Date: 2026-03-18
+- Context: Agent 执行项目持续优化
+- Category: 代码结构
+- Instructions:
+  - 修复 response_parser.py 语法错误（删除悬空代码块 line 16-37）
+  - 实现 Architecture.tsx PNG/SVG 导出功能（html-to-image）
+  - 实现 agentic_ai_service.py 的 _parse_refactoring_suggestions 方法
+  - 删除未使用的组件：frontend/src/components/review/CodeDiffViewer.tsx
+  - 删除未使用的组件：frontend/src/components/common/error-boundary.tsx
+  - 创建 REFACTORING_CONNECTION_MANAGER.md 重构计划文档
+- Category: 环境配置
+- Instructions:
+  - 安装 html-to-image 依赖到前端项目
+  - 前端 ESLint 配置有循环引用问题（预先存在）
+  - 前端 Turbopack 构建失败（预先存在）
+  - 前端测试文件 DependencyGraphVisualization.test.tsx 有语法错误（预先存在）
+  - connection_manager.py (1427行) 与 PoolMonitor 存在重复方法，建议按阶段重构
