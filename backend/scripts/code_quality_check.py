@@ -1,10 +1,12 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
-import subprocess
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
+
 
 def run_command(command, cwd=None):
     logger.info("Running: {' '.join(command)}")
@@ -14,13 +16,11 @@ def run_command(command, cwd=None):
     except Exception as e:
         return 1, "", str(e)
 
+
 def main():
     backend_dir = Path(__file__).parent.parent.absolute()
-    report = {
-        "timestamp": datetime.now().isoformat(),
-        "tools": {}
-    }
-    
+    report = {"timestamp": datetime.now().isoformat(), "tools": {}}
+
     # 1. Pylint
     logger.info("--- Running Pylint ---")
     pylint_cmd = ["pylint", "app", "--output-format=json", "--exit-zero"]
@@ -29,7 +29,7 @@ def main():
         report["tools"]["pylint"] = json.loads(stdout) if stdout else []
     except json.JSONDecodeError:
         report["tools"]["pylint"] = {"error": "Failed to parse pylint JSON", "raw": stdout}
-        
+
     # 2. Mypy
     logger.info("--- Running Mypy ---")
     mypy_cmd = ["mypy", "app", "--ignore-missing-imports"]
@@ -67,8 +67,9 @@ def main():
     report_path = backend_dir / "code_quality_report.json"
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
-        
+
     logger.info("\nReport generated successfully: {report_path}")
-    
+
+
 if __name__ == "__main__":
     main()

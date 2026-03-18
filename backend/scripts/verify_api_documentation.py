@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 #!/usr/bin/env python3
@@ -20,52 +21,52 @@ Requirements:
 """
 import argparse
 import sys
+
 import requests
-from typing import List
 
 
-def check_endpoint(url: str, endpoint: str, expected_content: List[str]) -> bool:
+def check_endpoint(url: str, endpoint: str, expected_content: list[str]) -> bool:
     """
     Check if an endpoint is accessible and contains expected content.
-    
+
     Args:
         url: Base URL of the API
         endpoint: Endpoint path to check
         expected_content: List of strings that should be in the response
-    
+
     Returns:
         True if all checks pass, False otherwise
     """
     full_url = f"{url}{endpoint}"
     logger.info("\n🔍 Checking {full_url}...")
-    
+
     try:
         response = requests.get(full_url, timeout=10)
-        
+
         if response.status_code != 200:
             logger.info("   ❌ Failed: HTTP {response.status_code}")
             return False
-        
+
         logger.info("   ✅ Accessible (HTTP {response.status_code})")
-        
+
         # Check content
         content = response.text.lower()
         missing_content = []
-        
+
         for expected in expected_content:
             if expected.lower() not in content:
                 missing_content.append(expected)
-        
+
         if missing_content:
             logger.info("   ⚠️  Missing expected content:")
-            for item in missing_content:
+            for _item in missing_content:
                 logger.info("      - {item}")
             return False
-        
+
         logger.info("   ✅ Contains all expected content")
         return True
-        
-    except requests.exceptions.RequestException as e:
+
+    except requests.exceptions.RequestException:
         logger.info("   ❌ Request failed: {e}")
         return False
 
@@ -73,29 +74,29 @@ def check_endpoint(url: str, endpoint: str, expected_content: List[str]) -> bool
 def check_openapi_spec(url: str) -> bool:
     """
     Check OpenAPI specification for completeness.
-    
+
     Args:
         url: Base URL of the API
-    
+
     Returns:
         True if all checks pass, False otherwise
     """
     spec_url = f"{url}/api/v1/openapi.json"
     logger.info("\n🔍 Checking OpenAPI spec at {spec_url}...")
-    
+
     try:
         response = requests.get(spec_url, timeout=10)
-        
+
         if response.status_code != 200:
             logger.info("   ❌ Failed: HTTP {response.status_code}")
             return False
-        
+
         spec = response.json()
         logger.info("   ✅ OpenAPI spec accessible")
-        
+
         # Check basic structure
         checks_passed = True
-        
+
         # Check info section
         if "info" not in spec:
             logger.info("   ❌ Missing 'info' section")
@@ -107,32 +108,32 @@ def check_openapi_spec(url: str) -> bool:
             else:
                 logger.info("   ❌ Missing title")
                 checks_passed = False
-            
+
             if "version" in info:
                 logger.info("   ✅ Version: {info['version']}")
             else:
                 logger.info("   ❌ Missing version")
                 checks_passed = False
-            
+
             if "description" in info and info["description"]:
                 desc = info["description"]
                 logger.info("   ✅ Description: {len(desc)} characters")
-                
+
                 # Check for authentication documentation
                 auth_keywords = ["authentication", "bearer", "authorization", "jwt", "token"]
                 found_keywords = [kw for kw in auth_keywords if kw.lower() in desc.lower()]
-                
+
                 if found_keywords:
                     logger.info("   ✅ Authentication documented (found: {', '.join(found_keywords)})")
                 else:
                     logger.info("   ⚠️  Authentication documentation may be incomplete")
-                
+
                 # Check for examples
                 if "curl" in desc.lower() or "example" in desc.lower():
                     logger.info("   ✅ Includes examples")
                 else:
                     logger.info("   ⚠️  No examples found")
-                
+
                 # Check for Swagger UI instructions
                 if "swagger" in desc.lower() and "authorize" in desc.lower():
                     logger.info("   ✅ Includes Swagger UI usage instructions")
@@ -141,12 +142,12 @@ def check_openapi_spec(url: str) -> bool:
             else:
                 logger.info("   ❌ Missing or empty description")
                 checks_passed = False
-        
+
         # Check security schemes
         if "components" in spec and "securitySchemes" in spec["components"]:
             schemes = spec["components"]["securitySchemes"]
             logger.info("   ✅ Security schemes defined: {', '.join(schemes.keys())}")
-            
+
             if "HTTPBearer" in schemes:
                 bearer = schemes["HTTPBearer"]
                 if bearer.get("type") == "http" and bearer.get("scheme") == "bearer":
@@ -157,31 +158,31 @@ def check_openapi_spec(url: str) -> bool:
         else:
             logger.info("   ❌ No security schemes defined")
             checks_passed = False
-        
+
         # Check paths
         if "paths" in spec:
-            path_count = len(spec["paths"])
+            len(spec["paths"])
             logger.info("   ✅ Endpoints documented: {path_count}")
-            
+
             # Count protected endpoints
             protected_count = 0
-            for path, methods in spec["paths"].items():
-                for method, details in methods.items():
+            for _path, methods in spec["paths"].items():
+                for _method, details in methods.items():
                     if "security" in details:
                         protected_count += 1
-            
+
             logger.info("   ✅ Protected endpoints: {protected_count}")
         else:
             logger.info("   ❌ No paths defined")
             checks_passed = False
-        
+
         # Check tags
         if "tags" in spec:
-            tag_count = len(spec["tags"])
+            len(spec["tags"])
             logger.info("   ✅ Tags defined: {tag_count}")
         else:
             logger.info("   ⚠️  No tags defined")
-        
+
         # Check contact info
         if "contact" in spec.get("info", {}):
             contact = spec["info"]["contact"]
@@ -191,7 +192,7 @@ def check_openapi_spec(url: str) -> bool:
                 logger.info("   ⚠️  Incomplete contact info")
         else:
             logger.info("   ⚠️  No contact info")
-        
+
         # Check license
         if "license" in spec.get("info", {}):
             license_info = spec["info"]["license"]
@@ -201,58 +202,45 @@ def check_openapi_spec(url: str) -> bool:
                 logger.info("   ⚠️  Incomplete license info")
         else:
             logger.info("   ⚠️  No license info")
-        
+
         return checks_passed
-        
-    except requests.exceptions.RequestException as e:
+
+    except requests.exceptions.RequestException:
         logger.info("   ❌ Request failed: {e}")
         return False
-    except Exception as e:
+    except Exception:
         logger.info("   ❌ Error parsing spec: {e}")
         return False
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Verify API documentation setup"
-    )
+    parser = argparse.ArgumentParser(description="Verify API documentation setup")
     parser.add_argument(
-        '--url',
-        type=str,
-        default='http://localhost:8000',
-        help='Base URL of the API (default: http://localhost:8000)'
+        "--url", type=str, default="http://localhost:8000", help="Base URL of the API (default: http://localhost:8000)"
     )
-    
+
     args = parser.parse_args()
-    
+
     logger.info("=" * 70)
     logger.info("API Documentation Verification")
     logger.info("=" * 70)
     logger.info("\nTarget URL: {args.url}")
-    
+
     all_checks_passed = True
-    
+
     # Check Swagger UI
-    swagger_checks = check_endpoint(
-        args.url,
-        "/docs",
-        ["swagger", "openapi"]
-    )
+    swagger_checks = check_endpoint(args.url, "/docs", ["swagger", "openapi"])
     all_checks_passed = all_checks_passed and swagger_checks
-    
+
     # Check ReDoc
-    redoc_checks = check_endpoint(
-        args.url,
-        "/redoc",
-        ["redoc", "openapi"]
-    )
+    redoc_checks = check_endpoint(args.url, "/redoc", ["redoc", "openapi"])
     all_checks_passed = all_checks_passed and redoc_checks
-    
+
     # Check OpenAPI spec
     spec_checks = check_openapi_spec(args.url)
     all_checks_passed = all_checks_passed and spec_checks
-    
+
     # Summary
     logger.info("\n" + "=" * 70)
     if all_checks_passed:
@@ -275,5 +263,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

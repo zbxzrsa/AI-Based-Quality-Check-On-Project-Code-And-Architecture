@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 #!/usr/bin/env python3
@@ -24,7 +25,6 @@ Requirements:
 import argparse
 import json
 import sys
-from typing import Dict, List, Optional
 
 try:
     import boto3
@@ -49,10 +49,10 @@ class CloudWatchAlarmsManager:
         self.region = region
         self.environment = environment
         self.service_name = service_name
-        self.cloudwatch = boto3.client('cloudwatch', region_name=region)
-        self.sns = boto3.client('sns', region_name=region)
+        self.cloudwatch = boto3.client("cloudwatch", region_name=region)
+        self.sns = boto3.client("sns", region_name=region)
 
-    def create_sns_topic(self, email: Optional[str] = None) -> str:
+    def create_sns_topic(self, email: str | None = None) -> str:
         """
         Create SNS topic for alarm notifications.
 
@@ -68,35 +68,31 @@ class CloudWatchAlarmsManager:
             response = self.sns.create_topic(
                 Name=topic_name,
                 Tags=[
-                    {'Key': 'Environment', 'Value': self.environment},
-                    {'Key': 'Service', 'Value': self.service_name},
-                    {'Key': 'Purpose', 'Value': 'CloudWatch alarm notifications'}
-                ]
+                    {"Key": "Environment", "Value": self.environment},
+                    {"Key": "Service", "Value": self.service_name},
+                    {"Key": "Purpose", "Value": "CloudWatch alarm notifications"},
+                ],
             )
-            topic_arn = response['TopicArn']
+            topic_arn = response["TopicArn"]
             logger.info("✓ Created SNS topic: {topic_name}")
             logger.info("  ARN: {topic_arn}")
 
             # Subscribe email if provided
             if email:
-                self.sns.subscribe(
-                    TopicArn=topic_arn,
-                    Protocol='email',
-                    Endpoint=email
-                )
+                self.sns.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint=email)
                 logger.info("✓ Subscribed email: {email}")
                 logger.info("  Note: Check your email to confirm the subscription")
 
             return topic_arn
 
         except ClientError as e:
-            if e.response['Error']['Code'] == 'TopicAlreadyExists':
+            if e.response["Error"]["Code"] == "TopicAlreadyExists":
                 # Get existing topic ARN
                 topics = self.sns.list_topics()
-                for topic in topics['Topics']:
-                    if topic_name in topic['TopicArn']:
+                for topic in topics["Topics"]:
+                    if topic_name in topic["TopicArn"]:
                         logger.info("✓ Using existing SNS topic: {topic_name}")
-                        return topic['TopicArn']
+                        return topic["TopicArn"]
             raise
 
     def create_high_error_rate_alarm(self, sns_topic_arn: str, threshold: float = 5.0) -> str:
@@ -114,50 +110,44 @@ class CloudWatchAlarmsManager:
 
         self.cloudwatch.put_metric_alarm(
             AlarmName=alarm_name,
-            ComparisonOperator='GreaterThanThreshold',
+            ComparisonOperator="GreaterThanThreshold",
             EvaluationPeriods=2,
             Threshold=threshold,
             AlarmDescription=f"Alert when error rate exceeds {threshold}% for 5 minutes",
             AlarmActions=[sns_topic_arn],
             OKActions=[sns_topic_arn],
-            TreatMissingData='notBreaching',
+            TreatMissingData="notBreaching",
             Metrics=[
                 {
-                    'Id': 'error_rate',
-                    'Expression': '100 * (errors / requests)',
-                    'Label': 'Error Rate %',
-                    'ReturnData': True
+                    "Id": "error_rate",
+                    "Expression": "100 * (errors / requests)",
+                    "Label": "Error Rate %",
+                    "ReturnData": True,
                 },
                 {
-                    'Id': 'errors',
-                    'MetricStat': {
-                        'Metric': {
-                            'Namespace': self.service_name,
-                            'MetricName': 'http_errors_total'
-                        },
-                        'Period': 300,
-                        'Stat': 'Sum'
+                    "Id": "errors",
+                    "MetricStat": {
+                        "Metric": {"Namespace": self.service_name, "MetricName": "http_errors_total"},
+                        "Period": 300,
+                        "Stat": "Sum",
                     },
-                    'ReturnData': False
+                    "ReturnData": False,
                 },
                 {
-                    'Id': 'requests',
-                    'MetricStat': {
-                        'Metric': {
-                            'Namespace': self.service_name,
-                            'MetricName': 'http_requests_total'
-                        },
-                        'Period': 300,
-                        'Stat': 'Sum'
+                    "Id": "requests",
+                    "MetricStat": {
+                        "Metric": {"Namespace": self.service_name, "MetricName": "http_requests_total"},
+                        "Period": 300,
+                        "Stat": "Sum",
                     },
-                    'ReturnData': False
-                }
+                    "ReturnData": False,
+                },
             ],
             Tags=[
-                {'Key': 'Environment', 'Value': self.environment},
-                {'Key': 'Severity', 'Value': 'Critical'},
-                {'Key': 'Runbook', 'Value': 'https://docs.example.com/runbooks/high-error-rate'}
-            ]
+                {"Key": "Environment", "Value": self.environment},
+                {"Key": "Severity", "Value": "Critical"},
+                {"Key": "Runbook", "Value": "https://docs.example.com/runbooks/high-error-rate"},
+            ],
         )
 
         logger.info("✓ Created alarm: {alarm_name}")
@@ -178,39 +168,37 @@ class CloudWatchAlarmsManager:
 
         self.cloudwatch.put_metric_alarm(
             AlarmName=alarm_name,
-            ComparisonOperator='GreaterThanThreshold',
+            ComparisonOperator="GreaterThanThreshold",
             EvaluationPeriods=2,
             Threshold=threshold,
             AlarmDescription=f"Alert when API P95 response time exceeds {threshold} second for 5 minutes",
             AlarmActions=[sns_topic_arn],
             OKActions=[sns_topic_arn],
-            TreatMissingData='notBreaching',
+            TreatMissingData="notBreaching",
             Metrics=[
                 {
-                    'Id': 'response_time',
-                    'MetricStat': {
-                        'Metric': {
-                            'Namespace': self.service_name,
-                            'MetricName': 'http_request_duration_seconds'
-                        },
-                        'Period': 300,
-                        'Stat': 'p95'
+                    "Id": "response_time",
+                    "MetricStat": {
+                        "Metric": {"Namespace": self.service_name, "MetricName": "http_request_duration_seconds"},
+                        "Period": 300,
+                        "Stat": "p95",
                     },
-                    'ReturnData': True
+                    "ReturnData": True,
                 }
             ],
             Tags=[
-                {'Key': 'Environment', 'Value': self.environment},
-                {'Key': 'Severity', 'Value': 'Critical'},
-                {'Key': 'Runbook', 'Value': 'https://docs.example.com/runbooks/high-response-time'}
-            ]
+                {"Key": "Environment", "Value": self.environment},
+                {"Key": "Severity", "Value": "Critical"},
+                {"Key": "Runbook", "Value": "https://docs.example.com/runbooks/high-response-time"},
+            ],
         )
 
         logger.info("✓ Created alarm: {alarm_name}")
         return alarm_name
 
-    def create_high_cpu_alarm(self, sns_topic_arn: str, threshold: float = 80.0,
-                             autoscaling_group: Optional[str] = None) -> str:
+    def create_high_cpu_alarm(
+        self, sns_topic_arn: str, threshold: float = 80.0, autoscaling_group: str | None = None
+    ) -> str:
         """
         Create alarm for high CPU utilization (> 80%).
 
@@ -225,29 +213,27 @@ class CloudWatchAlarmsManager:
         alarm_name = f"{self.environment}-{self.service_name}-high-cpu-utilization"
 
         alarm_config = {
-            'AlarmName': alarm_name,
-            'ComparisonOperator': 'GreaterThanThreshold',
-            'EvaluationPeriods': 2,
-            'MetricName': 'CPUUtilization',
-            'Namespace': 'AWS/EC2',
-            'Period': 300,
-            'Statistic': 'Average',
-            'Threshold': threshold,
-            'AlarmDescription': f"Alert when CPU utilization exceeds {threshold}% for 10 minutes",
-            'AlarmActions': [sns_topic_arn],
-            'OKActions': [sns_topic_arn],
-            'TreatMissingData': 'notBreaching',
-            'Tags': [
-                {'Key': 'Environment', 'Value': self.environment},
-                {'Key': 'Severity', 'Value': 'Critical'},
-                {'Key': 'Runbook', 'Value': 'https://docs.example.com/runbooks/high-cpu-utilization'}
-            ]
+            "AlarmName": alarm_name,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "EvaluationPeriods": 2,
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Period": 300,
+            "Statistic": "Average",
+            "Threshold": threshold,
+            "AlarmDescription": f"Alert when CPU utilization exceeds {threshold}% for 10 minutes",
+            "AlarmActions": [sns_topic_arn],
+            "OKActions": [sns_topic_arn],
+            "TreatMissingData": "notBreaching",
+            "Tags": [
+                {"Key": "Environment", "Value": self.environment},
+                {"Key": "Severity", "Value": "Critical"},
+                {"Key": "Runbook", "Value": "https://docs.example.com/runbooks/high-cpu-utilization"},
+            ],
         }
 
         if autoscaling_group:
-            alarm_config['Dimensions'] = [
-                {'Name': 'AutoScalingGroupName', 'Value': autoscaling_group}
-            ]
+            alarm_config["Dimensions"] = [{"Name": "AutoScalingGroupName", "Value": autoscaling_group}]
 
         self.cloudwatch.put_metric_alarm(**alarm_config)
         logger.info("✓ Created alarm: {alarm_name}")
@@ -268,22 +254,22 @@ class CloudWatchAlarmsManager:
 
         self.cloudwatch.put_metric_alarm(
             AlarmName=alarm_name,
-            ComparisonOperator='GreaterThanThreshold',
+            ComparisonOperator="GreaterThanThreshold",
             EvaluationPeriods=2,
-            MetricName='mem_used_percent',
-            Namespace='CWAgent',
+            MetricName="mem_used_percent",
+            Namespace="CWAgent",
             Period=300,
-            Statistic='Average',
+            Statistic="Average",
             Threshold=threshold,
             AlarmDescription=f"Alert when memory utilization exceeds {threshold}% for 10 minutes",
             AlarmActions=[sns_topic_arn],
             OKActions=[sns_topic_arn],
-            TreatMissingData='notBreaching',
+            TreatMissingData="notBreaching",
             Tags=[
-                {'Key': 'Environment', 'Value': self.environment},
-                {'Key': 'Severity', 'Value': 'Warning'},
-                {'Key': 'Runbook', 'Value': 'https://docs.example.com/runbooks/high-memory-utilization'}
-            ]
+                {"Key": "Environment", "Value": self.environment},
+                {"Key": "Severity", "Value": "Warning"},
+                {"Key": "Runbook", "Value": "https://docs.example.com/runbooks/high-memory-utilization"},
+            ],
         )
 
         logger.info("✓ Created alarm: {alarm_name}")
@@ -304,29 +290,28 @@ class CloudWatchAlarmsManager:
 
         self.cloudwatch.put_metric_alarm(
             AlarmName=alarm_name,
-            ComparisonOperator='GreaterThanThreshold',
+            ComparisonOperator="GreaterThanThreshold",
             EvaluationPeriods=1,
-            MetricName='disk_used_percent',
-            Namespace='CWAgent',
+            MetricName="disk_used_percent",
+            Namespace="CWAgent",
             Period=300,
-            Statistic='Average',
+            Statistic="Average",
             Threshold=threshold,
             AlarmDescription=f"Alert when disk utilization exceeds {threshold}%",
             AlarmActions=[sns_topic_arn],
             OKActions=[sns_topic_arn],
-            TreatMissingData='notBreaching',
+            TreatMissingData="notBreaching",
             Tags=[
-                {'Key': 'Environment', 'Value': self.environment},
-                {'Key': 'Severity', 'Value': 'Warning'},
-                {'Key': 'Runbook', 'Value': 'https://docs.example.com/runbooks/high-disk-utilization'}
-            ]
+                {"Key": "Environment", "Value": self.environment},
+                {"Key": "Severity", "Value": "Warning"},
+                {"Key": "Runbook", "Value": "https://docs.example.com/runbooks/high-disk-utilization"},
+            ],
         )
 
         logger.info("✓ Created alarm: {alarm_name}")
         return alarm_name
 
-    def create_all_alarms(self, email: Optional[str] = None,
-                         autoscaling_group: Optional[str] = None) -> List[str]:
+    def create_all_alarms(self, email: str | None = None, autoscaling_group: str | None = None) -> list[str]:
         """
         Create all CloudWatch alarms.
 
@@ -356,7 +341,7 @@ class CloudWatchAlarmsManager:
         logger.info("\n✓ Successfully created {len(alarm_names)} alarms")
         return alarm_names
 
-    def list_alarms(self, prefix: Optional[str] = None) -> List[Dict]:
+    def list_alarms(self, prefix: str | None = None) -> list[dict]:
         """
         List all CloudWatch alarms.
 
@@ -368,14 +353,11 @@ class CloudWatchAlarmsManager:
         """
         try:
             if prefix:
-                response = self.cloudwatch.describe_alarms(
-                    AlarmNamePrefix=prefix,
-                    MaxRecords=100
-                )
+                response = self.cloudwatch.describe_alarms(AlarmNamePrefix=prefix, MaxRecords=100)
             else:
                 response = self.cloudwatch.describe_alarms(MaxRecords=100)
 
-            alarms = response.get('MetricAlarms', [])
+            alarms = response.get("MetricAlarms", [])
 
             if not alarms:
                 logger.info("No alarms found")
@@ -383,12 +365,8 @@ class CloudWatchAlarmsManager:
 
             logger.info("\nFound {len(alarms)} alarm(s):\n")
             for alarm in alarms:
-                state = alarm['StateValue']
-                state_emoji = {
-                    'OK': '✓',
-                    'ALARM': '✗',
-                    'INSUFFICIENT_DATA': '?'
-                }.get(state, '-')
+                state = alarm["StateValue"]
+                {"OK": "✓", "ALARM": "✗", "INSUFFICIENT_DATA": "?"}.get(state, "-")
 
                 logger.info("{state_emoji} {alarm['AlarmName']}")
                 logger.info("  State: {state}")
@@ -398,11 +376,11 @@ class CloudWatchAlarmsManager:
 
             return alarms
 
-        except ClientError as e:
+        except ClientError:
             logger.info("Error listing alarms: {e}")
             return []
 
-    def describe_alarm(self, alarm_name: str) -> Optional[Dict]:
+    def describe_alarm(self, alarm_name: str) -> dict | None:
         """
         Get detailed information about a specific alarm.
 
@@ -414,7 +392,7 @@ class CloudWatchAlarmsManager:
         """
         try:
             response = self.cloudwatch.describe_alarms(AlarmNames=[alarm_name])
-            alarms = response.get('MetricAlarms', [])
+            alarms = response.get("MetricAlarms", [])
 
             if not alarms:
                 logger.info("Alarm not found: {alarm_name}")
@@ -425,7 +403,7 @@ class CloudWatchAlarmsManager:
             logger.info(str(json.dumps(alarm, indent=2, default=str)))
             return alarm
 
-        except ClientError as e:
+        except ClientError:
             logger.info("Error describing alarm: {e}")
             return None
 
@@ -444,7 +422,7 @@ class CloudWatchAlarmsManager:
             logger.info("✓ Deleted alarm: {alarm_name}")
             return True
 
-        except ClientError as e:
+        except ClientError:
             logger.info("Error deleting alarm: {e}")
             return False
 
@@ -461,18 +439,15 @@ class CloudWatchAlarmsManager:
         try:
             self.cloudwatch.set_alarm_state(
                 AlarmName=alarm_name,
-                StateValue='ALARM',
-                StateReason='Testing alarm notification',
-                StateReasonData=json.dumps({
-                    'test': True,
-                    'message': 'This is a test alarm notification'
-                })
+                StateValue="ALARM",
+                StateReason="Testing alarm notification",
+                StateReasonData=json.dumps({"test": True, "message": "This is a test alarm notification"}),
             )
             logger.info("✓ Set alarm to ALARM state: {alarm_name}")
             logger.info("  Check your notification channels for the test alert")
             return True
 
-        except ClientError as e:
+        except ClientError:
             logger.info("Error testing alarm: {e}")
             return False
 
@@ -480,7 +455,7 @@ class CloudWatchAlarmsManager:
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
-        description='Manage CloudWatch alarms for AI Reviewer',
+        description="Manage CloudWatch alarms for AI Reviewer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -498,38 +473,38 @@ Examples:
 
   # Delete alarm
   python manage_cloudwatch_alarms.py delete --alarm-name test-alarm
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # Create-all command
-    create_parser = subparsers.add_parser('create-all', help='Create all CloudWatch alarms')
-    create_parser.add_argument('--region', required=True, help='AWS region')
-    create_parser.add_argument('--environment', default='prod', help='Environment (dev/staging/prod)')
-    create_parser.add_argument('--service-name', default='ai-reviewer', help='Service name')
-    create_parser.add_argument('--email', help='Email address for notifications')
-    create_parser.add_argument('--autoscaling-group', help='Auto Scaling Group name')
+    create_parser = subparsers.add_parser("create-all", help="Create all CloudWatch alarms")
+    create_parser.add_argument("--region", required=True, help="AWS region")
+    create_parser.add_argument("--environment", default="prod", help="Environment (dev/staging/prod)")
+    create_parser.add_argument("--service-name", default="ai-reviewer", help="Service name")
+    create_parser.add_argument("--email", help="Email address for notifications")
+    create_parser.add_argument("--autoscaling-group", help="Auto Scaling Group name")
 
     # List command
-    list_parser = subparsers.add_parser('list', help='List all CloudWatch alarms')
-    list_parser.add_argument('--region', required=True, help='AWS region')
-    list_parser.add_argument('--prefix', help='Alarm name prefix filter')
+    list_parser = subparsers.add_parser("list", help="List all CloudWatch alarms")
+    list_parser.add_argument("--region", required=True, help="AWS region")
+    list_parser.add_argument("--prefix", help="Alarm name prefix filter")
 
     # Describe command
-    describe_parser = subparsers.add_parser('describe', help='Describe a specific alarm')
-    describe_parser.add_argument('--region', required=True, help='AWS region')
-    describe_parser.add_argument('--alarm-name', required=True, help='Alarm name')
+    describe_parser = subparsers.add_parser("describe", help="Describe a specific alarm")
+    describe_parser.add_argument("--region", required=True, help="AWS region")
+    describe_parser.add_argument("--alarm-name", required=True, help="Alarm name")
 
     # Delete command
-    delete_parser = subparsers.add_parser('delete', help='Delete a CloudWatch alarm')
-    delete_parser.add_argument('--region', required=True, help='AWS region')
-    delete_parser.add_argument('--alarm-name', required=True, help='Alarm name')
+    delete_parser = subparsers.add_parser("delete", help="Delete a CloudWatch alarm")
+    delete_parser.add_argument("--region", required=True, help="AWS region")
+    delete_parser.add_argument("--alarm-name", required=True, help="Alarm name")
 
     # Test command
-    test_parser = subparsers.add_parser('test', help='Test alarm notification')
-    test_parser.add_argument('--region', required=True, help='AWS region')
-    test_parser.add_argument('--alarm-name', required=True, help='Alarm name')
+    test_parser = subparsers.add_parser("test", help="Test alarm notification")
+    test_parser.add_argument("--region", required=True, help="AWS region")
+    test_parser.add_argument("--alarm-name", required=True, help="Alarm name")
 
     args = parser.parse_args()
 
@@ -538,30 +513,25 @@ Examples:
         sys.exit(1)
 
     try:
-        if args.command == 'create-all':
+        if args.command == "create-all":
             manager = CloudWatchAlarmsManager(
-                region=args.region,
-                environment=args.environment,
-                service_name=args.service_name
+                region=args.region, environment=args.environment, service_name=args.service_name
             )
-            manager.create_all_alarms(
-                email=args.email,
-                autoscaling_group=args.autoscaling_group
-            )
+            manager.create_all_alarms(email=args.email, autoscaling_group=args.autoscaling_group)
 
-        elif args.command == 'list':
+        elif args.command == "list":
             manager = CloudWatchAlarmsManager(region=args.region)
             manager.list_alarms(prefix=args.prefix)
 
-        elif args.command == 'describe':
+        elif args.command == "describe":
             manager = CloudWatchAlarmsManager(region=args.region)
             manager.describe_alarm(args.alarm_name)
 
-        elif args.command == 'delete':
+        elif args.command == "delete":
             manager = CloudWatchAlarmsManager(region=args.region)
             manager.delete_alarm(args.alarm_name)
 
-        elif args.command == 'test':
+        elif args.command == "test":
             manager = CloudWatchAlarmsManager(region=args.region)
             manager.test_alarm(args.alarm_name)
 
@@ -573,14 +543,14 @@ Examples:
         logger.info("  3. IAM role (if running on EC2)")
         sys.exit(1)
 
-    except ClientError as e:
+    except ClientError:
         logger.info("\nAWS Error: {e}")
         sys.exit(1)
 
-    except Exception as e:
+    except Exception:
         logger.info("\nUnexpected error: {e}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -4,10 +4,10 @@ Simple code inspection verification for rate limiting implementation
 This script verifies the implementation by inspecting the code files directly
 without loading the full application configuration.
 """
+
 import logging
+
 logger = logging.getLogger(__name__)
-
-
 
 
 def verify_config_file():
@@ -15,35 +15,35 @@ def verify_config_file():
     logger.info("=" * 60)
     logger.info("Verifying backend/app/core/config.py")
     logger.info("=" * 60)
-    
+
     config_path = "app/core/config.py"
-    
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, encoding="utf-8") as f:
             content = f.read()
-        
+
         # Check for RATE_LIMIT_PER_MINUTE
-        if 'RATE_LIMIT_PER_MINUTE: int = 100' in content:
+        if "RATE_LIMIT_PER_MINUTE: int = 100" in content:
             logger.info("✓ RATE_LIMIT_PER_MINUTE: int = 100 found")
         else:
             logger.info("✗ RATE_LIMIT_PER_MINUTE: int = 100 not found")
             return False
-        
+
         # Check for RATE_LIMIT_PER_HOUR
-        if 'RATE_LIMIT_PER_HOUR: int = 5000' in content:
+        if "RATE_LIMIT_PER_HOUR: int = 5000" in content:
             logger.info("✓ RATE_LIMIT_PER_HOUR: int = 5000 found")
         else:
             logger.info("✗ RATE_LIMIT_PER_HOUR: int = 5000 not found")
             return False
-        
+
         # Check for requirement reference
-        if 'Requirement 8.3' in content or 'Requirements: 8.3' in content:
+        if "Requirement 8.3" in content or "Requirements: 8.3" in content:
             logger.info("✓ Requirement 8.3 reference found")
         else:
             logger.info("⚠ Requirement 8.3 reference not found (minor issue)")
-        
+
         return True
-    except Exception as e:
+    except Exception:
         logger.info("✗ Error reading config file: {e}")
         return False
 
@@ -53,39 +53,39 @@ def verify_middleware_file():
     logger.info("\n" + "=" * 60)
     logger.info("Verifying backend/app/middleware/rate_limiting.py")
     logger.info("=" * 60)
-    
+
     middleware_path = "app/middleware/rate_limiting.py"
-    
+
     try:
-        with open(middleware_path, 'r', encoding='utf-8') as f:
+        with open(middleware_path, encoding="utf-8") as f:
             content = f.read()
-        
+
         checks = [
-            ('Requirement 8.3 reference', 'Requirements:\n- 8.3:'),
-            ('Both limits in limiter', 'RATE_LIMIT_PER_MINUTE}/minute'),
-            ('Both limits in limiter', 'RATE_LIMIT_PER_HOUR}/hour'),
-            ('429 status code', 'HTTP_429_TOO_MANY_REQUESTS'),
-            ('X-RateLimit-Limit-Minute header', 'X-RateLimit-Limit-Minute'),
-            ('X-RateLimit-Limit-Hour header', 'X-RateLimit-Limit-Hour'),
-            ('X-RateLimit-Remaining header', 'X-RateLimit-Remaining'),
-            ('X-RateLimit-Reset header', 'X-RateLimit-Reset'),
-            ('Retry-After header', 'Retry-After'),
-            ('rate_limit_exceeded error', 'rate_limit_exceeded'),
-            ('Health endpoint exclusion', '/health'),
-            ('User identifier function', 'def get_user_identifier'),
-            ('Redis storage', 'storage_uri=settings.redis_url'),
+            ("Requirement 8.3 reference", "Requirements:\n- 8.3:"),
+            ("Both limits in limiter", "RATE_LIMIT_PER_MINUTE}/minute"),
+            ("Both limits in limiter", "RATE_LIMIT_PER_HOUR}/hour"),
+            ("429 status code", "HTTP_429_TOO_MANY_REQUESTS"),
+            ("X-RateLimit-Limit-Minute header", "X-RateLimit-Limit-Minute"),
+            ("X-RateLimit-Limit-Hour header", "X-RateLimit-Limit-Hour"),
+            ("X-RateLimit-Remaining header", "X-RateLimit-Remaining"),
+            ("X-RateLimit-Reset header", "X-RateLimit-Reset"),
+            ("Retry-After header", "Retry-After"),
+            ("rate_limit_exceeded error", "rate_limit_exceeded"),
+            ("Health endpoint exclusion", "/health"),
+            ("User identifier function", "def get_user_identifier"),
+            ("Redis storage", "storage_uri=settings.redis_url"),
         ]
-        
+
         all_passed = True
-        for check_name, check_string in checks:
+        for _check_name, check_string in checks:
             if check_string in content:
                 logger.info("✓ {check_name}")
             else:
                 logger.info("✗ {check_name} not found")
                 all_passed = False
-        
+
         return all_passed
-    except Exception as e:
+    except Exception:
         logger.info("✗ Error reading middleware file: {e}")
         return False
 
@@ -95,23 +95,23 @@ def verify_env_files():
     logger.info("\n" + "=" * 60)
     logger.info("Verifying Environment Files")
     logger.info("=" * 60)
-    
+
     env_files = [
-        '.env.example',
-        '.env.production',
-        '.env.staging',
-        '.env.development',
+        ".env.example",
+        ".env.production",
+        ".env.staging",
+        ".env.development",
     ]
-    
+
     all_passed = True
     for env_file in env_files:
         try:
-            with open(env_file, 'r', encoding='utf-8') as f:
+            with open(env_file, encoding="utf-8") as f:
                 content = f.read()
-            
-            has_minute = 'RATE_LIMIT_PER_MINUTE=' in content
-            has_hour = 'RATE_LIMIT_PER_HOUR=' in content
-            
+
+            has_minute = "RATE_LIMIT_PER_MINUTE=" in content
+            has_hour = "RATE_LIMIT_PER_HOUR=" in content
+
             if has_minute and has_hour:
                 logger.info("✓ {env_file}: Both limits present")
             else:
@@ -119,10 +119,10 @@ def verify_env_files():
                 all_passed = False
         except FileNotFoundError:
             logger.info("⚠ {env_file}: File not found (optional)")
-        except Exception as e:
+        except Exception:
             logger.info("✗ {env_file}: Error reading file: {e}")
             all_passed = False
-    
+
     return all_passed
 
 
@@ -131,29 +131,29 @@ def verify_main_py():
     logger.info("\n" + "=" * 60)
     logger.info("Verifying backend/app/main.py")
     logger.info("=" * 60)
-    
+
     main_path = "app/main.py"
-    
+
     try:
-        with open(main_path, 'r', encoding='utf-8') as f:
+        with open(main_path, encoding="utf-8") as f:
             content = f.read()
-        
+
         checks = [
-            ('configure_rate_limiting import', 'from app.middleware.rate_limiting import configure_rate_limiting'),
-            ('configure_rate_limiting call', 'configure_rate_limiting(app)'),
-            ('Requirement 8.3 reference', 'Requirement 8.3'),
+            ("configure_rate_limiting import", "from app.middleware.rate_limiting import configure_rate_limiting"),
+            ("configure_rate_limiting call", "configure_rate_limiting(app)"),
+            ("Requirement 8.3 reference", "Requirement 8.3"),
         ]
-        
+
         all_passed = True
-        for check_name, check_string in checks:
+        for _check_name, check_string in checks:
             if check_string in content:
                 logger.info("✓ {check_name}")
             else:
                 logger.info("✗ {check_name} not found")
                 all_passed = False
-        
+
         return all_passed
-    except Exception as e:
+    except Exception:
         logger.info("✗ Error reading main.py: {e}")
         return False
 
@@ -169,27 +169,26 @@ def main():
     logger.info("  - Return 429 error when exceeded")
     logger.info("  - Include appropriate headers")
     logger.info("  - Use Redis for distributed rate limiting")
-    
+
     results = []
-    
+
     # Run verifications
     results.append(("Config File", verify_config_file()))
     results.append(("Middleware File", verify_middleware_file()))
     results.append(("Environment Files", verify_env_files()))
     results.append(("Main Application", verify_main_py()))
-    
+
     # Summary
     logger.info("\n" + "=" * 60)
     logger.info("VERIFICATION SUMMARY")
     logger.info("=" * 60)
-    
+
     all_passed = True
-    for name, passed in results:
-        status = "✓ PASS" if passed else "✗ FAIL"
+    for _name, passed in results:
         logger.info("{status}: {name}")
         if not passed:
             all_passed = False
-    
+
     logger.info("\n" + "=" * 60)
     if all_passed:
         logger.info("✓ ALL VERIFICATIONS PASSED")
@@ -215,4 +214,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

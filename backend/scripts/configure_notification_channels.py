@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 #!/usr/bin/env python3
@@ -40,7 +41,6 @@ Requirements:
 import argparse
 import sys
 from datetime import datetime
-from typing import Dict, List, Optional
 
 try:
     import boto3
@@ -70,9 +70,7 @@ class NotificationChannelManager:
             logger.info("Configure credentials with: aws configure")
             sys.exit(1)
 
-    def setup_email_subscription(
-        self, topic_arn: str, email: str
-    ) -> Dict[str, str]:
+    def setup_email_subscription(self, topic_arn: str, email: str) -> dict[str, str]:
         """
         Set up email subscription to SNS topic.
 
@@ -98,9 +96,7 @@ class NotificationChannelManager:
                 return existing
 
             # Create new subscription
-            response = self.sns_client.subscribe(
-                TopicArn=topic_arn, Protocol="email", Endpoint=email
-            )
+            response = self.sns_client.subscribe(TopicArn=topic_arn, Protocol="email", Endpoint=email)
 
             subscription_arn = response["SubscriptionArn"]
 
@@ -123,13 +119,11 @@ class NotificationChannelManager:
                 "Status": "PendingConfirmation",
             }
 
-        except ClientError as e:
+        except ClientError:
             logger.info("❌ Error setting up email subscription: {e}")
             raise
 
-    def setup_slack_subscription(
-        self, topic_arn: str, webhook_url: str
-    ) -> Dict[str, str]:
+    def setup_slack_subscription(self, topic_arn: str, webhook_url: str) -> dict[str, str]:
         """
         Set up Slack webhook subscription to SNS topic.
 
@@ -157,9 +151,7 @@ class NotificationChannelManager:
                 return existing
 
             # Create new subscription
-            response = self.sns_client.subscribe(
-                TopicArn=topic_arn, Protocol="https", Endpoint=webhook_url
-            )
+            response = self.sns_client.subscribe(TopicArn=topic_arn, Protocol="https", Endpoint=webhook_url)
 
             subscription_arn = response["SubscriptionArn"]
 
@@ -177,11 +169,11 @@ class NotificationChannelManager:
                 "Status": "Active",
             }
 
-        except ClientError as e:
+        except ClientError:
             logger.info("❌ Error setting up Slack subscription: {e}")
             raise
 
-    def list_subscriptions(self, topic_arn: str) -> List[Dict]:
+    def list_subscriptions(self, topic_arn: str) -> list[dict]:
         """
         List all subscriptions for a topic.
 
@@ -196,9 +188,7 @@ class NotificationChannelManager:
             logger.info("   {topic_arn}")
             logger.info()
 
-            response = self.sns_client.list_subscriptions_by_topic(
-                TopicArn=topic_arn
-            )
+            response = self.sns_client.list_subscriptions_by_topic(TopicArn=topic_arn)
 
             subscriptions = response.get("Subscriptions", [])
 
@@ -209,28 +199,28 @@ class NotificationChannelManager:
             logger.info("Found {len(subscriptions)} subscription(s):")
             logger.info()
 
-            for i, sub in enumerate(subscriptions, 1):
+            for _i, sub in enumerate(subscriptions, 1):
                 protocol = sub["Protocol"]
                 endpoint = sub["Endpoint"]
                 sub_arn = sub["SubscriptionArn"]
 
                 # Determine status
                 if sub_arn == "PendingConfirmation":
-                    status = "⏳ Pending Confirmation"
+                    pass
                 else:
-                    status = "✅ Active"
+                    pass
 
                 # Format endpoint for display
                 if protocol == "email":
-                    display_endpoint = endpoint
+                    pass
                 elif protocol == "https":
                     # Mask webhook URL for security
                     if "hooks.slack.com" in endpoint:
-                        display_endpoint = "Slack webhook (masked)"
+                        pass
                     else:
-                        display_endpoint = f"{endpoint[:30]}..."
+                        f"{endpoint[:30]}..."
                 else:
-                    display_endpoint = endpoint
+                    pass
 
                 logger.info("{i}. {protocol.upper()} Subscription")
                 logger.info("   Endpoint: {display_endpoint}")
@@ -240,13 +230,11 @@ class NotificationChannelManager:
 
             return subscriptions
 
-        except ClientError as e:
+        except ClientError:
             logger.info("❌ Error listing subscriptions: {e}")
             raise
 
-    def test_notification(
-        self, topic_arn: str, message: Optional[str] = None
-    ) -> bool:
+    def test_notification(self, topic_arn: str, message: str | None = None) -> bool:
         """
         Send a test notification to all subscribers.
 
@@ -276,7 +264,7 @@ class NotificationChannelManager:
                 Message=message,
             )
 
-            message_id = response["MessageId"]
+            response["MessageId"]
 
             logger.info("✅ Test notification sent successfully")
             logger.info("   Message ID: {message_id}")
@@ -289,11 +277,11 @@ class NotificationChannelManager:
 
             return True
 
-        except ClientError as e:
+        except ClientError:
             logger.info("❌ Error sending test notification: {e}")
             raise
 
-    def verify_configuration(self, topic_arn: str) -> Dict[str, any]:
+    def verify_configuration(self, topic_arn: str) -> dict[str, any]:
         """
         Verify notification channel configuration.
 
@@ -327,9 +315,7 @@ class NotificationChannelManager:
                 return results
 
             # List subscriptions
-            response = self.sns_client.list_subscriptions_by_topic(
-                TopicArn=topic_arn
-            )
+            response = self.sns_client.list_subscriptions_by_topic(TopicArn=topic_arn)
             subscriptions = response.get("Subscriptions", [])
             results["total_subscriptions"] = len(subscriptions)
 
@@ -353,9 +339,7 @@ class NotificationChannelManager:
                         results["email_confirmed"] = True
                         logger.info("✅ Email subscription active: {sub['Endpoint']}")
                     else:
-                        results["issues"].append(
-                            "Email subscription pending confirmation"
-                        )
+                        results["issues"].append("Email subscription pending confirmation")
                         logger.info("⚠️  Email subscription pending: {sub['Endpoint']}")
                         logger.info("   Check email inbox and confirm subscription")
 
@@ -374,7 +358,7 @@ class NotificationChannelManager:
             if results["issues"]:
                 logger.info()
                 logger.info("⚠️  Issues found:")
-                for issue in results["issues"]:
+                for _issue in results["issues"]:
                     logger.info("   • {issue}")
             else:
                 logger.info()
@@ -382,13 +366,11 @@ class NotificationChannelManager:
 
             return results
 
-        except ClientError as e:
+        except ClientError:
             logger.info("❌ Error verifying configuration: {e}")
             raise
 
-    def _get_subscription_by_endpoint(
-        self, topic_arn: str, endpoint: str
-    ) -> Optional[Dict]:
+    def _get_subscription_by_endpoint(self, topic_arn: str, endpoint: str) -> dict | None:
         """
         Get subscription by endpoint.
 
@@ -400,9 +382,7 @@ class NotificationChannelManager:
             Subscription dictionary or None
         """
         try:
-            response = self.sns_client.list_subscriptions_by_topic(
-                TopicArn=topic_arn
-            )
+            response = self.sns_client.list_subscriptions_by_topic(TopicArn=topic_arn)
             subscriptions = response.get("Subscriptions", [])
 
             for sub in subscriptions:
@@ -455,53 +435,27 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # setup-email command
-    setup_email_parser = subparsers.add_parser(
-        "setup-email", help="Set up email notification"
-    )
-    setup_email_parser.add_argument(
-        "--topic-arn", required=True, help="SNS topic ARN"
-    )
-    setup_email_parser.add_argument(
-        "--email", required=True, help="Email address to subscribe"
-    )
+    setup_email_parser = subparsers.add_parser("setup-email", help="Set up email notification")
+    setup_email_parser.add_argument("--topic-arn", required=True, help="SNS topic ARN")
+    setup_email_parser.add_argument("--email", required=True, help="Email address to subscribe")
 
     # setup-slack command
-    setup_slack_parser = subparsers.add_parser(
-        "setup-slack", help="Set up Slack notification"
-    )
-    setup_slack_parser.add_argument(
-        "--topic-arn", required=True, help="SNS topic ARN"
-    )
-    setup_slack_parser.add_argument(
-        "--webhook-url", required=True, help="Slack webhook URL"
-    )
+    setup_slack_parser = subparsers.add_parser("setup-slack", help="Set up Slack notification")
+    setup_slack_parser.add_argument("--topic-arn", required=True, help="SNS topic ARN")
+    setup_slack_parser.add_argument("--webhook-url", required=True, help="Slack webhook URL")
 
     # list command
-    list_parser = subparsers.add_parser(
-        "list", help="List all subscriptions"
-    )
-    list_parser.add_argument(
-        "--topic-arn", required=True, help="SNS topic ARN"
-    )
+    list_parser = subparsers.add_parser("list", help="List all subscriptions")
+    list_parser.add_argument("--topic-arn", required=True, help="SNS topic ARN")
 
     # test command
-    test_parser = subparsers.add_parser(
-        "test", help="Send test notification"
-    )
-    test_parser.add_argument(
-        "--topic-arn", required=True, help="SNS topic ARN"
-    )
-    test_parser.add_argument(
-        "--message", help="Custom test message (optional)"
-    )
+    test_parser = subparsers.add_parser("test", help="Send test notification")
+    test_parser.add_argument("--topic-arn", required=True, help="SNS topic ARN")
+    test_parser.add_argument("--message", help="Custom test message (optional)")
 
     # verify command
-    verify_parser = subparsers.add_parser(
-        "verify", help="Verify notification configuration"
-    )
-    verify_parser.add_argument(
-        "--topic-arn", required=True, help="SNS topic ARN"
-    )
+    verify_parser = subparsers.add_parser("verify", help="Verify notification configuration")
+    verify_parser.add_argument("--topic-arn", required=True, help="SNS topic ARN")
 
     args = parser.parse_args()
 
@@ -532,7 +486,7 @@ Examples:
             if results["issues"]:
                 sys.exit(1)
 
-    except Exception as e:
+    except Exception:
         logger.info("\n❌ Command failed: {e}")
         sys.exit(1)
 
