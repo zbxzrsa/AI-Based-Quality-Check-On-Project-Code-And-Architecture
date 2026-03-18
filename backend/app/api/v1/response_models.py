@@ -3,7 +3,7 @@ Unified API response models
 """
 
 from datetime import datetime
-from typing import Any, Dict, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -33,7 +33,7 @@ class APIResponse(BaseModel, Generic[T]):
     success: bool = Field(..., description="Whether the request was successful")
     data: T | None = Field(None, description="Response data")
     message: str | None = Field(None, description="Response message")
-    error: Dict[str, Any] | None = Field(None, description="Error details")
+    error: dict[str, Any] | None = Field(None, description="Error details")
     meta: APIMetadata | None = Field(None, description="Metadata about the request")
 
 
@@ -65,7 +65,7 @@ class ErrorDetail(BaseModel):
     code: str = Field(..., description="Error code")
     message: str = Field(..., description="Human-readable error message")
     field: str | None = Field(None, description="Field that caused the error (for validation errors)")
-    details: Dict[str, Any] | None = Field(None, description="Additional error details")
+    details: dict[str, Any] | None = Field(None, description="Additional error details")
 
 
 class ErrorResponse(BaseModel):
@@ -130,7 +130,7 @@ def create_success_response(data: Any, message: str | None = None, meta: APIMeta
 
 
 def create_error_response(
-    error_code: str, message: str, field: str | None = None, details: Dict[str, Any] | None = None
+    error_code: str, message: str, field: str | None = None, details: dict[str, Any] | None = None
 ) -> ErrorResponse:
     """
     Create an error API response.

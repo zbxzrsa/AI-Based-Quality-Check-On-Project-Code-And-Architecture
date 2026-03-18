@@ -234,7 +234,7 @@ class Settings(BaseSettings):
 
     @field_validator("POSTGRES_PASSWORD", mode="after")
     @classmethod
-    def validate_postgres_password(cls, v: str) -> str:
+    def validate_postgres_password(cls, v: str) -> str:  # noqa: F811
         """Validate POSTGRES_PASSWORD is non-empty (Requirement 1.3)"""
         # Only validate if not in testing mode
         if not os.environ.get("TESTING"):
@@ -244,7 +244,7 @@ class Settings(BaseSettings):
 
     @field_validator("NEO4J_PASSWORD", mode="after")
     @classmethod
-    def validate_neo4j_password(cls, v: str) -> str:
+    def validate_neo4j_password(cls, v: str) -> str:  # noqa: F811
         """Validate NEO4J_PASSWORD is non-empty (Requirement 1.3)"""
         # Only validate if not in testing mode
         if not os.environ.get("TESTING"):
@@ -403,7 +403,7 @@ class Settings(BaseSettings):
 
         return errors
 
-    def validate_celery_config(self) -> list[str]:
+    def validate_celery_config(self) -> list[str]:  # noqa: F811
         """
         Validate Celery configuration.
 

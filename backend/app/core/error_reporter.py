@@ -223,7 +223,7 @@ class ErrorReporter:
         else:
             self.logger.info("Database event", extra=log_data)
 
-    def get_error_statistics(self) -> ErrorStatistics:
+    def get_error_statistics(self) -> ErrorStatistics:  # noqa: F811
         """获取错误统计信息"""
         return self.classifier.get_error_statistics()
 

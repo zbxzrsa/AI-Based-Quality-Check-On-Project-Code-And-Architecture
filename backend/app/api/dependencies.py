@@ -2,8 +2,9 @@
 Role-Based Access Control (RBAC) dependencies and decorators
 """
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Annotated, Callable
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
