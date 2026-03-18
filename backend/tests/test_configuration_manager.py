@@ -19,7 +19,6 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from app.core.configuration_manager import (
-from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
     ConfigurationManager,
     ConfigurationSource,
     ConfigurationEntry,
@@ -28,8 +27,8 @@ from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt
     ConfigurationValidator,
     ServiceConfig,
     get_configuration_manager,
-    initialize_configuration
 )
+from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
 
 
 # Constants for testing to avoid hard-coded credentials in literal strings

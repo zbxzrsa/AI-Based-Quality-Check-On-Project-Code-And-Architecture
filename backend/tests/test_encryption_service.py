@@ -13,6 +13,7 @@ from app.services.encryption_service import (
     encrypt_sensitive_field,
     decrypt_sensitive_field,
 )
+from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
 
 
 class TestEncryptionService:
@@ -266,7 +267,7 @@ class TestAWSKMSEncryptionService:
         
         # Mock boto3 import failure
         import builtins
-from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt_secret, get_test_api_key
+
         original_import = builtins.__import__
         
         def mock_import(name, *args, **kwargs):
