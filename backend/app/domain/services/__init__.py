@@ -7,6 +7,23 @@ Domain and Application layers depend on these abstractions (DIP).
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
+from enum import Enum
+
+
+class AnalysisType(str, Enum):
+    """Code analysis types"""
+    FULL = "full"
+    QUICK = "quick"
+    SECURITY = "security"
+    PERFORMANCE = "performance"
+    COMPLIANCE = "compliance"
+
+
+class ReviewVerdict(str, Enum):
+    """Code review verdict"""
+    APPROVED = "approved"
+    CHANGES_REQUESTED = "changes_requested"
+    COMMENTED = "commented"
 
 
 class IGitHubService(ABC):
@@ -149,4 +166,131 @@ class IGraphService(ABC):
     @abstractmethod
     async def get_dependencies(self, node_id: str) -> List[Dict[str, Any]]:
         """Get node dependencies"""
+        pass
+
+
+class ICodeAnalysisService(ABC):
+    """Code analysis service interface"""
+    
+    @abstractmethod
+    async def analyze_file(self, file_path: str, content: str, language: str) -> Dict[str, Any]:
+        """Analyze a single file"""
+        pass
+    
+    @abstractmethod
+    async def analyze_pull_request(
+        self,
+        repo_full_name: str,
+        pr_number: int,
+        analysis_type: AnalysisType
+    ) -> Dict[str, Any]:
+        """Analyze a pull request"""
+        pass
+    
+    @abstractmethod
+    async def detect_security_issues(self, code: str, language: str) -> List[Dict[str, Any]]:
+        """Detect security issues in code"""
+        pass
+    
+    @abstractmethod
+    async def calculate_complexity(self, code: str, language: str) -> Dict[str, Any]:
+        """Calculate code complexity metrics"""
+        pass
+
+
+class ICodeReviewService(ABC):
+    """Code review service interface"""
+    
+    @abstractmethod
+    async def create_review(
+        self,
+        pr_id: str,
+        repo_full_name: str,
+        pr_number: int
+    ) -> Dict[str, Any]:
+        """Create a new code review"""
+        pass
+    
+    @abstractmethod
+    async def add_comment(
+        self,
+        review_id: str,
+        file_path: str,
+        line: int,
+        body: str,
+        severity: str = "info"
+    ) -> Dict[str, Any]:
+        """Add a comment to the review"""
+        pass
+    
+    @abstractmethod
+    async def submit_review(
+        self,
+        review_id: str,
+        verdict: ReviewVerdict,
+        summary: str
+    ) -> Dict[str, Any]:
+        """Submit the review"""
+        pass
+    
+    @abstractmethod
+    async def get_review(self, review_id: str) -> Dict[str, Any]:
+        """Get review details"""
+        pass
+
+
+class ICodeParserService(ABC):
+    """Code parsing service interface"""
+    
+    @abstractmethod
+    async def parse_file(self, content: str, language: str) -> Dict[str, Any]:
+        """Parse code file and extract AST"""
+        pass
+    
+    @abstractmethod
+    async def extract_entities(self, content: str, language: str) -> List[Dict[str, Any]]:
+        """Extract code entities (functions, classes, etc.)"""
+        pass
+    
+    @abstractmethod
+    async def detect_dependencies(self, content: str, language: str) -> List[str]:
+        """Detect dependencies in code"""
+        pass
+
+
+class IArchitectureService(ABC):
+    """Architecture analysis service interface"""
+    
+    @abstractmethod
+    async def analyze_architecture(self, repo_url: str) -> Dict[str, Any]:
+        """Analyze project architecture"""
+        pass
+    
+    @abstractmethod
+    async def detect_drift(self, repo_url: str, baseline_id: str) -> Dict[str, Any]:
+        """Detect architecture drift from baseline"""
+        pass
+    
+    @abstractmethod
+    async def create_baseline(self, repo_url: str, name: str) -> Dict[str, Any]:
+        """Create architecture baseline"""
+        pass
+
+
+class ILibraryService(ABC):
+    """Library management service interface"""
+    
+    @abstractmethod
+    async def search_library(self, query: str) -> List[Dict[str, Any]]:
+        """Search for libraries"""
+        pass
+    
+    @abstractmethod
+    async def get_library_info(self, package_name: str) -> Optional[Dict[str, Any]]:
+        """Get library information"""
+        pass
+    
+    @abstractmethod
+    async def check_vulnerabilities(self, libraries: List[str]) -> List[Dict[str, Any]]:
+        """Check for known vulnerabilities"""
         pass
