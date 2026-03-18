@@ -31,7 +31,7 @@ class Project(Base):
     )
 
     # Relationships
-    owner: Mapped["User"] = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
+    owner: Mapped["User"] = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])  # noqa: F821
     access_grants: Mapped[list["ProjectAccess"]] = relationship(
         "ProjectAccess", back_populates="project", cascade="all, delete-orphan"
     )
@@ -53,9 +53,9 @@ class ProjectAccess(Base):
     granted_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
 
     # Relationships
-    project: Mapped["Project"] = relationship("Project", back_populates="access_grants")
-    user: Mapped["User"] = relationship("User", back_populates="project_accesses", foreign_keys=[user_id])
-    granter: Mapped["User"] = relationship("User", foreign_keys=[granted_by])
+    project: Mapped["Project"] = relationship("Project", back_populates="access_grants")  # noqa: F821
+    user: Mapped["User"] = relationship("User", back_populates="project_accesses", foreign_keys=[user_id])  # noqa: F821
+    granter: Mapped["User"] = relationship("User", foreign_keys=[granted_by])  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<ProjectAccess(project_id={self.project_id}, user_id={self.user_id})>"

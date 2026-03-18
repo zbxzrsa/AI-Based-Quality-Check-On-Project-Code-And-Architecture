@@ -2,7 +2,8 @@
 Role-Based Access Control (RBAC) dependencies and decorators
 """
 
-from typing import Annotated
+from functools import wraps
+from typing import Annotated, Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,6 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgresql import get_db
+from app.domain.services import ICacheService, IGitHubService, IGraphService, ILLMService
+from app.infrastructure.container import DIContainer, get_container
 from app.models import User, UserRole
 from app.utils.jwt import verify_token
 

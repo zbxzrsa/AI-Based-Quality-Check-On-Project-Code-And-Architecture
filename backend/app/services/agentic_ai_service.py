@@ -12,6 +12,7 @@ Validates Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.9, 3.10, 3.11
 """
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -19,6 +20,8 @@ from typing import Any
 
 from app.services.context_builder import create_context_builder
 from app.shared.llm_provider import LLMOrchestrator, LLMProviderConfig, LLMProviderType
+
+logger = logging.getLogger(__name__)
 
 
 class CleanCodePrinciple(str, Enum):

@@ -6,6 +6,7 @@ Tracks error patterns and statistics for monitoring.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from .types import DatabaseErrorCategory, DatabaseErrorInfo
 

@@ -21,6 +21,7 @@ from app.services.architecture_analyzer import ArchitectureAnalyzer
 from app.services.code_reviewer import CodeReviewer
 from app.services.github_client import get_github_client
 from app.services.redis_cache_service import get_cache_service
+from app.utils.diff_parser import DiffParser
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +251,7 @@ async def github_webhook(
     if project.github_webhook_secret:
         github_client = get_github_client()
         if not github_client.verify_webhook_signature(body, x_hub_signature_256 or "", project.github_webhook_secret):
-            raise HTTPException(status_code=httpException.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
     # Handle different event types
     event_type = x_github_event

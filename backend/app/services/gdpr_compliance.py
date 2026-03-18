@@ -5,12 +5,13 @@ GDPR Compliance Module
 import io
 import json
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Project, PullRequest, ReviewResult, User
+from app.models import AuditLog, Project, PullRequest, ReviewResult, User
 
 
 class GDPRComplianceService:
@@ -69,8 +70,6 @@ class GDPRComplianceService:
         Returns:
             Deletion report
         """
-        from sqlalchemy import delete
-
         deletion_report = {
             "user_id": user_id,
             "deleted_at": datetime.now(timezone.utc).isoformat(),

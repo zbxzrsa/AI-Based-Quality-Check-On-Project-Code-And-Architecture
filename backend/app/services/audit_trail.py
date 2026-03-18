@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, Index, String, Text
+from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text, func, select
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database.postgresql import Base

@@ -2,10 +2,14 @@
 RBAC service for role and permission management.
 """
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session as DBSession
 
 from app.auth.models import ROLE_PERMISSIONS, Permission, Project, ProjectAccess, Role, User
+
+logger = logging.getLogger(__name__)
 
 
 class RBACService:

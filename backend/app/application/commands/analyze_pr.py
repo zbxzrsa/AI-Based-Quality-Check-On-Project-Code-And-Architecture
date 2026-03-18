@@ -4,11 +4,14 @@ Application Layer - Analyze Pull Request Command
 Example of a command use case that orchestrates PR analysis.
 """
 
+import logging
 from dataclasses import dataclass
 
 from app.application.base import Command, UseCaseResult
 from app.domain.services import ICacheService, IGitHubService, ILLMService
 from app.infrastructure.container import get_container
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

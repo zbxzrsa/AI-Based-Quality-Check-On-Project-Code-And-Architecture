@@ -19,6 +19,7 @@ from app.core.logging_config import log_request, setup_logging
 from app.database.neo4j_db import close_neo4j, init_neo4j
 from app.database.postgresql import close_postgres, get_db, init_postgres
 from app.database.redis_db import close_redis, init_redis
+from app.services.health_service import get_health_service
 
 logger = logging.getLogger(__name__)
 

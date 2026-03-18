@@ -19,6 +19,8 @@ from datetime import datetime
 from functools import wraps
 from typing import Any
 
+from app.models import AuditLog
+
 logger = logging.getLogger(__name__)
 
 
