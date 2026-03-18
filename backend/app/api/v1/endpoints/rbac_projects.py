@@ -220,6 +220,50 @@ async def create_project(
         await db.commit()
         await db.refresh(new_project)
 
+        # Auto-configure webhook if GitHub repository URL is provided
+        webhook_created = False
+        if new_project.github_repo_url and current_user.github_token:
+            try:
+                from app.services.github_client import get_github_client
+                from app.core.config import settings
+                import secrets
+                
+                # Extract owner/repo from URL
+                repo_url = new_project.github_repo_url.rstrip('/')
+                if repo_url.endswith('.git'):
+                    repo_url = repo_url[:-4]
+                parts = repo_url.split('/')
+                if len(parts) >= 2:
+                    repo_full_name = f"{parts[-2]}/{parts[-1]}"
+                    
+                    # Generate webhook secret
+                    webhook_secret = secrets.token_hex(32)
+                    
+                    # Get GitHub client with user's token
+                    github_client = get_github_client()
+                    
+                    # Construct webhook URL
+                    webhook_url = f"{settings.BACKEND_URL or 'http://localhost:8000'}/api/v1/webhooks/github"
+                    
+                    # Create webhook
+                    webhook_result = await github_client.create_webhook(
+                        repo_full_name=repo_full_name,
+                        webhook_url=webhook_url,
+                        webhook_secret=webhook_secret,
+                        events=['pull_request']
+                    )
+                    
+                    # Store webhook secret (encrypted)
+                    from app.services.encryption_service import EncryptionService
+                    encryption_service = EncryptionService()
+                    new_project.github_webhook_secret = encryption_service.encrypt(webhook_secret)
+                    await db.commit()
+                    
+                    webhook_created = True
+                    logger.info(f"Webhook created successfully for project {new_project.id}")
+            except Exception as webhook_error:
+                logger.warning(f"Failed to create webhook for project {new_project.id}: {str(webhook_error)}")
+
         # Log audit event
         ip_address = request.client.host if request.client else "0.0.0.0"
         await _log_audit_action(
@@ -227,26 +271,40 @@ async def create_project(
             user_id=current_user.user_id,
             username=current_user.username,
             action="CREATE_PROJECT",
+            entity_type="Project",
+            entity_id=str(new_project.id),
             ip_address=ip_address,
             success=True,
             resource_type="Project",
             resource_id=str(new_project.id),
-            user_agent=request.headers.get("user-agent")
+            user_agent=request.headers.get("user-agent"),
+            changes={
+                "github_repo_url": new_project.github_repo_url,
+                "webhook_created": webhook_created
+            }
         )
 
-        return ProjectResponse(
-            id=str(getattr(new_project, 'id')),
-            name=getattr(new_project, 'name'),
-            description=getattr(new_project, 'description'),
-            owner_id=str(getattr(new_project, 'owner_id')),
-            github_repo_url=getattr(new_project, 'github_repo_url'),
-            github_connection_type=getattr(new_project, 'github_connection_type').value if getattr(new_project, 'github_connection_type') else "https",
-            github_ssh_key_id=str(getattr(new_project, 'github_ssh_key_id')) if getattr(new_project, 'github_ssh_key_id') else None,
-            language=getattr(new_project, 'language'),
-            is_active=getattr(new_project, 'is_active'),
-            created_at=getattr(new_project, 'created_at').isoformat(),
-            updated_at=getattr(new_project, 'updated_at').isoformat()
-        )
+        response_data = {
+            "id": str(getattr(new_project, 'id')),
+            "name": getattr(new_project, 'name'),
+            "description": getattr(new_project, 'description'),
+            "owner_id": str(getattr(new_project, 'owner_id')),
+            "github_repo_url": getattr(new_project, 'github_repo_url'),
+            "github_connection_type": getattr(new_project, 'github_connection_type').value if getattr(new_project, 'github_connection_type') else "https",
+            "github_ssh_key_id": str(getattr(new_project, 'github_ssh_key_id')) if getattr(new_project, 'github_ssh_key_id') else None,
+            "language": getattr(new_project, 'language'),
+            "is_active": getattr(new_project, 'is_active'),
+            "created_at": getattr(new_project, 'created_at').isoformat(),
+            "updated_at": getattr(new_project, 'updated_at').isoformat()
+        }
+        
+        # Add webhook status to response if webhook was created
+        if webhook_created:
+            from app.core.config import settings
+            response_data["webhook_configured"] = True
+            response_data["webhook_url"] = f"{settings.BACKEND_URL or 'http://localhost:8000'}/api/v1/webhooks/github"
+        
+        return response_data
 
     except HTTPException:
         raise

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import MainLayout from '@/components/layout/main-layout';
 import LineChart from '@/components/charts/line-chart';
 import BarChart from '@/components/charts/bar-chart';
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Download } from 'lucide-react';
+import { TrendingUp, Download, FileJson, FileSpreadsheet } from 'lucide-react';
 
 export default function MetricsPage() {
   // Mock data
@@ -48,6 +49,88 @@ export default function MetricsPage() {
     { week: 'Week 4', prs: 20, reviews: 35, issues: 7 },
   ];
 
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const allMetricsData = useMemo(() => ({
+    codeQuality: codeQualityData,
+    architectureHealth: architectureHealthData,
+    reviewCompletion: reviewCompletionData,
+    teamProductivity: teamProductivityData,
+    summary: {
+      codeQualityScore: 88,
+      architectureHealthScore: 82,
+      securityScore: 92,
+      teamVelocity: 75,
+      averageReviewTime: '2.5 hrs',
+      criticalIssuesResolved: '94%',
+      codeCoverage: '87%',
+    },
+    generatedAt: new Date().toISOString(),
+  }), []);
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    setIsExporting(true);
+    try {
+      let content: string;
+      let mimeType: string;
+      let filename: string;
+
+      if (format === 'json') {
+        content = JSON.stringify(allMetricsData, null, 2);
+        mimeType = 'application/json';
+        filename = `metrics-export-${new Date().toISOString().split('T')[0]}.json`;
+      } else {
+        const csvRows = [
+          'Category,Metric,Value,Date',
+          ...codeQualityData.flatMap(d => [
+            `Code Quality,Quality Score,${d.quality},${d.date}`,
+            `Code Quality,Security Score,${d.security},${d.date}`,
+            `Code Quality,Maintainability,${d.maintainability},${d.date}`,
+          ]),
+          ...architectureHealthData.flatMap(d => [
+            `Architecture,Health Score,${d.health},${d.date}`,
+            `Architecture,Coupling,${d.coupling},${d.date}`,
+            `Architecture,Cohesion,${d.cohesion},${d.date}`,
+          ]),
+          ...reviewCompletionData.flatMap(d => [
+            `Reviews,Completed,${d.completed},${d.month}`,
+            `Reviews,Pending,${d.pending},${d.month}`,
+          ]),
+          ...teamProductivityData.flatMap(d => [
+            `Productivity,PRs,${d.prs},${d.week}`,
+            `Productivity,Reviews,${d.reviews},${d.week}`,
+            `Productivity,Issues,${d.issues},${d.week}`,
+          ]),
+          `Summary,Code Quality Score,${allMetricsData.summary.codeQualityScore},-`,
+          `Summary,Architecture Health Score,${allMetricsData.summary.architectureHealthScore},-`,
+          `Summary,Security Score,${allMetricsData.summary.securityScore},-`,
+          `Summary,Team Velocity,${allMetricsData.summary.teamVelocity},-`,
+          `Summary,Average Review Time,${allMetricsData.summary.averageReviewTime},-`,
+          `Summary,Critical Issues Resolved,${allMetricsData.summary.criticalIssuesResolved},-`,
+          `Summary,Code Coverage,${allMetricsData.summary.codeCoverage},-`,
+        ];
+        content = csvRows.join('\n');
+        mimeType = 'text/csv';
+        filename = `metrics-export-${new Date().toISOString().split('T')[0]}.csv`;
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -74,10 +157,24 @@ export default function MetricsPage() {
                 <SelectItem value="1year">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => handleExport('json')}
+                disabled={isExporting}
+              >
+                <FileJson className="h-4 w-4 mr-2" />
+                JSON
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => handleExport('csv')}
+                disabled={isExporting}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                CSV
+              </Button>
+            </div>
           </div>
         </div>
 

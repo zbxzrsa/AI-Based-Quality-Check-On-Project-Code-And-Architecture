@@ -529,6 +529,118 @@ class GitHubAPIClient:
                 detail=f"Could not list PRs: {e.data.get('message', str(e))}"
             )
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((GithubException, httpx.HTTPError, httpx.TimeoutException)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
+    async def create_webhook(
+        self,
+        repo_full_name: str,
+        webhook_url: str,
+        webhook_secret: str,
+        events: list = None
+    ) -> Dict[str, Any]:
+        """
+        Create a webhook for the repository
+        
+        Args:
+            repo_full_name: Repository full name (owner/repo)
+            webhook_url: URL to receive webhook events
+            webhook_secret: Secret for webhook signature
+            events: List of events to subscribe to (default: pull_request)
+            
+        Returns:
+            Webhook data
+            
+        Requirements:
+            - URS-03: Webhook is configured automatically
+        """
+        if events is None:
+            events = ['pull_request']
+            
+        def _create_webhook():
+            try:
+                repo = self.client.get_repo(repo_full_name)
+                
+                # Create webhook configuration
+                config = {
+                    "url": webhook_url,
+                    "content_type": "json",
+                    "secret": webhook_secret,
+                }
+                
+                # Create the hook
+                hook = repo.create_hook(
+                    name="web",
+                    config=config,
+                    events=events,
+                    active=True
+                )
+                
+                logger.info(f"Successfully created webhook for {repo_full_name}")
+                
+                return {
+                    "id": hook.id,
+                    "url": hook.url,
+                    "active": hook.active,
+                    "events": hook.events,
+                    "created_at": hook.created_at.isoformat() if hasattr(hook.created_at, 'isoformat') else str(hook.created_at)
+                }
+            except GithubException as e:
+                logger.error(f"GitHub API error creating webhook for {repo_full_name}: {e}")
+                if hasattr(e, 'status') and e.status == 422:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Webhook could not be created: {e.data.get('message', str(e))}"
+                    )
+                raise
+        
+        return self._wrap_with_circuit_breaker(_create_webhook)
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((GithubException, httpx.HTTPError, httpx.TimeoutException)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
+    async def list_webhooks(
+        self,
+        repo_full_name: str
+    ) -> List[Dict[str, Any]]:
+        """
+        List all webhooks for the repository
+        
+        Args:
+            repo_full_name: Repository full name (owner/repo)
+            
+        Returns:
+            List of webhook data
+        """
+        def _list_webhooks():
+            try:
+                repo = self.client.get_repo(repo_full_name)
+                hooks = repo.get_hooks()
+                
+                return [
+                    {
+                        "id": hook.id,
+                        "url": hook.config.get("url") if hook.config else None,
+                        "active": hook.active,
+                        "events": hook.events,
+                        "created_at": hook.created_at.isoformat() if hasattr(hook.created_at, 'isoformat') else str(hook.created_at)
+                    }
+                    for hook in hooks
+                ]
+            except GithubException as e:
+                logger.error(f"GitHub API error listing webhooks for {repo_full_name}: {e}")
+                raise
+        
+        return self._wrap_with_circuit_breaker(_list_webhooks)
+
 
 # Singleton instance
 _github_client: Optional[GitHubAPIClient] = None

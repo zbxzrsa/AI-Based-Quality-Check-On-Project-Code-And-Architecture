@@ -273,14 +273,18 @@ def configure_rate_limiting(app):
         app = FastAPI()
         configure_rate_limiting(app)
     """
-    # Temporarily disable SlowAPI middleware due to compatibility issues
-    # Add SlowAPI middleware
+    from slowapi import Limiter
+    from slowapi.errors import RateLimitExceeded
+    from starlette.middleware.base import BaseHTTPMiddleware
+    
     app.state.limiter = limiter
-    # app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
-    # app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+    app.add_middleware(RateLimitMiddleware, 
+                       rate_limit_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+                       rate_limit_per_hour=settings.RATE_LIMIT_PER_HOUR)
     
     logger.info(
-        f"Rate limiting temporarily disabled - configuration: {settings.RATE_LIMIT_PER_MINUTE} requests/minute, "
+        f"Rate limiting enabled - configuration: {settings.RATE_LIMIT_PER_MINUTE} requests/minute, "
         f"{settings.RATE_LIMIT_PER_HOUR} requests/hour per user"
     )
 

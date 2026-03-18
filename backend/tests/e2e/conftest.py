@@ -146,7 +146,7 @@ def mock_cache_service():
 
 
 @pytest.fixture(autouse=True)
-def cleanup_after_test():
+async def cleanup_after_test():
     """
     Cleanup fixture that runs after each test
     
