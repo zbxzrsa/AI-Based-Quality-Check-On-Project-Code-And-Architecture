@@ -2,10 +2,12 @@
 Redis caching service
 Implements caching strategies for the AI code review platform
 """
-import json
+
 import hashlib
+import json
 import logging
-from typing import Any, Optional, Dict
+from typing import Any
+
 import redis.asyncio as redis
 
 from app.database.redis_db import get_redis
@@ -15,23 +17,20 @@ logger = logging.getLogger(__name__)
 
 class RedisCacheService:
     """Redis caching service with multiple cache patterns"""
-    
+
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
-        self.metrics = {
-            "hits": 0,
-            "misses": 0
-        }
-    
+        self.metrics = {"hits": 0, "misses": 0}
+
     # ================================================
     # SESSION MANAGEMENT
     # ================================================
-    
+
     async def set_session(
         self,
         user_id: str,
-        session_data: Dict[str, Any],
-        ttl: int = 86400  # 24 hours
+        session_data: dict[str, Any],
+        ttl: int = 86400,  # 24 hours
     ) -> bool:
         """
         Store user session data
@@ -46,11 +45,8 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error setting session for user %s: %s", user_id, e, exc_info=True)
             return False
-    
-    async def get_session(
-        self,
-        user_id: str
-    ) -> Optional[Dict[str, Any]]:
+
+    async def get_session(self, user_id: str) -> dict[str, Any] | None:
         """
         Retrieve user session data
         Returns None if session expired or doesn't exist
@@ -67,11 +63,8 @@ class RedisCacheService:
             logger.error("Error getting session for user %s: %s", user_id, e, exc_info=True)
             self.metrics["misses"] += 1
             return None
-    
-    async def delete_session(
-        self,
-        user_id: str
-    ) -> bool:
+
+    async def delete_session(self, user_id: str) -> bool:
         """Delete user session (logout)"""
         key = f"session:{user_id}"
         try:
@@ -80,12 +73,8 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error deleting session for user %s: %s", user_id, e, exc_info=True)
             return False
-    
-    async def extend_session(
-        self,
-        user_id: str,
-        ttl: int = 86400
-    ) -> bool:
+
+    async def extend_session(self, user_id: str, ttl: int = 86400) -> bool:
         """Extend session TTL (refresh on activity)"""
         key = f"session:{user_id}"
         try:
@@ -94,16 +83,16 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error extending session for user %s: %s", user_id, e, exc_info=True)
             return False
-    
+
     # ================================================
     # ANALYSIS RESULTS CACHE
     # ================================================
-    
+
     async def set_analysis_result(
         self,
         pr_id: str,
-        result_data: Dict[str, Any],
-        ttl: int = 604800  # 7 days
+        result_data: dict[str, Any],
+        ttl: int = 604800,  # 7 days
     ) -> bool:
         """
         Cache code review analysis results
@@ -118,11 +107,8 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error caching analysis result for PR %s: %s", pr_id, e, exc_info=True)
             return False
-    
-    async def get_analysis_result(
-        self,
-        pr_id: str
-    ) -> Optional[Dict[str, Any]]:
+
+    async def get_analysis_result(self, pr_id: str) -> dict[str, Any] | None:
         """Retrieve cached analysis results"""
         key = f"analysis:{pr_id}"
         try:
@@ -136,11 +122,8 @@ class RedisCacheService:
             logger.error("Error retrieving analysis result for PR %s: %s", pr_id, e, exc_info=True)
             self.metrics["misses"] += 1
             return None
-    
-    async def invalidate_analysis(
-        self,
-        pr_id: str
-    ) -> bool:
+
+    async def invalidate_analysis(self, pr_id: str) -> bool:
         """Invalidate cached analysis (when PR is updated)"""
         key = f"analysis:{pr_id}"
         try:
@@ -149,29 +132,25 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error invalidating analysis cache for PR %s: %s", pr_id, e, exc_info=True)
             return False
-    
+
     # ================================================
     # GRAPH QUERY CACHE
     # ================================================
-    
-    def _generate_query_hash(
-        self,
-        query: str,
-        parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+
+    def _generate_query_hash(self, query: str, parameters: dict[str, Any] | None = None) -> str:
         """Generate hash for query caching"""
         query_str = query
         if parameters:
             query_str += json.dumps(parameters, sort_keys=True)
         return hashlib.sha256(query_str.encode()).hexdigest()[:16]
-    
+
     async def set_graph_query_result(
         self,
         project_id: str,
         query: str,
-        parameters: Optional[Dict[str, Any]],
+        parameters: dict[str, Any] | None,
         result_data: Any,
-        ttl: int = 3600  # 1 hour
+        ttl: int = 3600,  # 1 hour
     ) -> bool:
         """
         Cache Neo4j graph query results
@@ -187,13 +166,10 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error caching graph query for project %s: %s", project_id, e, exc_info=True)
             return False
-    
+
     async def get_graph_query_result(
-        self,
-        project_id: str,
-        query: str,
-        parameters: Optional[Dict[str, Any]] = None
-    ) -> Optional[Any]:
+        self, project_id: str, query: str, parameters: dict[str, Any] | None = None
+    ) -> Any | None:
         """Retrieve cached graph query results"""
         query_hash = self._generate_query_hash(query, parameters)
         key = f"graph:{project_id}:{query_hash}"
@@ -208,54 +184,41 @@ class RedisCacheService:
             logger.error("Error retrieving graph query for project %s: %s", project_id, e, exc_info=True)
             self.metrics["misses"] += 1
             return None
-    
-    async def invalidate_project_cache(
-        self,
-        project_id: str
-    ) -> int:
+
+    async def invalidate_project_cache(self, project_id: str) -> int:
         """Invalidate all cached queries for a project"""
         pattern = f"graph:{project_id}:*"
         try:
             keys = []
             async for key in self.redis.scan_iter(match=pattern):
                 keys.append(key)
-            
+
             if keys:
                 return await self.redis.delete(*keys)
             return 0
         except Exception as e:
             logger.error("Error invalidating project cache for project %s: %s", project_id, e, exc_info=True)
             return 0
-    
+
     # ================================================
     # TASK QUEUE
     # ================================================
-    
-    async def enqueue_pr_analysis(
-        self,
-        pr_id: str,
-        task_data: Dict[str, Any]
-    ) -> bool:
+
+    async def enqueue_pr_analysis(self, pr_id: str, task_data: dict[str, Any]) -> bool:
         """
         Add PR analysis task to queue
         List: queue:pr_analysis
         """
         queue_key = "queue:pr_analysis"
         try:
-            task_json = json.dumps({
-                "pr_id": pr_id,
-                **task_data
-            })
+            task_json = json.dumps({"pr_id": pr_id, **task_data})
             await self.redis.rpush(queue_key, task_json)
             return True
         except Exception as e:
             logger.error("Error enqueueing analysis task for PR %s: %s", pr_id, e, exc_info=True)
             return False
-    
-    async def dequeue_pr_analysis(
-        self,
-        timeout: int = 5
-    ) -> Optional[Dict[str, Any]]:
+
+    async def dequeue_pr_analysis(self, timeout: int = 5) -> dict[str, Any] | None:
         """
         Remove and return task from queue (blocking)
         Timeout in seconds
@@ -270,7 +233,7 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error dequeuing analysis task: %s", e, exc_info=True)
             return None
-    
+
     async def get_queue_length(self) -> int:
         """Get current queue length"""
         queue_key = "queue:pr_analysis"
@@ -279,86 +242,77 @@ class RedisCacheService:
         except Exception as e:
             logger.warning("Error getting queue length: %s", e)
             return 0
-    
+
     # ================================================
     # WEBHOOK REPLAY PROTECTION
     # ================================================
-    
+
     async def mark_webhook_processed(
         self,
         delivery_id: str,
-        ttl: int = 86400  # 24 hours
+        ttl: int = 86400,  # 24 hours
     ) -> bool:
         """
         Atomically check and mark a webhook as processed to prevent replays.
         Uses SET NX to avoid race conditions from concurrent duplicate webhooks.
-        
+
         Returns: True if successfully marked (was not processed), False if already processed.
         """
         key = f"webhook:delivery:{delivery_id}"
         try:
             # SET NX ensures we only write if key doesn't exist
             # This is atomic and prevents race conditions
-            result = await self.redis.set(
-                key,
-                "processed",
-                nx=True,
-                ex=ttl
-            )
+            result = await self.redis.set(key, "processed", nx=True, ex=ttl)
             return bool(result)
         except Exception as e:
             logger.error("Error checking webhook replay protection for delivery %s: %s", delivery_id, e, exc_info=True)
             # Fail open if Redis is down, to maintain availability
             return True
-            
+
     # ================================================
     # RATE LIMITING
     # ================================================
-    
+
     async def check_rate_limit(
         self,
         user_id: str,
         endpoint: str,
         max_requests: int = 60,
-        window: int = 60  # 1 minute window
+        window: int = 60,  # 1 minute window
     ) -> tuple[bool, int]:
         """
         Check if user has exceeded rate limit
         Key pattern: ratelimit:{user_id}:{endpoint}
         TTL: 1 minute
-        
+
         Returns: (allowed: bool, remaining: int)
         """
         key = f"ratelimit:{user_id}:{endpoint}"
         try:
             # Get current count
             current = await self.redis.get(key)
-            
+
             if current is None:
                 # First request in window
                 await self.redis.set(key, 1, ex=window)
                 return True, max_requests - 1
-            
+
             current_count = int(current)
-            
+
             if current_count >= max_requests:
                 # Rate limit exceeded
                 return False, 0
-            
+
             # Increment counter
             await self.redis.incr(key)
             return True, max_requests - current_count - 1
-            
+
         except Exception as e:
             logger.error("Error checking rate limit for user %s on %s: %s", user_id, endpoint, e, exc_info=True)
             # On error, allow the request (fail open)
             return True, max_requests
-    
-    async def reset_rate_limit(
-        self,
-        user_id: str,
-        endpoint: str
-    ) -> bool:
+
+    async def reset_rate_limit(self, user_id: str, endpoint: str) -> bool:
         """Reset rate limit for user"""
         key = f"ratelimit:{user_id}:{endpoint}"
         try:
@@ -367,43 +321,29 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error resetting rate limit for user %s on %s: %s", user_id, endpoint, e, exc_info=True)
             return False
-    
+
     # ================================================
     # DISTRIBUTED LOCKING
     # ================================================
-    
-    async def acquire_lock(
-        self,
-        resource: str,
-        lock_id: str,
-        timeout: int = 30
-    ) -> bool:
+
+    async def acquire_lock(self, resource: str, lock_id: str, timeout: int = 30) -> bool:
         """
         Acquire distributed lock
         Key pattern: lock:{resource}
         TTL: timeout seconds
-        
+
         Returns: True if lock acquired, False otherwise
         """
         key = f"lock:{resource}"
         try:
             # SET NX (set if not exists) with expiration
-            result = await self.redis.set(
-                key,
-                lock_id,
-                nx=True,
-                ex=timeout
-            )
+            result = await self.redis.set(key, lock_id, nx=True, ex=timeout)
             return bool(result)
         except Exception as e:
             logger.error("Error acquiring lock on resource %s: %s", resource, e, exc_info=True)
             return False
-    
-    async def release_lock(
-        self,
-        resource: str,
-        lock_id: str
-    ) -> bool:
+
+    async def release_lock(self, resource: str, lock_id: str) -> bool:
         """
         Release distributed lock
         Only releases if lock_id matches (prevents releasing other's locks)
@@ -423,13 +363,8 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error releasing lock on resource %s: %s", resource, e, exc_info=True)
             return False
-    
-    async def extend_lock(
-        self,
-        resource: str,
-        lock_id: str,
-        timeout: int = 30
-    ) -> bool:
+
+    async def extend_lock(self, resource: str, lock_id: str, timeout: int = 30) -> bool:
         """Extend lock TTL if still owned by lock_id"""
         key = f"lock:{resource}"
         try:
@@ -446,23 +381,23 @@ class RedisCacheService:
         except Exception as e:
             logger.error("Error extending lock on resource %s: %s", resource, e, exc_info=True)
             return False
-    
+
     # ================================================
     # CACHE METRICS
     # ================================================
-    
-    def get_metrics(self) -> Dict[str, Any]:
+
+    def get_metrics(self) -> dict[str, Any]:
         """Get cache hit/miss metrics"""
         total = self.metrics["hits"] + self.metrics["misses"]
         hit_rate = self.metrics["hits"] / total if total > 0 else 0
-        
+
         return {
             "hits": self.metrics["hits"],
             "misses": self.metrics["misses"],
             "total_requests": total,
-            "hit_rate": round(hit_rate * 100, 2)
+            "hit_rate": round(hit_rate * 100, 2),
         }
-    
+
     def reset_metrics(self):
         """Reset metrics counters"""
         self.metrics = {"hits": 0, "misses": 0}

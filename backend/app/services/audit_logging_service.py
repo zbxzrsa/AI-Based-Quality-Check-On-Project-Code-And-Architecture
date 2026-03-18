@@ -7,15 +7,17 @@ administrative actions.
 
 Validates Requirements: 1.10, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7
 """
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import Column, String, DateTime, Text, Index, Boolean, select, and_, func, desc
-from sqlalchemy.dialects.postgresql import UUID, INET, JSONB
-from sqlalchemy.ext.asyncio import AsyncSession
-import uuid
+
 import hashlib
 import json
 import logging
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from sqlalchemy import Boolean, Column, DateTime, Index, String, Text, and_, desc, func, select
+from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgresql import Base
 
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class AuditEventType:
     """Audit event type constants"""
+
     # Authentication events
     AUTH_LOGIN_SUCCESS = "auth.login.success"
     AUTH_LOGIN_FAILURE = "auth.login.failure"
@@ -31,18 +34,18 @@ class AuditEventType:
     AUTH_TOKEN_REFRESH = "auth.token.refresh"
     AUTH_PASSWORD_CHANGE = "auth.password.change"
     AUTH_PASSWORD_RESET = "auth.password.reset"
-    
+
     # Authorization events
     AUTHZ_ACCESS_DENIED = "authz.access.denied"
     AUTHZ_PERMISSION_DENIED = "authz.permission.denied"
     AUTHZ_ROLE_INSUFFICIENT = "authz.role.insufficient"
-    
+
     # Data modification events
     DATA_CREATE = "data.create"
     DATA_UPDATE = "data.update"
     DATA_DELETE = "data.delete"
     DATA_EXPORT = "data.export"
-    
+
     # Administrative events
     ADMIN_USER_CREATE = "admin.user.create"
     ADMIN_USER_UPDATE = "admin.user.update"
@@ -53,7 +56,7 @@ class AuditEventType:
     ADMIN_PROJECT_DELETE = "admin.project.delete"
     ADMIN_CONFIG_CHANGE = "admin.config.change"
     ADMIN_SYSTEM_SETTING = "admin.system.setting"
-    
+
     # Feature flag events
     FEATURE_FLAG_CHANGE = "admin.feature_flag.change"
 
@@ -61,7 +64,7 @@ class AuditEventType:
 class AuditLogEntry(Base):
     """
     Immutable audit log table with hash chain for integrity verification
-    
+
     Features:
     - Cryptographic hash chain for tamper detection
     - Complete action context with before/after states
@@ -69,74 +72,75 @@ class AuditLogEntry(Base):
     - Searchable metadata and indexing
     - Compliance framework tagging
     """
+
     __tablename__ = "audit_log_entries"
-    
+
     # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
+
     # Hash chain for immutability
     previous_hash = Column(String(64), nullable=True, index=True)
     current_hash = Column(String(64), nullable=False, unique=True)
-    
+
     # Timestamp
     timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    
+
     # Event classification
     event_type = Column(String(100), nullable=False, index=True)
     event_category = Column(String(50), nullable=False, index=True)  # auth, authz, data, admin
     severity = Column(String(20), nullable=False, default="info")  # info, warning, error, critical
-    
+
     # Resource information
     resource_type = Column(String(100), nullable=True, index=True)
     resource_id = Column(String(255), nullable=True, index=True)
     resource_name = Column(String(500), nullable=True)
-    
+
     # Actor information
     user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     user_email = Column(String(255), nullable=True, index=True)
     user_role = Column(String(50), nullable=True)
     session_id = Column(UUID(as_uuid=True), nullable=True)
-    
+
     # Request context
     ip_address = Column(INET, nullable=True, index=True)
     user_agent = Column(Text, nullable=True)
     request_id = Column(String(100), nullable=True, index=True)
     request_method = Column(String(10), nullable=True)
     request_path = Column(String(1000), nullable=True)
-    
+
     # Action details
     action = Column(String(200), nullable=False, index=True)
     description = Column(Text, nullable=False)
     success = Column(Boolean, nullable=False, default=True, index=True)
     error_message = Column(Text, nullable=True)
-    
+
     # State tracking (for data modifications)
     previous_state = Column(JSONB, nullable=True)
     new_state = Column(JSONB, nullable=True)
     changes = Column(JSONB, nullable=True)  # Computed diff
-    
+
     # Additional context
     event_metadata = Column(JSONB, nullable=True)
-    
+
     # Compliance and retention
     compliance_frameworks = Column(JSONB, nullable=True)  # ["PCI-DSS", "HIPAA", "GDPR"]
     retention_until = Column(DateTime(timezone=True), nullable=False, index=True)
-    
+
     # Indexes for efficient querying
     __table_args__ = (
-        Index('idx_audit_entry_timestamp_desc', timestamp.desc()),
-        Index('idx_audit_entry_user_timestamp', 'user_id', timestamp.desc()),
-        Index('idx_audit_entry_event_timestamp', 'event_type', timestamp.desc()),
-        Index('idx_audit_entry_resource', 'resource_type', 'resource_id'),
-        Index('idx_audit_entry_category_timestamp', 'event_category', timestamp.desc()),
-        Index('idx_audit_entry_ip_timestamp', 'ip_address', timestamp.desc()),
+        Index("idx_audit_entry_timestamp_desc", timestamp.desc()),
+        Index("idx_audit_entry_user_timestamp", "user_id", timestamp.desc()),
+        Index("idx_audit_entry_event_timestamp", "event_type", timestamp.desc()),
+        Index("idx_audit_entry_resource", "resource_type", "resource_id"),
+        Index("idx_audit_entry_category_timestamp", "event_category", timestamp.desc()),
+        Index("idx_audit_entry_ip_timestamp", "ip_address", timestamp.desc()),
     )
 
 
 class AuditLoggingService:
     """
     Service for managing comprehensive audit logging
-    
+
     This service provides:
     - Logging of all authentication attempts
     - Logging of all authorization failures
@@ -145,33 +149,33 @@ class AuditLoggingService:
     - Immutable audit trail with hash chain
     - Query and export functionality
     """
-    
+
     def __init__(self, db_session: AsyncSession, default_retention_days: int = 2555):
         """
         Initialize audit logging service
-        
+
         Args:
             db_session: Database session
             default_retention_days: Default retention period (7 years = 2555 days)
         """
         self.db = db_session
         self.default_retention_days = default_retention_days
-    
+
     async def log_authentication_attempt(
         self,
         user_email: str,
         success: bool,
         ip_address: str,
         user_agent: str,
-        user_id: Optional[uuid.UUID] = None,
-        error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        user_id: uuid.UUID | None = None,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditLogEntry:
         """
         Log authentication attempt (login)
-        
+
         Validates Requirement: 15.1
-        
+
         Args:
             user_email: Email of user attempting to authenticate
             success: Whether authentication succeeded
@@ -180,12 +184,12 @@ class AuditLoggingService:
             user_id: User ID if authentication succeeded
             error_message: Error message if authentication failed
             metadata: Additional context
-        
+
         Returns:
             Created audit log entry
         """
         event_type = AuditEventType.AUTH_LOGIN_SUCCESS if success else AuditEventType.AUTH_LOGIN_FAILURE
-        
+
         return await self._create_log_entry(
             event_type=event_type,
             event_category="auth",
@@ -200,7 +204,7 @@ class AuditLoggingService:
             error_message=error_message,
             metadata=metadata or {},
         )
-    
+
     async def log_authorization_failure(
         self,
         user_id: uuid.UUID,
@@ -212,13 +216,13 @@ class AuditLoggingService:
         ip_address: str,
         user_agent: str,
         reason: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditLogEntry:
         """
         Log authorization failure
-        
+
         Validates Requirement: 15.2
-        
+
         Args:
             user_id: ID of user attempting action
             user_email: Email of user
@@ -230,7 +234,7 @@ class AuditLoggingService:
             user_agent: Client user agent
             reason: Reason for denial
             metadata: Additional context
-        
+
         Returns:
             Created audit log entry
         """
@@ -251,7 +255,7 @@ class AuditLoggingService:
             error_message=reason,
             metadata=metadata or {},
         )
-    
+
     async def log_data_modification(
         self,
         user_id: uuid.UUID,
@@ -260,18 +264,18 @@ class AuditLoggingService:
         operation: str,  # create, update, delete
         resource_type: str,
         resource_id: str,
-        resource_name: Optional[str],
-        previous_state: Optional[Dict[str, Any]],
-        new_state: Optional[Dict[str, Any]],
+        resource_name: str | None,
+        previous_state: dict[str, Any] | None,
+        new_state: dict[str, Any] | None,
         ip_address: str,
         user_agent: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditLogEntry:
         """
         Log data modification with before/after values
-        
+
         Validates Requirement: 15.3
-        
+
         Args:
             user_id: ID of user performing modification
             user_email: Email of user
@@ -285,7 +289,7 @@ class AuditLoggingService:
             ip_address: Client IP address
             user_agent: Client user agent
             metadata: Additional context
-        
+
         Returns:
             Created audit log entry
         """
@@ -293,13 +297,13 @@ class AuditLoggingService:
         changes = None
         if operation == "update" and previous_state and new_state:
             changes = self._compute_changes(previous_state, new_state)
-        
+
         event_type_map = {
             "create": AuditEventType.DATA_CREATE,
             "update": AuditEventType.DATA_UPDATE,
             "delete": AuditEventType.DATA_DELETE,
         }
-        
+
         return await self._create_log_entry(
             event_type=event_type_map.get(operation, AuditEventType.DATA_UPDATE),
             event_category="data",
@@ -320,7 +324,7 @@ class AuditLoggingService:
             changes=changes,
             metadata=metadata or {},
         )
-    
+
     async def log_administrative_action(
         self,
         user_id: uuid.UUID,
@@ -328,19 +332,19 @@ class AuditLoggingService:
         user_role: str,
         action: str,
         description: str,
-        resource_type: Optional[str],
-        resource_id: Optional[str],
+        resource_type: str | None,
+        resource_id: str | None,
         ip_address: str,
         user_agent: str,
         success: bool = True,
-        error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditLogEntry:
         """
         Log administrative action
-        
+
         Validates Requirement: 15.4
-        
+
         Args:
             user_id: ID of admin user
             user_email: Email of admin
@@ -354,7 +358,7 @@ class AuditLoggingService:
             success: Whether action succeeded
             error_message: Error message if failed
             metadata: Additional context
-        
+
         Returns:
             Created audit log entry
         """
@@ -375,7 +379,7 @@ class AuditLoggingService:
             error_message=error_message,
             metadata=metadata or {},
         )
-    
+
     async def _create_log_entry(
         self,
         event_type: str,
@@ -383,39 +387,39 @@ class AuditLoggingService:
         action: str,
         description: str,
         severity: str = "info",
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        resource_name: Optional[str] = None,
-        user_id: Optional[uuid.UUID] = None,
-        user_email: Optional[str] = None,
-        user_role: Optional[str] = None,
-        session_id: Optional[uuid.UUID] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        request_id: Optional[str] = None,
-        request_method: Optional[str] = None,
-        request_path: Optional[str] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        resource_name: str | None = None,
+        user_id: uuid.UUID | None = None,
+        user_email: str | None = None,
+        user_role: str | None = None,
+        session_id: uuid.UUID | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        request_id: str | None = None,
+        request_method: str | None = None,
+        request_path: str | None = None,
         success: bool = True,
-        error_message: Optional[str] = None,
-        previous_state: Optional[Dict[str, Any]] = None,
-        new_state: Optional[Dict[str, Any]] = None,
-        changes: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        compliance_frameworks: Optional[List[str]] = None,
-        retention_days: Optional[int] = None,
+        error_message: str | None = None,
+        previous_state: dict[str, Any] | None = None,
+        new_state: dict[str, Any] | None = None,
+        changes: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        compliance_frameworks: list[str] | None = None,
+        retention_days: int | None = None,
     ) -> AuditLogEntry:
         """
         Create immutable audit log entry with hash chain
-        
+
         This method:
         1. Retrieves the latest log entry for hash chaining
         2. Creates new log entry with all provided data
         3. Computes cryptographic hash linking to previous entry
         4. Saves to database (append-only)
-        
+
         Args:
             Various audit log fields
-        
+
         Returns:
             Created audit log entry
         """
@@ -423,11 +427,11 @@ class AuditLoggingService:
             # Get previous log entry for hash chain
             previous_log = await self._get_latest_log()
             previous_hash = previous_log.current_hash if previous_log else None
-            
+
             # Calculate retention date
             retention_days = retention_days or self.default_retention_days
             retention_until = datetime.now(timezone.utc) + timedelta(days=retention_days)
-            
+
             # Create log entry
             log_entry = AuditLogEntry(
                 id=uuid.uuid4(),
@@ -459,28 +463,28 @@ class AuditLoggingService:
                 compliance_frameworks=compliance_frameworks,
                 retention_until=retention_until,
             )
-            
+
             # Generate hash for immutability
             log_entry.current_hash = self._generate_hash(log_entry)
-            
+
             # Save to database (append-only)
             self.db.add(log_entry)
             await self.db.commit()
             await self.db.refresh(log_entry)
-            
+
             logger.info(f"Audit log created: {event_type} by {user_email or 'system'}")
-            
+
             return log_entry
-            
+
         except Exception as e:
             logger.error(f"Failed to create audit log entry: {str(e)}")
             await self.db.rollback()
             raise
-    
+
     def _generate_hash(self, log_entry: AuditLogEntry) -> str:
         """
         Generate cryptographic hash for audit log entry
-        
+
         Creates SHA-256 hash of critical fields to detect tampering:
         - Previous hash (creates chain)
         - Timestamp
@@ -488,10 +492,10 @@ class AuditLoggingService:
         - User details
         - Action and description
         - Resource information
-        
+
         Args:
             log_entry: Audit log entry to hash
-        
+
         Returns:
             SHA-256 hash as hex string
         """
@@ -509,44 +513,36 @@ class AuditLoggingService:
             "description": log_entry.description,
             "success": log_entry.success,
         }
-        
+
         # Create deterministic JSON string
         hash_string = json.dumps(hash_data, sort_keys=True)
-        
+
         # Generate SHA-256 hash
         return hashlib.sha256(hash_string.encode()).hexdigest()
-    
-    async def _get_latest_log(self) -> Optional[AuditLogEntry]:
+
+    async def _get_latest_log(self) -> AuditLogEntry | None:
         """
         Get the most recent audit log entry for hash chaining
-        
+
         Returns:
             Latest audit log entry or None if no entries exist
         """
-        result = await self.db.execute(
-            select(AuditLogEntry)
-            .order_by(desc(AuditLogEntry.timestamp))
-            .limit(1)
-        )
+        result = await self.db.execute(select(AuditLogEntry).order_by(desc(AuditLogEntry.timestamp)).limit(1))
         return result.scalar_one_or_none()
-    
-    def _compute_changes(
-        self,
-        previous_state: Dict[str, Any],
-        new_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+
+    def _compute_changes(self, previous_state: dict[str, Any], new_state: dict[str, Any]) -> dict[str, Any]:
         """
         Compute changes between previous and new state
-        
+
         Args:
             previous_state: State before modification
             new_state: State after modification
-        
+
         Returns:
             Dictionary of changes with old and new values
         """
         changes = {}
-        
+
         # Find modified and added fields
         for key, new_value in new_state.items():
             old_value = previous_state.get(key)
@@ -555,7 +551,7 @@ class AuditLoggingService:
                     "old": old_value,
                     "new": new_value,
                 }
-        
+
         # Find removed fields
         for key in previous_state:
             if key not in new_state:
@@ -563,30 +559,30 @@ class AuditLoggingService:
                     "old": previous_state[key],
                     "new": None,
                 }
-        
+
         return changes
-    
+
     async def query_logs(
         self,
-        user_id: Optional[uuid.UUID] = None,
-        user_email: Optional[str] = None,
-        event_type: Optional[str] = None,
-        event_category: Optional[str] = None,
-        action: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        success: Optional[bool] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        user_id: uuid.UUID | None = None,
+        user_email: str | None = None,
+        event_type: str | None = None,
+        event_category: str | None = None,
+        action: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        ip_address: str | None = None,
+        success: bool | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Query audit logs with filters
-        
+
         Validates Requirement: 15.6
-        
+
         Args:
             user_id: Filter by user ID
             user_email: Filter by user email
@@ -601,13 +597,13 @@ class AuditLoggingService:
             end_date: Filter by end date
             limit: Maximum number of results
             offset: Offset for pagination
-        
+
         Returns:
             Dictionary with total count and audit log entries
         """
         query = select(AuditLogEntry)
         filters = []
-        
+
         if user_id:
             filters.append(AuditLogEntry.user_id == user_id)
         if user_email:
@@ -630,72 +626,68 @@ class AuditLoggingService:
             filters.append(AuditLogEntry.timestamp >= start_date)
         if end_date:
             filters.append(AuditLogEntry.timestamp <= end_date)
-        
+
         if filters:
             query = query.where(and_(*filters))
-        
+
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
         count_result = await self.db.execute(count_query)
         total = count_result.scalar()
-        
+
         # Apply pagination and ordering
         query = query.order_by(desc(AuditLogEntry.timestamp)).limit(limit).offset(offset)
-        
+
         # Execute query
         result = await self.db.execute(query)
         logs = result.scalars().all()
-        
+
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
             "items": [self._log_to_dict(log) for log in logs],
         }
-    
-    async def export_logs(
-        self,
-        format: str = "json",
-        **filters
-    ) -> str:
+
+    async def export_logs(self, format: str = "json", **filters) -> str:
         """
         Export audit logs for compliance reporting
-        
+
         Validates Requirement: 15.7
-        
+
         Args:
             format: Export format (json, csv)
             **filters: Query filters (same as query_logs)
-        
+
         Returns:
             Exported data as string
         """
         # Query all matching logs (no pagination for export)
         result = await self.query_logs(limit=1000000, offset=0, **filters)
-        
+
         if format == "json":
             return json.dumps(result, indent=2, default=str)
         elif format == "csv":
             return self._export_to_csv(result["items"])
         else:
             raise ValueError(f"Unsupported export format: {format}")
-    
-    def _export_to_csv(self, logs: List[Dict[str, Any]]) -> str:
+
+    def _export_to_csv(self, logs: list[dict[str, Any]]) -> str:
         """Convert logs to CSV format"""
         import csv
         import io
-        
+
         if not logs:
             return ""
-        
+
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=logs[0].keys())
         writer.writeheader()
         writer.writerows(logs)
-        
+
         return output.getvalue()
-    
-    def _log_to_dict(self, log: AuditLogEntry) -> Dict[str, Any]:
+
+    def _log_to_dict(self, log: AuditLogEntry) -> dict[str, Any]:
         """Convert audit log entry to dictionary"""
         return {
             "id": str(log.id),
@@ -720,51 +712,53 @@ class AuditLoggingService:
             "changes": log.changes,
             "metadata": log.event_metadata,
         }
-    
-    async def verify_chain_integrity(self) -> Dict[str, Any]:
+
+    async def verify_chain_integrity(self) -> dict[str, Any]:
         """
         Verify integrity of audit trail hash chain
-        
+
         Checks:
         1. Each log's hash matches its computed hash
         2. Each log's previous_hash matches the previous log's current_hash
-        
+
         Returns:
             Verification result with status and any breaks found
         """
         # Get all logs in chronological order
-        result = await self.db.execute(
-            select(AuditLogEntry).order_by(AuditLogEntry.timestamp)
-        )
+        result = await self.db.execute(select(AuditLogEntry).order_by(AuditLogEntry.timestamp))
         logs = result.scalars().all()
-        
+
         breaks = []
         previous_hash = None
-        
+
         for log in logs:
             # Verify hash matches
             expected_hash = self._generate_hash(log)
             if log.current_hash != expected_hash:
-                breaks.append({
-                    "log_id": str(log.id),
-                    "timestamp": log.timestamp.isoformat(),
-                    "reason": "Hash mismatch - log may have been tampered with",
-                    "expected_hash": expected_hash,
-                    "actual_hash": log.current_hash,
-                })
-            
+                breaks.append(
+                    {
+                        "log_id": str(log.id),
+                        "timestamp": log.timestamp.isoformat(),
+                        "reason": "Hash mismatch - log may have been tampered with",
+                        "expected_hash": expected_hash,
+                        "actual_hash": log.current_hash,
+                    }
+                )
+
             # Verify chain
             if log.previous_hash != previous_hash:
-                breaks.append({
-                    "log_id": str(log.id),
-                    "timestamp": log.timestamp.isoformat(),
-                    "reason": "Chain break - previous hash doesn't match",
-                    "expected_previous": previous_hash,
-                    "actual_previous": log.previous_hash,
-                })
-            
+                breaks.append(
+                    {
+                        "log_id": str(log.id),
+                        "timestamp": log.timestamp.isoformat(),
+                        "reason": "Chain break - previous hash doesn't match",
+                        "expected_previous": previous_hash,
+                        "actual_previous": log.previous_hash,
+                    }
+                )
+
             previous_hash = log.current_hash
-        
+
         return {
             "total_logs": len(logs),
             "verified": len(breaks) == 0,

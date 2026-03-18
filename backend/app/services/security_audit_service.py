@@ -2,18 +2,14 @@
 Security Audit Service
 Handles storage and retrieval of security scan results and audit logs in Neo4j
 """
+
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Any
 from uuid import uuid4
 
-from app.database.neo4j_db import get_neo4j_driver
-from app.schemas.security_models import (
-    SecurityScanResult,
-    ProjectQualityMetrics,
-    QualityGrade,
-    ScanTool
-)
 from app.core.config import settings
+from app.database.neo4j_db import get_neo4j_driver
+from app.schemas.security_models import ProjectQualityMetrics, QualityGrade, ScanTool, SecurityScanResult
 
 
 class SecurityAuditService:
@@ -25,16 +21,16 @@ class SecurityAuditService:
         self,
         project_id: str,
         commit_sha: str,
-        developer_id: Optional[str] = None,
-        developer_email: Optional[str] = None,
+        developer_id: str | None = None,
+        developer_email: str | None = None,
         action: str = "security_scan",
         entity_type: str = "security_scan",
         entity_id: str = "",
-        scan_result: Optional[SecurityScanResult] = None,
-        changes: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        compliance_framework: Optional[str] = None,
-        regulatory_requirements: Optional[List[str]] = None
+        scan_result: SecurityScanResult | None = None,
+        changes: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        compliance_framework: str | None = None,
+        regulatory_requirements: list[str] | None = None,
     ) -> str:
         """
         Create an audit log entry in Neo4j linked to Commit and Developer
@@ -81,7 +77,7 @@ class SecurityAuditService:
                 "npm_audit_count": len(scan_result.npm_audit_vulnerabilities),
                 "eslint_issues_count": len(scan_result.eslint_issues),
                 "codeql_alerts_count": len(scan_result.codeql_alerts),
-                "trivy_vulnerabilities_count": len(scan_result.trivy_vulnerabilities)
+                "trivy_vulnerabilities_count": len(scan_result.trivy_vulnerabilities),
             }
 
         # Cypher query to create audit log node
@@ -133,22 +129,25 @@ class SecurityAuditService:
 
         driver = await get_neo4j_driver()
         async with driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(cypher_query, {
-                "projectId": project_id,
-                "commitSha": commit_sha,
-                "auditId": audit_id,
-                "action": action,
-                "entityType": entity_type,
-                "entityId": entity_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "developerId": developer_id,
-                "developerEmail": developer_email,
-                "scanData": scan_data,
-                "changes": changes or {},
-                "metadata": metadata or {},
-                "complianceFramework": compliance_framework,
-                "regulatoryRequirements": regulatory_requirements or []
-            })
+            result = await session.run(
+                cypher_query,
+                {
+                    "projectId": project_id,
+                    "commitSha": commit_sha,
+                    "auditId": audit_id,
+                    "action": action,
+                    "entityType": entity_type,
+                    "entityId": entity_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "developerId": developer_id,
+                    "developerEmail": developer_email,
+                    "scanData": scan_data,
+                    "changes": changes or {},
+                    "metadata": metadata or {},
+                    "complianceFramework": compliance_framework,
+                    "regulatoryRequirements": regulatory_requirements or [],
+                },
+            )
 
             record = await result.single()
             return record["auditId"] if record else audit_id
@@ -158,8 +157,8 @@ class SecurityAuditService:
         project_id: str,
         commit_sha: str,
         scan_result: SecurityScanResult,
-        developer_id: Optional[str] = None,
-        developer_email: Optional[str] = None
+        developer_id: str | None = None,
+        developer_email: str | None = None,
     ) -> str:
         """
         Store comprehensive security scan results and create audit log
@@ -184,7 +183,7 @@ class SecurityAuditService:
             "issues_found": scan_result.total_issues,
             "critical_issues": scan_result.critical_issues,
             "high_issues": scan_result.high_issues,
-            "scan_duration": scan_result.duration_seconds
+            "scan_duration": scan_result.duration_seconds,
         }
 
         # Add tool-specific issue counts
@@ -199,7 +198,7 @@ class SecurityAuditService:
         metadata = {
             "scan_version": scan_result.scan_version,
             "scan_config": scan_result.scan_config,
-            "raw_output_available": scan_result.raw_output is not None
+            "raw_output_available": scan_result.raw_output is not None,
         }
 
         # Determine compliance framework based on scan tool
@@ -228,13 +227,10 @@ class SecurityAuditService:
             changes=changes,
             metadata=metadata,
             compliance_framework=compliance_framework,
-            regulatory_requirements=regulatory_requirements
+            regulatory_requirements=regulatory_requirements,
         )
 
-    async def get_project_quality_metrics(
-        self,
-        project_id: str
-    ) -> ProjectQualityMetrics:
+    async def get_project_quality_metrics(self, project_id: str) -> ProjectQualityMetrics:
         """
         Calculate and return project quality metrics based on recent security scans
 
@@ -271,10 +267,7 @@ class SecurityAuditService:
             if not record:
                 # Return default metrics if no scans found
                 return ProjectQualityMetrics(
-                    project_id=project_id,
-                    last_scan_date=None,
-                    quality_grade=QualityGrade.F,
-                    grade_score=0
+                    project_id=project_id, last_scan_date=None, quality_grade=QualityGrade.F, grade_score=0
                 )
 
             # Extract data from recent scans
@@ -304,7 +297,7 @@ class SecurityAuditService:
                 critical_vulnerabilities=current_critical,
                 high_vulnerabilities=current_high,
                 compliance_score=compliance_score,
-                frameworks_compliant=["OWASP", "GDPR"] if compliance_score >= 80 else []
+                frameworks_compliant=["OWASP", "GDPR"] if compliance_score >= 80 else [],
             )
 
             # Calculate grade
@@ -313,16 +306,18 @@ class SecurityAuditService:
             # Add trend data if multiple scans available
             if len(total_issues_list) > 1:
                 trend_data = []
-                for i, (total, critical, high, timestamp) in enumerate(zip(
-                    total_issues_list, critical_issues_list, high_issues_list, scan_timestamps
-                )):
-                    trend_data.append({
-                        "scan_number": i + 1,
-                        "total_issues": total,
-                        "critical_issues": critical,
-                        "high_issues": high,
-                        "timestamp": timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
-                    })
+                for i, (total, critical, high, timestamp) in enumerate(
+                    zip(total_issues_list, critical_issues_list, high_issues_list, scan_timestamps, strict=False)
+                ):
+                    trend_data.append(
+                        {
+                            "scan_number": i + 1,
+                            "total_issues": total,
+                            "critical_issues": critical,
+                            "high_issues": high,
+                            "timestamp": timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp),
+                        }
+                    )
                 metrics.vulnerability_trend = trend_data
 
             return metrics
@@ -331,11 +326,11 @@ class SecurityAuditService:
         self,
         project_id: str,
         limit: int = 50,
-        entity_type: Optional[str] = None,
-        developer_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
+        entity_type: str | None = None,
+        developer_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Retrieve audit trail for a project with filtering options
 
@@ -387,10 +382,7 @@ class SecurityAuditService:
         LIMIT $limit
         """
 
-        parameters = {
-            "projectId": project_id,
-            "limit": limit
-        }
+        parameters = {"projectId": project_id, "limit": limit}
 
         if entity_type:
             parameters["entityType"] = entity_type
@@ -421,7 +413,7 @@ class SecurityAuditService:
                     "changes": record.get("changes", {}),
                     "metadata": record.get("metadata", {}),
                     "compliance_framework": record.get("complianceFramework"),
-                    "regulatory_requirements": record.get("regulatoryRequirements", [])
+                    "regulatory_requirements": record.get("regulatoryRequirements", []),
                 }
 
                 # Add scan data summary if present
@@ -431,18 +423,14 @@ class SecurityAuditService:
                         "tool": scan_data.get("tool"),
                         "total_issues": scan_data.get("totalIssues", 0),
                         "critical_issues": scan_data.get("criticalIssues", 0),
-                        "high_issues": scan_data.get("highIssues", 0)
+                        "high_issues": scan_data.get("highIssues", 0),
                     }
 
                 audit_trail.append(entry)
 
             return audit_trail
 
-    async def get_security_compliance_report(
-        self,
-        project_id: str,
-        days_back: int = 30
-    ) -> Dict[str, Any]:
+    async def get_security_compliance_report(self, project_id: str, days_back: int = 30) -> dict[str, Any]:
         """
         Generate a comprehensive security compliance report
 
@@ -475,10 +463,7 @@ class SecurityAuditService:
 
         driver = await get_neo4j_driver()
         async with driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(cypher_query, {
-                "projectId": project_id,
-                "daysBack": days_back
-            })
+            result = await session.run(cypher_query, {"projectId": project_id, "daysBack": days_back})
             record = await result.single()
 
             if not record:
@@ -486,7 +471,7 @@ class SecurityAuditService:
                     "project_id": project_id,
                     "period_days": days_back,
                     "status": "no_data",
-                    "message": "No security scans found in the specified period"
+                    "message": "No security scans found in the specified period",
                 }
 
             # Calculate compliance score
@@ -497,8 +482,8 @@ class SecurityAuditService:
             # Compliance score: 100 - penalties for issues
             compliance_score = 100
             compliance_score -= avg_critical * 20  # -20 per critical issue
-            compliance_score -= avg_high * 5       # -5 per high issue
-            compliance_score -= avg_total * 1      # -1 per total issue
+            compliance_score -= avg_high * 5  # -5 per high issue
+            compliance_score -= avg_total * 1  # -1 per total issue
             compliance_score = max(0, min(100, compliance_score))
 
             # Determine overall grade
@@ -523,24 +508,19 @@ class SecurityAuditService:
                 "average_issues": {
                     "total": round(avg_total, 1),
                     "critical": round(avg_critical, 1),
-                    "high": round(avg_high, 1)
+                    "high": round(avg_high, 1),
                 },
-                "issue_range": {
-                    "min": record.get("minIssues", 0),
-                    "max": record.get("maxIssues", 0)
-                },
+                "issue_range": {"min": record.get("minIssues", 0), "max": record.get("maxIssues", 0)},
                 "tools_used": list(set(record.get("toolsUsed", []))),
                 "compliance_frameworks": list(set(record.get("frameworks", []))),
                 "compliance_score": round(compliance_score, 1),
                 "quality_grade": grade,
-                "scan_timestamps": [ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
-                                  for ts in record.get("scanTimestamps", [])]
+                "scan_timestamps": [
+                    ts.isoformat() if hasattr(ts, "isoformat") else str(ts) for ts in record.get("scanTimestamps", [])
+                ],
             }
 
-    async def get_quality_grade_for_dashboard(
-        self,
-        project_id: str
-    ) -> Dict[str, Any]:
+    async def get_quality_grade_for_dashboard(self, project_id: str) -> dict[str, Any]:
         """
         Get quality grade and metrics for dashboard display
 
@@ -551,7 +531,7 @@ class SecurityAuditService:
             Quality grade and supporting metrics for dashboard
         """
         metrics = await self.get_project_quality_metrics(project_id)
-        
+
         # Get recent scan summary for dashboard
         recent_scan_query = """
         MATCH (p:Project {projectId: $projectId})-[:HAS_AUDIT_LOG]->(audit:AuditLog)
@@ -576,7 +556,7 @@ class SecurityAuditService:
                 "tool": scan_data.get("tool"),
                 "total_issues": scan_data.get("totalIssues", 0),
                 "critical_issues": scan_data.get("criticalIssues", 0),
-                "high_issues": scan_data.get("highIssues", 0)
+                "high_issues": scan_data.get("highIssues", 0),
             }
 
         return {
@@ -590,5 +570,5 @@ class SecurityAuditService:
             "frameworks_compliant": metrics.frameworks_compliant,
             "last_scan_date": metrics.last_scan_date,
             "recent_scan": recent_scan_info,
-            "vulnerability_trend": metrics.vulnerability_trend
+            "vulnerability_trend": metrics.vulnerability_trend,
         }

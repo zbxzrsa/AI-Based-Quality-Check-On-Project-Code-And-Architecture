@@ -5,35 +5,40 @@ This module analyzes Python source code using the Abstract Syntax Tree (AST) lib
 to detect circular dependencies between modules. It builds a dependency graph from
 import statements and identifies cycles that indicate architectural problems.
 """
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import ast
 import os
-from typing import Dict, List, Set, Optional, Any
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any
+
 import networkx as nx
 
 
 @dataclass
 class ModuleDependency:
     """Represents a dependency between two modules"""
+
     from_module: str
     to_module: str
     import_type: str  # 'import' or 'from_import'
     line_number: int
-    imported_items: List[str]
+    imported_items: list[str]
 
 
 @dataclass
 class CircularDependency:
     """Represents a detected circular dependency"""
-    cycle: List[str]  # List of module names in the cycle
+
+    cycle: list[str]  # List of module names in the cycle
     cycle_length: int
     severity: str  # 'critical', 'high', 'medium', 'low'
     description: str
-    dependencies: List[ModuleDependency]
+    dependencies: list[ModuleDependency]
 
 
 class CircularDependencyDetector:
@@ -45,11 +50,11 @@ class CircularDependencyDetector:
     """
 
     def __init__(self):
-        self.dependencies: Dict[str, List[ModuleDependency]] = defaultdict(list)
-        self.all_modules: Set[str] = set()
-        self.processed_files: Set[str] = set()
+        self.dependencies: dict[str, list[ModuleDependency]] = defaultdict(list)
+        self.all_modules: set[str] = set()
+        self.processed_files: set[str] = set()
 
-    def analyze_project(self, project_root: str, file_patterns: Optional[List[str]] = None) -> Dict[str, Any]:
+    def analyze_project(self, project_root: str, file_patterns: list[str] | None = None) -> dict[str, Any]:
         """
         Analyze an entire project for circular dependencies
 
@@ -61,7 +66,7 @@ class CircularDependencyDetector:
             Analysis results with detected cycles and statistics
         """
         if file_patterns is None:
-            file_patterns = ['*.py']
+            file_patterns = ["*.py"]
 
         # Find all Python files
         python_files = self._find_python_files(project_root, file_patterns)
@@ -77,27 +82,31 @@ class CircularDependencyDetector:
         stats = self._generate_statistics(cycles)
 
         return {
-            'project_root': project_root,
-            'files_analyzed': len(self.processed_files),
-            'total_modules': len(self.all_modules),
-            'total_dependencies': sum(len(deps) for deps in self.dependencies.values()),
-            'circular_dependencies': cycles,
-            'cycles_found': len(cycles),
-            'statistics': stats
+            "project_root": project_root,
+            "files_analyzed": len(self.processed_files),
+            "total_modules": len(self.all_modules),
+            "total_dependencies": sum(len(deps) for deps in self.dependencies.values()),
+            "circular_dependencies": cycles,
+            "cycles_found": len(cycles),
+            "statistics": stats,
         }
 
-    def _find_python_files(self, project_root: str, patterns: List[str]) -> List[str]:
+    def _find_python_files(self, project_root: str, patterns: list[str]) -> list[str]:
         """Find all Python files matching the patterns"""
         python_files = []
 
         for pattern in patterns:
-            if pattern == '*.py':
+            if pattern == "*.py":
                 for root, dirs, files in os.walk(project_root):
                     # Skip common directories
-                    dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__', 'node_modules', 'venv', '.venv', 'env']]
+                    dirs[:] = [
+                        d
+                        for d in dirs
+                        if not d.startswith(".") and d not in ["__pycache__", "node_modules", "venv", ".venv", "env"]
+                    ]
 
                     for file in files:
-                        if file.endswith('.py'):
+                        if file.endswith(".py"):
                             python_files.append(os.path.join(root, file))
 
         return sorted(python_files)
@@ -113,7 +122,7 @@ class CircularDependencyDetector:
             return
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 source_code = f.read()
 
             # Parse the AST
@@ -132,12 +141,12 @@ class CircularDependencyDetector:
 
             self.processed_files.add(file_path)
 
-        except (SyntaxError, UnicodeDecodeError) as e:
+        except (SyntaxError, UnicodeDecodeError):
             logger.info("Warning: Could not parse {file_path}: {e}")
-        except Exception as e:
+        except Exception:
             logger.info("Error analyzing {file_path}: {e}")
 
-    def _extract_imports(self, tree: ast.AST, file_path: str) -> List[ModuleDependency]:
+    def _extract_imports(self, tree: ast.AST, file_path: str) -> list[ModuleDependency]:
         """
         Extract import statements from AST
 
@@ -159,9 +168,9 @@ class CircularDependencyDetector:
                         dep = ModuleDependency(
                             from_module=self._file_path_to_module_name(file_path),
                             to_module=module_name,
-                            import_type='import',
+                            import_type="import",
                             line_number=node.lineno,
-                            imported_items=[name.name]
+                            imported_items=[name.name],
                         )
                         dependencies.append(dep)
 
@@ -174,15 +183,15 @@ class CircularDependencyDetector:
                         dep = ModuleDependency(
                             from_module=self._file_path_to_module_name(file_path),
                             to_module=module_name,
-                            import_type='from_import',
+                            import_type="from_import",
                             line_number=node.lineno,
-                            imported_items=imported_items
+                            imported_items=imported_items,
                         )
                         dependencies.append(dep)
 
         return dependencies
 
-    def _resolve_module_name(self, module_name: str, file_path: str) -> Optional[str]:
+    def _resolve_module_name(self, module_name: str, file_path: str) -> str | None:
         """
         Resolve a module name to its canonical form
 
@@ -194,14 +203,14 @@ class CircularDependencyDetector:
             Resolved module name or None if it can't be resolved
         """
         # Handle relative imports
-        if module_name.startswith('.'):
+        if module_name.startswith("."):
             # Convert relative import to absolute
             current_dir = os.path.dirname(file_path)
-            parts = module_name.split('.')
+            parts = module_name.split(".")
             dots_count = 0
 
             for part in parts:
-                if part == '':
+                if part == "":
                     dots_count += 1
                 else:
                     break
@@ -214,7 +223,7 @@ class CircularDependencyDetector:
             remaining_parts = parts[dots_count:]
             if remaining_parts:
                 module_path = os.path.join(current_dir, *remaining_parts)
-                return self._file_path_to_module_name(module_path + '.py')
+                return self._file_path_to_module_name(module_path + ".py")
 
         # For absolute imports, try to find the module in the project
         # This is a simplified approach - in a real implementation,
@@ -232,13 +241,13 @@ class CircularDependencyDetector:
             Module name (e.g., 'package.submodule')
         """
         # Remove .py extension
-        if file_path.endswith('.py'):
+        if file_path.endswith(".py"):
             file_path = file_path[:-3]
 
         # Convert path separators to dots
-        return file_path.replace(os.sep, '.')
+        return file_path.replace(os.sep, ".")
 
-    def _detect_cycles(self) -> List[CircularDependency]:
+    def _detect_cycles(self) -> list[CircularDependency]:
         """
         Detect circular dependencies in the dependency graph
 
@@ -274,24 +283,24 @@ class CircularDependencyDetector:
 
                     # Determine severity based on cycle length
                     if len(cycle) == 2:
-                        severity = 'critical'
+                        severity = "critical"
                     elif len(cycle) <= 4:
-                        severity = 'high'
+                        severity = "high"
                     elif len(cycle) <= 6:
-                        severity = 'medium'
+                        severity = "medium"
                     else:
-                        severity = 'low'
+                        severity = "low"
 
                     cycle_obj = CircularDependency(
                         cycle=cycle,
                         cycle_length=len(cycle),
                         severity=severity,
                         description=self._generate_cycle_description(cycle),
-                        dependencies=cycle_deps
+                        dependencies=cycle_deps,
                     )
                     cycles.append(cycle_obj)
 
-        except Exception as e:
+        except Exception:
             logger.info("Error detecting cycles: {e}")
 
         # Sort by severity and cycle length
@@ -301,22 +310,22 @@ class CircularDependencyDetector:
 
     def _severity_score(self, severity: str) -> int:
         """Convert severity string to numeric score for sorting"""
-        scores = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1}
+        scores = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         return scores.get(severity, 0)
 
-    def _generate_cycle_description(self, cycle: List[str]) -> str:
+    def _generate_cycle_description(self, cycle: list[str]) -> str:
         """Generate a human-readable description of a cycle"""
-        cycle_str = ' -> '.join(cycle) + f' -> {cycle[0]}'
+        cycle_str = " -> ".join(cycle) + f" -> {cycle[0]}"
         return f"Circular dependency detected: {cycle_str}"
 
-    def _generate_statistics(self, cycles: List[CircularDependency]) -> Dict[str, Any]:
+    def _generate_statistics(self, cycles: list[CircularDependency]) -> dict[str, Any]:
         """Generate statistics about the analysis"""
         if not cycles:
             return {
-                'cycle_severity_distribution': {},
-                'average_cycle_length': 0,
-                'max_cycle_length': 0,
-                'most_common_cycle_length': 0
+                "cycle_severity_distribution": {},
+                "average_cycle_length": 0,
+                "max_cycle_length": 0,
+                "most_common_cycle_length": 0,
             }
 
         severity_counts = defaultdict(int)
@@ -327,13 +336,13 @@ class CircularDependencyDetector:
             cycle_lengths.append(cycle.cycle_length)
 
         return {
-            'cycle_severity_distribution': dict(severity_counts),
-            'average_cycle_length': sum(cycle_lengths) / len(cycle_lengths),
-            'max_cycle_length': max(cycle_lengths),
-            'most_common_cycle_length': max(set(cycle_lengths), key=cycle_lengths.count)
+            "cycle_severity_distribution": dict(severity_counts),
+            "average_cycle_length": sum(cycle_lengths) / len(cycle_lengths),
+            "max_cycle_length": max(cycle_lengths),
+            "most_common_cycle_length": max(set(cycle_lengths), key=cycle_lengths.count),
         }
 
-    def get_cypher_queries_for_cycles(self, cycles: List[CircularDependency], project_id: str) -> List[str]:
+    def get_cypher_queries_for_cycles(self, cycles: list[CircularDependency], project_id: str) -> list[str]:
         """
         Generate Cypher queries to visualize circular dependencies in Neo4j
 
@@ -379,15 +388,14 @@ class CircularDependencyDetector:
 # Import these only when running in FastAPI context to avoid circular imports
 try:
     from fastapi import BackgroundTasks, HTTPException
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from app.models import Project
     from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models import Project
 
     async def detect_circular_dependencies_background(
-        project_id: str,
-        background_tasks: BackgroundTasks,
-        db: AsyncSession
-    ) -> Dict[str, Any]:
+        project_id: str, background_tasks: BackgroundTasks, db: AsyncSession
+    ) -> dict[str, Any]:
         """
         FastAPI endpoint handler for circular dependency detection as a background task
 
@@ -413,14 +421,14 @@ try:
         background_tasks.add_task(
             _run_circular_dependency_analysis,
             project_id,
-            str(project.github_repo_url)  # Convert to string if needed
+            str(project.github_repo_url),  # Convert to string if needed
         )
 
         return {
             "message": "Circular dependency analysis started",
             "project_id": project_id,
             "status": "running",
-            "estimated_duration": "30-60 seconds"
+            "estimated_duration": "30-60 seconds",
         }
 
     async def _run_circular_dependency_analysis(project_id: str, repo_url: str) -> None:
@@ -448,18 +456,15 @@ try:
             logger.info("Files analyzed: {results['files_analyzed']}")
             logger.info("Cycles found: {results['cycles_found']}")
 
-            for cycle in results['circular_dependencies']:
+            for _cycle in results["circular_dependencies"]:
                 logger.info("Cycle ({cycle.severity}): {' -> '.join(cycle.cycle)}")
 
             # Generate Cypher queries for Neo4j visualization
-            if results['circular_dependencies']:
-                cypher_queries = detector.get_cypher_queries_for_cycles(
-                    results['circular_dependencies'],
-                    project_id
-                )
+            if results["circular_dependencies"]:
+                detector.get_cypher_queries_for_cycles(results["circular_dependencies"], project_id)
                 logger.info("Generated {len(cypher_queries)} Cypher queries for Neo4j")
 
-        except Exception as e:
+        except Exception:
             logger.info("Error in circular dependency analysis for {project_id}: {e}")
 
 except ImportError:
@@ -483,20 +488,17 @@ def main():
     logger.info("Total dependencies: {results['total_dependencies']}")
     logger.info("Circular dependencies found: {results['cycles_found']}")
 
-    if results['circular_dependencies']:
+    if results["circular_dependencies"]:
         logger.info("\n=== Detected Cycles ===")
-        for i, cycle in enumerate(results['circular_dependencies'], 1):
+        for _i, _cycle in enumerate(results["circular_dependencies"], 1):
             logger.info("{i}. [{cycle.severity.upper()}] {' -> '.join(cycle.cycle)}")
             logger.info("   Length: {cycle.cycle_length}")
             logger.info("   Description: {cycle.description}")
             logger.info()
 
         logger.info("=== Cypher Queries for Neo4j ===")
-        cypher_queries = detector.get_cypher_queries_for_cycles(
-            results['circular_dependencies'],
-            "test-project"
-        )
-        for i, query in enumerate(cypher_queries[:5], 1):  # Show first 5 queries
+        cypher_queries = detector.get_cypher_queries_for_cycles(results["circular_dependencies"], "test-project")
+        for _i, _query in enumerate(cypher_queries[:5], 1):  # Show first 5 queries
             logger.info("{i}. {query.strip()}")
         if len(cypher_queries) > 5:
             logger.info("... and {len(cypher_queries) - 5} more queries")
@@ -504,7 +506,7 @@ def main():
         logger.info("✅ No circular dependencies detected!")
 
     logger.info("\n=== Statistics ===")
-    stats = results['statistics']
+    results["statistics"]
     logger.info("Severity distribution: {stats['cycle_severity_distribution']}")
     logger.info("Average cycle length: {stats['average_cycle_length']:.1f}")
     logger.info("Maximum cycle length: {stats['max_cycle_length']}")

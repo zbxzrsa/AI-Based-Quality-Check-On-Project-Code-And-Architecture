@@ -8,17 +8,11 @@ Supports Requirements: 1.4 (local/private LLM integration)
 """
 
 import logging
-from typing import Optional
+
 import httpx
-from openai import AsyncOpenAI
 import openai
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log
-)
+from openai import AsyncOpenAI
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .base import BaseLLMProvider, LLMProviderType, LLMRequest, LLMResponse
 
@@ -42,7 +36,7 @@ class LMStudioProvider(BaseLLMProvider):
         model: str = "local-model",
         base_url: str = "http://localhost:1234/v1",
         timeout: int = 120,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ):
         """
         Initialise the LM Studio provider.
@@ -75,12 +69,14 @@ class LMStudioProvider(BaseLLMProvider):
         )
 
     @retry(
-        retry=retry_if_exception_type((
-            openai.APIConnectionError,
-            openai.InternalServerError,
-            httpx.ConnectError,
-            httpx.TimeoutException,
-        )),
+        retry=retry_if_exception_type(
+            (
+                openai.APIConnectionError,
+                openai.InternalServerError,
+                httpx.ConnectError,
+                httpx.TimeoutException,
+            )
+        ),
         wait=wait_exponential(multiplier=1, min=2, max=15),
         stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),

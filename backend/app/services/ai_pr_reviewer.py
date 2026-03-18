@@ -7,15 +7,16 @@ performing contextual analysis against design standards and architectural patter
 
 import json
 import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ComplianceStatus(str, Enum):
     """Compliance status enumeration."""
+
     COMPLIANT = "COMPLIANT"
     WARNING = "WARNING"
     VIOLATION = "VIOLATION"
@@ -24,41 +25,39 @@ class ComplianceStatus(str, Enum):
 @dataclass
 class ReviewResult:
     """Result of AI PR review."""
+
     safety_score: int  # 0-100
     compliance_status: ComplianceStatus
-    refactoring_suggestions: List[str]
-    architectural_issues: List[str]
-    security_issues: List[str]
-    code_quality_issues: List[str]
+    refactoring_suggestions: list[str]
+    architectural_issues: list[str]
+    security_issues: list[str]
+    code_quality_issues: list[str]
 
 
 class AIPRReviewer:
     """AI-powered Pull Request Reviewer."""
-    
-    def __init__(self, agentic_ai_service: Optional[Any] = None):
+
+    def __init__(self, agentic_ai_service: Any | None = None):
         """
         Initialize the AI PR Reviewer.
-        
+
         Args:
             agentic_ai_service: Service for complex reasoning and decision support
         """
         self.agentic_service = agentic_ai_service
         self.logger = logger
-    
+
     async def analyze_pr(
-        self, 
-        git_diff: str, 
-        design_standard: str,
-        architectural_patterns: Optional[Dict] = None
+        self, git_diff: str, design_standard: str, architectural_patterns: dict | None = None
     ) -> ReviewResult:
         """
         Perform comprehensive PR analysis.
-        
+
         Args:
             git_diff: Git diff string to analyze
             design_standard: Text describing design standards
             architectural_patterns: Optional architectural patterns to check against
-            
+
         Returns:
             ReviewResult containing analysis results
         """
@@ -66,165 +65,162 @@ class AIPRReviewer:
             # Prepare architectural patterns
             if architectural_patterns is None:
                 architectural_patterns = self._get_default_architectural_patterns()
-            
+
             analysis_data = {}
-            
+
             if self.agentic_service:
                 # Use Agentic AI for complex reasoning
                 context = {
                     "git_diff": git_diff,
                     "design_standard": design_standard,
-                    "architectural_patterns": architectural_patterns
+                    "architectural_patterns": architectural_patterns,
                 }
-                
+
                 # Perform reasoning task
-                result = await self.agentic_service.perform_complex_reasoning(
-                    task_type="pr_review",
-                    context=context
-                )
-                
+                result = await self.agentic_service.perform_complex_reasoning(task_type="pr_review", context=context)
+
                 # Parse reasoning result (assuming it returns JSON-like structure in reasoning_chain)
                 if result.reasoning_chain:
                     analysis_data = self._parse_analysis_result(result.reasoning_chain[0])
             else:
                 self.logger.warning("Agentic AI Service not available, returning empty analysis")
-            
+
             # Calculate safety score
             safety_score = self._calculate_safety_score(analysis_data, git_diff)
-            
+
             # Determine compliance status
             compliance_status = self._determine_compliance_status(safety_score)
-            
+
             return ReviewResult(
                 safety_score=safety_score,
                 compliance_status=compliance_status,
                 refactoring_suggestions=analysis_data.get("suggestions", []),
                 architectural_issues=analysis_data.get("architectural_issues", []),
                 security_issues=analysis_data.get("security_issues", []),
-                code_quality_issues=analysis_data.get("code_quality_issues", [])
+                code_quality_issues=analysis_data.get("code_quality_issues", []),
             )
-            
+
         except Exception as e:
             logger.error(f"Error during PR analysis: {e}")
             raise
-    
-    def _get_default_architectural_patterns(self) -> Dict:
+
+    def _get_default_architectural_patterns(self) -> dict:
         """Get default architectural patterns to check against."""
         return {
             "layer_violations": [
                 "UI components calling database directly",
                 "Business logic in presentation layer",
                 "Data access in service layer without repository pattern",
-                "Direct database queries in controllers"
+                "Direct database queries in controllers",
             ],
             "security_patterns": [
                 "SQL injection vulnerabilities",
                 "Hardcoded secrets",
                 "Missing input validation",
-                "Insecure authentication patterns"
+                "Insecure authentication patterns",
             ],
             "code_quality_patterns": [
                 "Long methods (>50 lines)",
                 "Deep nesting (>4 levels)",
                 "Magic numbers/strings",
-                "Missing error handling"
-            ]
+                "Missing error handling",
+            ],
         }
-    
-    def _parse_analysis_result(self, analysis_text: str) -> Dict:
+
+    def _parse_analysis_result(self, analysis_text: str) -> dict:
         """Parse the LLM analysis result into structured data."""
         try:
             # Try to extract JSON from the response
             json_start = analysis_text.find("{")
             json_end = analysis_text.rfind("}") + 1
-            
+
             if json_start != -1 and json_end != -1:
                 json_str = analysis_text[json_start:json_end]
                 return json.loads(json_str)
             else:
                 # Fallback: parse as plain text
                 return self._parse_text_analysis(analysis_text)
-                
+
         except json.JSONDecodeError:
             return self._parse_text_analysis(analysis_text)
-    
-    def _parse_text_analysis(self, analysis_text: str) -> Dict:
+
+    def _parse_text_analysis(self, analysis_text: str) -> dict:
         """Parse analysis text when JSON parsing fails."""
-        result = {
-            "architectural_issues": [],
-            "security_issues": [],
-            "code_quality_issues": [],
-            "suggestions": []
-        }
-        
+        result = {"architectural_issues": [], "security_issues": [], "code_quality_issues": [], "suggestions": []}
+
         if not analysis_text:
             return result
-            
-        lines = analysis_text.split('\n')
+
+        lines = analysis_text.split("\n")
         current_section = None
-        
+
         section_keywords = {
             "architectural": "architectural_issues",
             "architecture": "architectural_issues",
             "security": "security_issues",
             "quality": "code_quality_issues",
             "suggestion": "suggestions",
-            "recommendation": "suggestions"
+            "recommendation": "suggestions",
         }
-        
+
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-            
+
             # Check for section headers (must not start with bullet points)
             lower_line = line.lower()
             found_section = False
             if not line.startswith(("- ", "* ")):
                 for keyword, section in section_keywords.items():
-                    if keyword in lower_line and ("issue" in lower_line or "suggest" in lower_line or "recommend" in lower_line or ":" in lower_line):
+                    if keyword in lower_line and (
+                        "issue" in lower_line
+                        or "suggest" in lower_line
+                        or "recommend" in lower_line
+                        or ":" in lower_line
+                    ):
                         current_section = section
                         found_section = True
                         break
-            
+
             if found_section:
                 continue
-                
+
             # Check for bullet points
             if (line.startswith("- ") or line.startswith("* ")) and current_section:
                 result[current_section].append(line[2:])
             elif current_section:
                 # Fallback for lines that don't start with bullet points but are under a section
                 result[current_section].append(line)
-                
+
         return result
-    
-    def _calculate_safety_score(self, analysis_data: Dict, git_diff: str) -> int:
+
+    def _calculate_safety_score(self, analysis_data: dict, git_diff: str) -> int:
         """Calculate safety score based on analysis results."""
         base_score = 100
-        
+
         # Deduct points for architectural violations
         arch_violations = len(analysis_data.get("architectural_issues", []))
         base_score -= arch_violations * 15
-        
+
         # Deduct points for security issues
         security_issues = len(analysis_data.get("security_issues", []))
         base_score -= security_issues * 25
-        
+
         # Deduct points for code quality issues
         quality_issues = len(analysis_data.get("code_quality_issues", []))
         base_score -= quality_issues * 5
-        
+
         # Additional deductions based on diff complexity
-        diff_lines = len(git_diff.split('\n'))
+        diff_lines = len(git_diff.split("\n"))
         if diff_lines > 500:
             base_score -= 10
         elif diff_lines > 1000:
             base_score -= 20
-        
+
         # Ensure score is within bounds
         return max(0, min(100, base_score))
-    
+
     def _determine_compliance_status(self, safety_score: int) -> ComplianceStatus:
         """Determine compliance status based on safety score."""
         if safety_score >= 85:
@@ -233,14 +229,14 @@ class AIPRReviewer:
             return ComplianceStatus.WARNING
         else:
             return ComplianceStatus.VIOLATION
-    
+
     def generate_markdown_report(self, result: ReviewResult) -> str:
         """
         Generate a markdown report from review results.
-        
+
         Args:
             result: ReviewResult containing analysis data
-            
+
         Returns:
             Markdown formatted report string
         """
@@ -252,42 +248,42 @@ class AIPRReviewer:
 
 ## Architectural Issues
 """
-        
+
         if result.architectural_issues:
             for issue in result.architectural_issues:
                 report += f"- ❌ {issue}\n"
         else:
             report += "- ✅ No architectural violations detected\n"
-        
+
         report += "\n## Security Issues\n"
-        
+
         if result.security_issues:
             for issue in result.security_issues:
                 report += f"- ⚠️ {issue}\n"
         else:
             report += "- ✅ No security concerns detected\n"
-        
+
         report += "\n## Code Quality Issues\n"
-        
+
         if result.code_quality_issues:
             for issue in result.code_quality_issues:
                 report += f"- 📝 {issue}\n"
         else:
             report += "- ✅ No code quality issues detected\n"
-        
+
         report += "\n## Refactoring Suggestions\n"
-        
+
         if result.refactoring_suggestions:
             for suggestion in result.refactoring_suggestions:
                 report += f"- 💡 {suggestion}\n"
         else:
             report += "- ✅ No refactoring suggestions\n"
-        
+
         report += """
 ---
 *Generated by AI PR Reviewer*
 """
-        
+
         return report
 
 
@@ -324,26 +320,27 @@ def create_design_standard_file():
 - Implement pagination for large datasets
 - Minimize memory usage in loops
 """
-    
+
     with open("design_standard.txt", "w") as f:
         f.write(design_standard)
-    
+
     logger.info("Created design_standard.txt")
 
 
 if __name__ == "__main__":
     # Example usage
-    from app.services.agentic_ai_service import create_agentic_ai_service
     import asyncio
-    
+
+    from app.services.agentic_ai_service import create_agentic_ai_service
+
     # Create Agentic AI Service (assumes Ollama is running)
     agentic_service = create_agentic_ai_service()
-    
+
     # Create sample design standard
     create_design_standard_file()
-    
+
     # Sample git diff
-    sample_diff = '''
+    sample_diff = """
 diff --git a/src/components/UserComponent.tsx b/src/components/UserComponent.tsx
 new file mode 100644
 index 0000000..abc1234
@@ -395,29 +392,29 @@ index 0000000..abc1234
 +};
 +
 +export default UserComponent;
-'''
-    
+"""
+
     # Read design standard
-    with open("design_standard.txt", "r") as f:
+    with open("design_standard.txt") as f:
         design_standard = f.read()
-    
+
     # Initialize reviewer
     reviewer = AIPRReviewer(agentic_service)
-    
+
     # Perform analysis
     async def run_analysis():
         result = await reviewer.analyze_pr(sample_diff, design_standard)
-        
+
         # Generate report
         report = reviewer.generate_markdown_report(result)
-        
+
         logger.info("=== AI PR Review Report ===")
         logger.info(report)
-        
+
         # Save report
         with open("pr_review_report.md", "w") as f:
             f.write(report)
-        
+
         logger.info("\\nReport saved to pr_review_report.md")
 
     asyncio.run(run_analysis())
