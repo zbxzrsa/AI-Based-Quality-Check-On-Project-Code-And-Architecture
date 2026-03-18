@@ -171,3 +171,110 @@ async def check_project_access(
         )
     
     return True
+
+
+# =============================================================================
+# Dependency Injection Dependencies
+# =============================================================================
+
+
+def get_github_service(
+    container: DIContainer = Depends(get_container)
+) -> IGitHubService:
+    """Dependency to get GitHub service"""
+    try:
+        return container.resolve(IGitHubService)
+    except KeyError:
+        raise HTTPException(
+            status_code=500,
+            detail="GitHub service not configured"
+        )
+
+
+def get_llm_service(
+    container: DIContainer = Depends(get_container)
+) -> ILLMService:
+    """Dependency to get LLM service"""
+    try:
+        return container.resolve(ILLMService)
+    except KeyError:
+        raise HTTPException(
+            status_code=500,
+            detail="LLM service not configured"
+        )
+
+
+def get_cache_service(
+    container: DIContainer = Depends(get_container)
+) -> ICacheService:
+    """Dependency to get cache service"""
+    try:
+        return container.resolve(ICacheService)
+    except KeyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Cache service not configured"
+        )
+
+
+def get_graph_service(
+    container: DIContainer = Depends(get_container)
+) -> IGraphService:
+    """Dependency to get graph service"""
+    try:
+        return container.resolve(IGraphService)
+    except KeyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Graph service not configured"
+        )
+
+
+def require_services(*service_types):
+    """Decorator to require multiple services"""
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            container = get_container()
+            for service_type in service_types:
+                if service_type not in kwargs:
+                    try:
+                        kwargs[service_type.__name__] = container.resolve(service_type)
+                    except KeyError:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Service {service_type.__name__} not configured"
+                        )
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+class ServiceLocator:
+    """Service locator pattern for complex dependency resolution"""
+    
+    def __init__(self, container: DIContainer = Depends(get_container)):
+        self._container = container
+    
+    def get(self, service_type: type):
+        try:
+            return self._container.resolve(service_type)
+        except KeyError:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Service {service_type.__name__} not configured"
+            )
+
+
+async def setup_container(container: DIContainer) -> None:
+    """Setup and configure the DI container during startup"""
+    from app.infrastructure.external import (
+        GitHubService,
+        RedisCacheService,
+        LLMServiceImpl,
+    )
+    from app.core.config import settings
+    
+    container.register(IGitHubService, GitHubService, singleton=True)
+    container.register(ICacheService, RedisCacheService, singleton=True)
+    container.register(ILLMService, LLMServiceImpl, singleton=True)
