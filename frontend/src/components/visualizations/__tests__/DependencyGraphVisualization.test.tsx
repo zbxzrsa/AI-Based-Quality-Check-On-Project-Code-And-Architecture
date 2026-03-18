@@ -51,29 +51,6 @@ jest.mock('reactflow', () => ({
   ConnectionMode: { Loose: 'loose' },
   MarkerType: { ArrowClosed: 'arrowclosed' },
 }));
-          {graphData.links.map((link: any, index: number) => (
-            <div key={index} data-testid={`link-${index}`}>
-              {typeof link.source === 'string' ? link.source : link.source.id} →{' '}
-              {typeof link.target === 'string' ? link.target : link.target.id}
-            </div>
-          ))}
-        </div>
-        <button
-          data-testid="zoom-in-btn"
-          onClick={() => onZoom && onZoom({ k: 1.5 })}
-        >
-          Zoom In
-        </button>
-        <button
-          data-testid="zoom-out-btn"
-          onClick={() => onZoom && onZoom({ k: 0.5 })}
-        >
-          Zoom Out
-        </button>
-      </div>
-    );
-  };
-});
 
 // Mock WebSocket
 class MockWebSocket {
