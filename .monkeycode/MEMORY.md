@@ -186,6 +186,6 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 安装 html-to-image 依赖到前端项目
   - 安装 pytest 及相关测试依赖到后端项目
   - 前端 ESLint 配置有循环引用问题（预先存在）
-  - 前端 Turbopack 构建失败（预先存在）
+  - 前端 Turbopack 构建失败（Next.js 16.1.6 版本太新，Turbopack 不稳定，预先存在）
   - 前端测试文件语法错误已修复
   - connection_manager.py (1427行) 与 PoolMonitor 存在重复方法，建议按阶段重构
