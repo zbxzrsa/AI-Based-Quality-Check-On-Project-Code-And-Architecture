@@ -181,6 +181,17 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 删除未使用的组件：frontend/src/components/common/error-boundary.tsx
   - 创建 REFACTORING_CONNECTION_MANAGER.md 重构计划文档
   - 修复 DependencyGraphVisualization.test.tsx 语法错误（删除重复代码行 54-76）
+  - 删除后端示例文件：
+    - app/services/refactoring_example.py
+    - app/services/tracing_example.py
+    - app/database/neo4j_integration_example.py
+    - examples/*.py (6个演示文件)
+    - scripts/service_consolidation_demo.py
+    - tests/test_example.py
+  - 删除前端未使用文件：
+    - frontend/src/__tests__/example.test.tsx
+    - frontend/src/services/api.ts (101行，未被引用)
+  - 更新 frontend/src/services/index.ts 移除冗余导出
 - Category: 环境配置
 - Instructions:
   - 安装 html-to-image 依赖到前端项目
