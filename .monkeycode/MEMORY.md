@@ -140,3 +140,30 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
     - services/ApiClient.ts -> 保留但重新导出统一客户端
     - services/api.ts -> 保留简单axios实例
   - 导出别名：apiClient, apiClientEnhanced, optimizedApiClient 用于向后兼容
+
+[Phase 6 清理冗余代码]
+
+- Date: 2026-03-18
+- Context: Agent 在执行深度审查和优化任务时完成
+- Category: 代码结构
+- Instructions:
+  - 删除前端未使用组件：
+    - components/common/error-boundary.tsx (简化版)
+    - components/review/CodeDiffViewer.tsx
+    - components/optimized/LazyComponents.tsx
+  - 删除前端冗余 API 客户端：
+    - services/ApiClient.ts (422行)
+    - services/api.ts (101行)
+    - 相关测试文件 3 个
+  - 删除后端未使用端点：
+    - v1/performance.py
+    - v1/refactored_invitations.py
+    - v1/refactored_repositories.py
+    - v1/endpoints/project_invitations.py
+  - 删除后端示例文件：
+    - app/services/tracing_example.py
+    - app/services/refactoring_example.py
+    - tests/test_tracing.py
+  - 更新 services/index.ts 导出
+  - 更新测试文件导入路径
+  - 总计删除约 4000+ 行冗余代码
