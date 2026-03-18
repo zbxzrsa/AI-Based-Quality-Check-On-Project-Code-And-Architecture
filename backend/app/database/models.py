@@ -12,23 +12,24 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ========================================
 # Configuration Models
 # ========================================
 
+
 @dataclass
 class RetryConfig:
     """Configuration for retry logic with exponential backoff"""
+
     max_retries: int = 3
     base_delay: float = 1.0
     max_delay: float = 60.0
     backoff_multiplier: float = 2.0
     retry_on_timeout: bool = True
     retry_on_auth_failure: bool = True
-    
+
     def __post_init__(self):
         """Validate retry configuration parameters"""
         if self.max_retries < 0:
@@ -46,14 +47,15 @@ class RetryConfig:
 @dataclass
 class DatabaseConfig:
     """Configuration for database connections and pooling"""
+
     postgresql_dsn: str
     neo4j_uri: str
-    neo4j_auth: Tuple[str, str]
+    neo4j_auth: tuple[str, str]
     connection_timeout: int = 30
     pool_min_size: int = 5
     pool_max_size: int = 20
     retry_config: RetryConfig = field(default_factory=RetryConfig)
-    
+
     def __post_init__(self):
         """Validate database configuration parameters"""
         if not self.postgresql_dsn:
@@ -76,8 +78,10 @@ class DatabaseConfig:
 # Health Status Models
 # ========================================
 
+
 class HealthState(Enum):
     """Health status states for database components"""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -87,17 +91,18 @@ class HealthState(Enum):
 @dataclass
 class HealthStatus:
     """Health status information for a database component"""
+
     component: str
     status: HealthState
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime
-    response_time_ms: Optional[float] = None
-    
+    response_time_ms: float | None = None
+
     def is_healthy(self) -> bool:
         """Check if component is healthy"""
         return self.status == HealthState.HEALTHY
-    
+
     def is_available(self) -> bool:
         """Check if component is available (healthy or degraded)"""
         return self.status in (HealthState.HEALTHY, HealthState.DEGRADED)
@@ -106,32 +111,31 @@ class HealthStatus:
 @dataclass
 class OverallHealthStatus:
     """Overall health status aggregating multiple components"""
+
     status: HealthState
-    components: Dict[str, HealthStatus]
+    components: dict[str, HealthStatus]
     timestamp: datetime
     summary: str
-    
+
     def is_healthy(self) -> bool:
         """Check if overall system is healthy"""
         return self.status == HealthState.HEALTHY
-    
-    def get_unhealthy_components(self) -> List[str]:
+
+    def get_unhealthy_components(self) -> list[str]:
         """Get list of unhealthy component names"""
-        return [
-            name for name, health in self.components.items()
-            if health.status == HealthState.UNHEALTHY
-        ]
+        return [name for name, health in self.components.items() if health.status == HealthState.UNHEALTHY]
 
 
 @dataclass
 class CompatibilityResult:
     """Result of Python/asyncpg version compatibility check"""
+
     is_compatible: bool
     python_version: str
     asyncpg_version: str
-    issues: List[str]
-    recommendations: List[str]
-    
+    issues: list[str]
+    recommendations: list[str]
+
     def __post_init__(self):
         """Validate compatibility result"""
         if not self.python_version:
@@ -144,8 +148,10 @@ class CompatibilityResult:
 # Error Models
 # ========================================
 
+
 class ErrorType(Enum):
     """Types of database connectivity errors"""
+
     CONNECTION_TIMEOUT = "connection_timeout"
     AUTHENTICATION_FAILURE = "authentication_failure"
     ENCODING_ERROR = "encoding_error"
@@ -158,13 +164,14 @@ class ErrorType(Enum):
 @dataclass
 class DatabaseError:
     """Structured database error information"""
+
     error_type: ErrorType
     component: str
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime
-    resolution_steps: List[str]
-    
+    resolution_steps: list[str]
+
     def __post_init__(self):
         """Validate database error"""
         if not self.component:
@@ -177,19 +184,21 @@ class DatabaseError:
 # Migration Models
 # ========================================
 
+
 @dataclass
 class ValidationResult:
     """Result of migration file validation"""
+
     is_valid: bool
     file_path: str
     encoding: str
-    errors: List[str]
-    warnings: List[str]
-    
+    errors: list[str]
+    warnings: list[str]
+
     def has_errors(self) -> bool:
         """Check if validation found errors"""
         return len(self.errors) > 0
-    
+
     def has_warnings(self) -> bool:
         """Check if validation found warnings"""
         return len(self.warnings) > 0
@@ -198,38 +207,42 @@ class ValidationResult:
 @dataclass
 class MigrationResult:
     """Result of migration execution"""
+
     success: bool
     migration_file: str
     execution_time_ms: float
-    error_message: Optional[str] = None
-    warnings: List[str] = field(default_factory=list)
+    error_message: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
 class EncodingFixResult:
     """Result of encoding fix attempt"""
+
     success: bool
     original_encoding: str
     fixed_encoding: str
     backup_created: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 # ========================================
 # Connection Status Models
 # ========================================
 
+
 @dataclass
 class ConnectionStatus:
     """Status of a database connection"""
+
     service: str
     is_connected: bool
-    error: Optional[str] = None
+    error: str | None = None
     response_time_ms: float = 0.0
     is_critical: bool = True
     retry_count: int = 0
-    last_attempt: Optional[datetime] = None
-    
+    last_attempt: datetime | None = None
+
     def __str__(self) -> str:
         """String representation of connection status"""
         if self.is_connected:
@@ -244,6 +257,7 @@ class ConnectionStatus:
 # Utility Functions
 # ========================================
 
+
 def get_python_version() -> str:
     """Get current Python version string"""
     return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -255,13 +269,13 @@ def create_database_config_from_settings(settings) -> DatabaseConfig:
         postgresql_dsn=settings.sync_postgres_url,
         neo4j_uri=settings.NEO4J_URI,
         neo4j_auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-        connection_timeout=getattr(settings, 'DB_CONNECTION_TIMEOUT', 30),
-        pool_min_size=getattr(settings, 'DB_POOL_MIN_SIZE', 5),
-        pool_max_size=getattr(settings, 'DB_POOL_MAX_SIZE', 20),
+        connection_timeout=getattr(settings, "DB_CONNECTION_TIMEOUT", 30),
+        pool_min_size=getattr(settings, "DB_POOL_MIN_SIZE", 5),
+        pool_max_size=getattr(settings, "DB_POOL_MAX_SIZE", 20),
         retry_config=RetryConfig(
-            max_retries=getattr(settings, 'DB_MAX_RETRIES', 3),
-            base_delay=getattr(settings, 'DB_RETRY_BASE_DELAY', 1.0),
-            max_delay=getattr(settings, 'DB_RETRY_MAX_DELAY', 60.0),
-            backoff_multiplier=getattr(settings, 'DB_RETRY_BACKOFF_MULTIPLIER', 2.0),
-        )
+            max_retries=getattr(settings, "DB_MAX_RETRIES", 3),
+            base_delay=getattr(settings, "DB_RETRY_BASE_DELAY", 1.0),
+            max_delay=getattr(settings, "DB_RETRY_MAX_DELAY", 60.0),
+            backoff_multiplier=getattr(settings, "DB_RETRY_BACKOFF_MULTIPLIER", 2.0),
+        ),
     )

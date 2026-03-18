@@ -6,20 +6,21 @@ Defines data structures for connection pool management.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Any
 
 
 @dataclass
 class ConnectionStatus:
     """Status of a database connection"""
+
     service: str
     is_connected: bool
-    error: Optional[str] = None
+    error: str | None = None
     response_time_ms: float = 0.0
     is_critical: bool = True
     retry_count: int = 0
-    last_attempt: Optional[datetime] = None
-    pool_stats: Optional[Dict[str, Any]] = None
+    last_attempt: datetime | None = None
+    pool_stats: dict[str, Any] | None = None
 
     def __str__(self) -> str:
         """String representation of connection status"""
@@ -37,6 +38,7 @@ class ConnectionStatus:
 @dataclass
 class PoolConfiguration:
     """Configuration for database connection pools"""
+
     min_size: int = 5
     max_size: int = 20
     connection_timeout: float = 30.0
@@ -61,6 +63,7 @@ class PoolConfiguration:
 @dataclass
 class PoolStats:
     """Statistics for connection pool monitoring"""
+
     service: str
     size: int = 0
     freesize: int = 0
@@ -71,7 +74,7 @@ class PoolStats:
     total_connections_created: int = 0
     total_connections_closed: int = 0
     failed_connections: int = 0
-    last_health_check: Optional[datetime] = None
+    last_health_check: datetime | None = None
     avg_response_time_ms: float = 0.0
     peak_connections: int = 0
 
@@ -82,7 +85,7 @@ class PoolStats:
             return 0.0
         return (self.active_connections / self.max_size) * 100
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "service": self.service,

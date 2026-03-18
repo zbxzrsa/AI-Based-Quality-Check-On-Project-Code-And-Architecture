@@ -1,12 +1,15 @@
 """
 PostgreSQL database connection and session management
 """
+
 import logging
+
 logger = logging.getLogger(__name__)
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
-from typing import AsyncGenerator
 
 from app.core.config import settings
 
@@ -63,15 +66,17 @@ async def init_postgres():
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
-    
+
     # Instrument SQLAlchemy for OpenTelemetry tracing (Requirement 18.1)
     from app.core.config import settings
+
     if settings.is_tracing_enabled():
         from app.core.tracing import get_tracing_config
+
         tracing_config = get_tracing_config()
         if tracing_config:
             tracing_config.instrument_sqlalchemy(engine)
-    
+
     logger.info("✅ PostgreSQL initialized")
 
 
@@ -84,6 +89,7 @@ async def close_postgres():
 async def test_postgres_connection():
     """Test PostgreSQL connection"""
     from sqlalchemy import text
+
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(text("SELECT 1"))

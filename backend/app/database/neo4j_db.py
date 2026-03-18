@@ -1,28 +1,33 @@
 """
 Neo4j graph database connection and query management with CI/CD resilience
 """
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import asyncio
 import os
-from neo4j import AsyncGraphDatabase, AsyncDriver
-from neo4j.exceptions import ServiceUnavailable, AuthError
-from typing import Optional
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from neo4j import AsyncDriver, AsyncGraphDatabase
+from neo4j.exceptions import AuthError, ServiceUnavailable
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 
 
 def is_ci_environment() -> bool:
     """Check if running in CI/CD environment"""
-    return bool(os.environ.get('CI') or
-                os.environ.get('GITHUB_ACTIONS') or
-                os.environ.get('GITLAB_CI') or
-                os.environ.get('JENKINS_HOME'))
+    return bool(
+        os.environ.get("CI")
+        or os.environ.get("GITHUB_ACTIONS")
+        or os.environ.get("GITLAB_CI")
+        or os.environ.get("JENKINS_HOME")
+    )
+
 
 # Global driver instance
-neo4j_driver: Optional[AsyncDriver] = None
+neo4j_driver: AsyncDriver | None = None
 
 
 class Neo4jDB:
@@ -30,7 +35,8 @@ class Neo4jDB:
     Wrapper class for Neo4j database connection.
     Used by services that expect a class-based interface.
     """
-    def __init__(self, driver: Optional[AsyncDriver] = None):
+
+    def __init__(self, driver: AsyncDriver | None = None):
         self.driver = driver
 
     def get_session(self, **kwargs):
@@ -44,8 +50,8 @@ class Neo4jDB:
 
 
 # Connection retry configuration
-MAX_RETRIES = int(os.environ.get('NEO4J_MAX_RETRIES', '3'))
-RETRY_DELAY = int(os.environ.get('NEO4J_RETRY_DELAY', '2'))
+MAX_RETRIES = int(os.environ.get("NEO4J_MAX_RETRIES", "3"))
+RETRY_DELAY = int(os.environ.get("NEO4J_RETRY_DELAY", "2"))
 
 
 async def get_neo4j_driver() -> AsyncDriver:
@@ -60,7 +66,7 @@ async def get_neo4j_driver() -> AsyncDriver:
     stop=stop_after_attempt(MAX_RETRIES),
     wait=wait_exponential(multiplier=RETRY_DELAY, min=1, max=10),
     retry=retry_if_exception_type((ServiceUnavailable, ConnectionError, OSError)),
-    reraise=True
+    reraise=True,
 )
 async def init_neo4j():
     """Initialize Neo4j database connection with retry logic"""
@@ -98,10 +104,7 @@ async def init_neo4j():
         # Verify connectivity with timeout and retry
         for attempt in range(3):
             try:
-                await asyncio.wait_for(
-                    neo4j_driver.verify_connectivity(),
-                    timeout=15
-                )
+                await asyncio.wait_for(neo4j_driver.verify_connectivity(), timeout=15)
                 logger.info("✅ Neo4j initialized successfully")
                 break
             except Exception as e:
@@ -173,16 +176,8 @@ async def create_indexes():
     driver = await get_neo4j_driver()
     async with driver.session(database=settings.NEO4J_DATABASE) as session:
         # Create indexes for common queries
-        await session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:CodeNode) ON (n.id)"
-        )
-        await session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)"
-        )
-        await session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:Class) ON (n.name)"
-        )
-        await session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:Module) ON (n.path)"
-        )
+        await session.run("CREATE INDEX IF NOT EXISTS FOR (n:CodeNode) ON (n.id)")
+        await session.run("CREATE INDEX IF NOT EXISTS FOR (n:Function) ON (n.name)")
+        await session.run("CREATE INDEX IF NOT EXISTS FOR (n:Class) ON (n.name)")
+        await session.run("CREATE INDEX IF NOT EXISTS FOR (n:Module) ON (n.path)")
     logger.info("✅ Neo4j indexes created")

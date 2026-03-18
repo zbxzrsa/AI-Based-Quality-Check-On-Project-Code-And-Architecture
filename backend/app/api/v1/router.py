@@ -1,32 +1,33 @@
 """
 API v1 router configuration
 """
+
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import (
-    health, 
-    database, 
-    auth, 
-    github, 
-    pull_request, 
-    analyze, 
-    libraries, 
-    code_review_webhook,
-    webhooks,
-    rbac_users,
-    rbac_projects,
-    rbac_audit,
-    audit_logs,
-    user_data,
-    metrics,
-    project_analytics,
-    architecture,
-    user_settings,
-    code_review,
-    errors,
-    monitoring,
-)
 from app.api.v1 import repositories
+from app.api.v1.endpoints import (
+    analyze,
+    architecture,
+    audit_logs,
+    auth,
+    code_review,
+    code_review_webhook,
+    database,
+    errors,
+    github,
+    health,
+    libraries,
+    metrics,
+    monitoring,
+    project_analytics,
+    pull_request,
+    rbac_audit,
+    rbac_projects,
+    rbac_users,
+    user_data,
+    user_settings,
+    webhooks,
+)
 
 api_router = APIRouter()
 

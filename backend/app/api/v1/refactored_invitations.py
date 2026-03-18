@@ -7,16 +7,16 @@
 3. 统一错误处理
 4. 简化端点逻辑
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.postgresql import get_db
 from app.api.dependencies import get_current_user
-from app.models import User, ProjectRole
-from app.services.refactored_invitation_service import create_invitation_service
 from app.core.logging import get_logger
+from app.database.postgresql import get_db
+from app.models import ProjectRole, User
+from app.services.refactored_invitation_service import create_invitation_service
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -25,6 +25,7 @@ router = APIRouter()
 # Request/Response Models
 class InvitationCreate(BaseModel):
     """Create invitation request"""
+
     project_id: str
     invitee_email: EmailStr
     role: str = ProjectRole.member.value
@@ -34,6 +35,7 @@ class InvitationCreate(BaseModel):
 
 class InvitationResponse(BaseModel):
     """Invitation response"""
+
     id: str
     project_id: str
     project_name: str
@@ -49,11 +51,13 @@ class InvitationResponse(BaseModel):
 
 class InvitationAccept(BaseModel):
     """Accept/Decline invitation request"""
+
     invitation_token: str
 
 
 class ProjectMemberResponse(BaseModel):
     """Project member response"""
+
     id: str
     project_id: str
     project_name: str
@@ -68,11 +72,11 @@ class ProjectMemberResponse(BaseModel):
 async def create_invitation(
     invitation_data: InvitationCreate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Create a project invitation using business process template.
-    
+
     Only project owners and maintainers can send invitations.
     The system will automatically:
     1. Validate input data
@@ -83,53 +87,44 @@ async def create_invitation(
     """
     try:
         service = create_invitation_service(db)
-        
+
         result = await service.create_invitation(
             project_id=invitation_data.project_id,
             inviter_id=str(current_user.id),
             invitee_email=invitation_data.invitee_email,
             role=invitation_data.role,
             message=invitation_data.message,
-            days_valid=invitation_data.days_valid
+            days_valid=invitation_data.days_valid,
         )
-        
+
         if result["success"]:
             return {
                 "success": True,
                 "message": "Invitation sent successfully",
                 "invitation_id": result["invitation_id"],
-                "invitation_token": result["invitation_token"]
+                "invitation_token": result["invitation_token"],
             }
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-        
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error creating invitation: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create invitation"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create invitation")
 
 
-@router.get("/invitations/pending", response_model=List[InvitationResponse])
-async def get_pending_invitations(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
+@router.get("/invitations/pending", response_model=list[InvitationResponse])
+async def get_pending_invitations(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """
     Get pending invitations for current user.
-    
+
     Returns all non-expired pending invitations for the user's email.
     """
     try:
         service = create_invitation_service(db)
         invitations = await service.get_pending_invitations_for_user(current_user.email)
-        
+
         return [
             InvitationResponse(
                 id=str(invitation.id),
@@ -142,28 +137,25 @@ async def get_pending_invitations(
                 status=invitation.status,
                 message=invitation.message,
                 expires_at=invitation.expires_at.isoformat(),
-                created_at=invitation.created_at.isoformat()
+                created_at=invitation.created_at.isoformat(),
             )
             for invitation in invitations
         ]
-        
+
     except Exception as e:
         logger.error(f"Error getting pending invitations: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get pending invitations"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get pending invitations"
         )
 
 
 @router.post("/invitations/accept", response_model=dict)
 async def accept_invitation(
-    accept_data: InvitationAccept,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    accept_data: InvitationAccept, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Accept a project invitation using state machine.
-    
+
     The system will:
     1. Validate invitation token and user permissions
     2. Check invitation status and expiry
@@ -173,44 +165,35 @@ async def accept_invitation(
     """
     try:
         service = create_invitation_service(db)
-        
+
         result = await service.accept_invitation(
-            invitation_token=accept_data.invitation_token,
-            user_id=str(current_user.id)
+            invitation_token=accept_data.invitation_token, user_id=str(current_user.id)
         )
-        
+
         if result["success"]:
             return {
                 "success": True,
                 "message": result["message"],
                 "project_id": str(result["invitation"].project_id),
-                "role": result["invitation"].role
+                "role": result["invitation"].role,
             }
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-        
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error accepting invitation: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to accept invitation"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to accept invitation")
 
 
 @router.post("/invitations/decline", response_model=dict)
 async def decline_invitation(
-    decline_data: InvitationAccept,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    decline_data: InvitationAccept, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Decline a project invitation using state machine.
-    
+
     The system will:
     1. Validate invitation token and user permissions
     2. Check invitation status and expiry
@@ -219,57 +202,42 @@ async def decline_invitation(
     """
     try:
         service = create_invitation_service(db)
-        
+
         result = await service.decline_invitation(
-            invitation_token=decline_data.invitation_token,
-            user_id=str(current_user.id)
+            invitation_token=decline_data.invitation_token, user_id=str(current_user.id)
         )
-        
+
         if result["success"]:
-            return {
-                "success": True,
-                "message": result["message"]
-            }
+            return {"success": True, "message": result["message"]}
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
-            )
-        
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error declining invitation: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to decline invitation"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to decline invitation")
 
 
-@router.get("/projects/{project_id}/members", response_model=List[ProjectMemberResponse])
+@router.get("/projects/{project_id}/members", response_model=list[ProjectMemberResponse])
 async def get_project_members(
-    project_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    project_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get all members of a project.
-    
+
     Only project members can view the member list.
     """
     try:
         service = create_invitation_service(db)
-        
+
         # Check if user has access to the project
         has_access = await service.has_project_access(str(current_user.id), project_id)
         if not has_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have access to this project"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have access to this project")
+
         members = await service.get_project_members(project_id)
-        
+
         return [
             ProjectMemberResponse(
                 id=str(member.id),
@@ -279,33 +247,27 @@ async def get_project_members(
                 user_name=member.user.full_name or member.user.email,
                 user_email=member.user.email,
                 role=member.role,
-                joined_at=member.joined_at.isoformat()
+                joined_at=member.joined_at.isoformat(),
             )
             for member in members
         ]
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting project members: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get project members"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get project members")
 
 
-@router.get("/my-projects", response_model=List[ProjectMemberResponse])
-async def get_my_projects(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
+@router.get("/my-projects", response_model=list[ProjectMemberResponse])
+async def get_my_projects(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """
     Get all projects the current user is a member of.
     """
     try:
         service = create_invitation_service(db)
         memberships = await service.get_user_project_memberships(str(current_user.id))
-        
+
         return [
             ProjectMemberResponse(
                 id=str(membership.id),
@@ -315,46 +277,41 @@ async def get_my_projects(
                 user_name=current_user.full_name or current_user.email,
                 user_email=current_user.email,
                 role=membership.role,
-                joined_at=membership.joined_at.isoformat()
+                joined_at=membership.joined_at.isoformat(),
             )
             for membership in memberships
         ]
-        
+
     except Exception as e:
         logger.error(f"Error getting user projects: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get user projects"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get user projects")
 
 
 @router.post("/invitations/cleanup-expired", response_model=dict)
 async def cleanup_expired_invitations(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Cleanup expired invitations using state machine.
-    
+
     This endpoint is typically called by scheduled tasks.
     Only admin users can trigger manual cleanup.
     """
     try:
         # Check if user is admin (you may need to implement role checking)
         # For now, allow any authenticated user
-        
+
         service = create_invitation_service(db)
         cleaned_count = await service.cleanup_expired_invitations()
-        
+
         return {
             "success": True,
             "message": f"Cleaned up {cleaned_count} expired invitations",
-            "cleaned_count": cleaned_count
+            "cleaned_count": cleaned_count,
         }
-        
+
     except Exception as e:
         logger.error(f"Error cleaning up expired invitations: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cleanup expired invitations"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to cleanup expired invitations"
         )

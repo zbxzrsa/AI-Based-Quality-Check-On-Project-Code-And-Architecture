@@ -1,21 +1,22 @@
 """
 RBAC Audit Log endpoints.
 """
+
 from datetime import datetime
-from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.postgresql import get_db
 from app.auth import (
-    Permission,
-    AuditService,
     AuditFilter,
+    AuditService,
+    Permission,
     TokenPayload,
     require_permission,
 )
-
+from app.database.postgresql import get_db
 
 router = APIRouter()
 
@@ -23,36 +24,37 @@ router = APIRouter()
 # Response Models
 class AuditLogResponse(BaseModel):
     """Audit log response model."""
+
     id: str
     timestamp: str
     user_id: str
     username: str
     action: str
-    resource_type: Optional[str]
-    resource_id: Optional[str]
+    resource_type: str | None
+    resource_id: str | None
     ip_address: str
-    user_agent: Optional[str]
+    user_agent: str | None
     success: bool
-    error_message: Optional[str]
+    error_message: str | None
 
 
-@router.get("/logs", response_model=List[AuditLogResponse])
+@router.get("/logs", response_model=list[AuditLogResponse])
 async def query_audit_logs(
     current_user: Annotated[TokenPayload, Depends(require_permission(Permission.VIEW_USER))],
     db: AsyncSession = Depends(get_db),
-    user_id: Optional[str] = Query(None, description="Filter by user ID"),
-    action: Optional[str] = Query(None, description="Filter by action type"),
-    start_date: Optional[str] = Query(None, description="Filter by start date (ISO format)"),
-    end_date: Optional[str] = Query(None, description="Filter by end date (ISO format)"),
-    success: Optional[bool] = Query(None, description="Filter by success status"),
+    user_id: str | None = Query(None, description="Filter by user ID"),
+    action: str | None = Query(None, description="Filter by action type"),
+    start_date: str | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: str | None = Query(None, description="Filter by end date (ISO format)"),
+    success: bool | None = Query(None, description="Filter by success status"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to return"),
-    offset: int = Query(0, ge=0, description="Number of logs to skip")
+    offset: int = Query(0, ge=0, description="Number of logs to skip"),
 ):
     """
     Query audit logs with filters (Admin only).
-    
+
     Requires VIEW_USER permission (Admin only).
-    
+
     Query parameters:
     - **user_id**: Filter by user ID
     - **action**: Filter by action type
@@ -65,25 +67,25 @@ async def query_audit_logs(
     # Parse dates if provided
     start_datetime = None
     end_datetime = None
-    
+
     if start_date:
         try:
-            start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            start_datetime = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid start_date format. Use ISO format (e.g., 2024-01-01T00:00:00Z)"
+                detail="Invalid start_date format. Use ISO format (e.g., 2024-01-01T00:00:00Z)",
             )
-    
+
     if end_date:
         try:
-            end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            end_datetime = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid end_date format. Use ISO format (e.g., 2024-01-01T23:59:59Z)"
+                detail="Invalid end_date format. Use ISO format (e.g., 2024-01-01T23:59:59Z)",
             )
-    
+
     # Create filter
     filter = AuditFilter(
         user_id=user_id,
@@ -92,12 +94,12 @@ async def query_audit_logs(
         end_date=end_datetime,
         success=success,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
-    
+
     # Query logs
     logs = AuditService.query_logs(db, filter)
-    
+
     return [
         AuditLogResponse(
             id=log.id,
@@ -110,29 +112,29 @@ async def query_audit_logs(
             ip_address=log.ip_address,
             user_agent=log.user_agent,
             success=log.success,
-            error_message=log.error_message
+            error_message=log.error_message,
         )
         for log in logs
     ]
 
 
-@router.get("/logs/user/{user_id}", response_model=List[AuditLogResponse])
+@router.get("/logs/user/{user_id}", response_model=list[AuditLogResponse])
 async def get_user_audit_logs(
     user_id: str,
     current_user: Annotated[TokenPayload, Depends(require_permission(Permission.VIEW_USER))],
     db: AsyncSession = Depends(get_db),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to return")
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to return"),
 ):
     """
     Get audit logs for a specific user (Admin only).
-    
+
     Requires VIEW_USER permission (Admin only).
-    
+
     Query parameters:
     - **limit**: Maximum number of logs to return (1-1000, default 100)
     """
     logs = AuditService.get_user_logs(db, user_id, limit)
-    
+
     return [
         AuditLogResponse(
             id=log.id,
@@ -145,7 +147,7 @@ async def get_user_audit_logs(
             ip_address=log.ip_address,
             user_agent=log.user_agent,
             success=log.success,
-            error_message=log.error_message
+            error_message=log.error_message,
         )
         for log in logs
     ]

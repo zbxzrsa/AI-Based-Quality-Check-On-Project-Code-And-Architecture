@@ -7,12 +7,12 @@ timeout handling, and retry integration for robust database connectivity.
 Validates Requirements: 4.1, 4.2, 4.3, 4.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
 """
 
-import logging
 import asyncio
+import logging
 import time
-from typing import Dict, Optional, Any
-from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Any
 from weakref import WeakSet
 
 import asyncpg
@@ -20,13 +20,13 @@ import neo4j
 
 from app.core.config import settings
 from app.core.error_reporter import ErrorReporter
-from app.database.models import DatabaseConfig, HealthStatus, HealthState, create_database_config_from_settings
-from app.database.retry_manager import RetryManager, OperationType
-from app.database.postgresql_client import PostgreSQLClient
-from app.database.neo4j_client import Neo4jClient
 from app.database.connection_status import ConnectionStatus
+from app.database.models import DatabaseConfig, HealthState, HealthStatus, create_database_config_from_settings
+from app.database.neo4j_client import Neo4jClient
 from app.database.pool_configuration import PoolConfiguration, PoolStats
 from app.database.pool_monitor import PoolMonitor
+from app.database.postgresql_client import PostgreSQLClient
+from app.database.retry_manager import OperationType, RetryManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class ConnectionManager:
     Validates Requirements: 4.1, 4.2, 4.3, 4.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
     """
 
-    def __init__(self, config: Optional[DatabaseConfig] = None):
+    def __init__(self, config: DatabaseConfig | None = None):
         """
         Initialize enhanced connection manager with advanced pooling.
 
@@ -63,8 +63,8 @@ class ConnectionManager:
         self.neo4j_client = Neo4jClient(config=self.config, retry_manager=self.retry_manager)
 
         # Connection pools and management
-        self._postgresql_pool: Optional[asyncpg.Pool] = None
-        self._neo4j_driver: Optional[neo4j.AsyncDriver] = None
+        self._postgresql_pool: asyncpg.Pool | None = None
+        self._neo4j_driver: neo4j.AsyncDriver | None = None
         self._redis_client = None  # Keep existing Redis functionality
 
         # Pool configuration
@@ -89,8 +89,8 @@ class ConnectionManager:
         # Connection management
         self._pool_lock = asyncio.Lock()
         self._active_connections: WeakSet = WeakSet()
-        self._health_check_task: Optional[asyncio.Task] = None
-        self._pool_cleanup_task: Optional[asyncio.Task] = None
+        self._health_check_task: asyncio.Task | None = None
+        self._pool_cleanup_task: asyncio.Task | None = None
         self._initialized = False
 
         # Legacy timeout for backward compatibility
@@ -597,7 +597,7 @@ class ConnectionManager:
         return await asyncio.wait_for(self._postgresql_pool.acquire(), timeout=self.pool_config.connection_timeout)
 
     @asynccontextmanager
-    async def get_neo4j_session(self, database: Optional[str] = None):
+    async def get_neo4j_session(self, database: str | None = None):
         """
         Get Neo4j session with retry logic and enhanced session management.
 
@@ -807,7 +807,7 @@ class ConnectionManager:
 
             return ConnectionStatus(service="Redis", is_connected=False, error=error_msg, is_critical=False)
 
-    async def verify_all(self) -> Dict[str, ConnectionStatus]:
+    async def verify_all(self) -> dict[str, ConnectionStatus]:
         """
         Verify all database connections with enhanced pool management.
 
@@ -843,7 +843,7 @@ class ConnectionManager:
 
         return status_dict
 
-    async def get_pool_statistics(self) -> Dict[str, Dict[str, Any]]:
+    async def get_pool_statistics(self) -> dict[str, dict[str, Any]]:
         """
         Get comprehensive pool statistics for monitoring.
         Enhanced with additional monitoring capabilities.
@@ -876,7 +876,7 @@ class ConnectionManager:
 
         return stats
 
-    async def get_health_status(self) -> Dict[str, HealthStatus]:
+    async def get_health_status(self) -> dict[str, HealthStatus]:
         """
         Get comprehensive health status for all database components.
 
@@ -1001,7 +1001,7 @@ class ConnectionManager:
                     f"health: {stats.health_status.value}"
                 )
 
-    async def _get_enhanced_pool_metrics(self, service: str, stats: PoolStats) -> Dict[str, Any]:
+    async def _get_enhanced_pool_metrics(self, service: str, stats: PoolStats) -> dict[str, Any]:
         """
         Get enhanced pool metrics for comprehensive monitoring.
 
@@ -1128,7 +1128,7 @@ class ConnectionManager:
 
         return max(0, score)
 
-    async def _get_system_health_metrics(self) -> Dict[str, Any]:
+    async def _get_system_health_metrics(self) -> dict[str, Any]:
         """
         Get overall system health metrics.
 
@@ -1167,7 +1167,7 @@ class ConnectionManager:
 
         return metrics
 
-    async def get_detailed_pool_report(self) -> Dict[str, Any]:
+    async def get_detailed_pool_report(self) -> dict[str, Any]:
         """
         Get a detailed pool health and performance report.
 
@@ -1286,7 +1286,7 @@ class ConnectionManager:
             return error_str[:100] if error_str else "Unknown error"
 
     @staticmethod
-    def format_connection_error(service: str, status: ConnectionStatus, connection_string: Optional[str] = None) -> str:
+    def format_connection_error(service: str, status: ConnectionStatus, connection_string: str | None = None) -> str:
         """
         Format a connection error message.
 
@@ -1309,7 +1309,7 @@ class ConnectionManager:
 
 
 # Global connection manager instance
-_connection_manager: Optional[ConnectionManager] = None
+_connection_manager: ConnectionManager | None = None
 
 
 def get_connection_manager() -> ConnectionManager:
@@ -1320,7 +1320,7 @@ def get_connection_manager() -> ConnectionManager:
     return _connection_manager
 
 
-async def initialize_connection_manager(config: Optional[DatabaseConfig] = None) -> ConnectionManager:
+async def initialize_connection_manager(config: DatabaseConfig | None = None) -> ConnectionManager:
     """
     Initialize connection manager with enhanced pooling capabilities.
 

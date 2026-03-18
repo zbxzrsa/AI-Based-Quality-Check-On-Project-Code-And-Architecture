@@ -6,8 +6,8 @@ Classes for tracking and reporting database connection status.
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Any
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +15,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ConnectionStatus:
     """Status of a database connection"""
+
     service: str  # "PostgreSQL", "Neo4j", "Redis"
     is_connected: bool
-    error: Optional[str] = None
+    error: str | None = None
     response_time_ms: float = 0.0
     is_critical: bool = True
     retry_count: int = 0
-    last_attempt: Optional[datetime] = None
-    pool_stats: Optional[Dict[str, Any]] = None
-    
+    last_attempt: datetime | None = None
+    pool_stats: dict[str, Any] | None = None
+
     def __str__(self) -> str:
         """String representation of connection status"""
         if self.is_connected:

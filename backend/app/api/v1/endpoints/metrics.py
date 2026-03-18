@@ -5,9 +5,10 @@ Exposes /metrics endpoint for Prometheus scraping.
 
 Implements Requirement 7.3: Collect metrics for API response times, error rates, and throughput.
 """
-from fastapi import APIRouter, Response
-from app.core.prometheus_metrics import get_metrics, get_content_type
 
+from fastapi import APIRouter, Response
+
+from app.core.prometheus_metrics import get_content_type, get_metrics
 
 router = APIRouter()
 
@@ -16,9 +17,9 @@ router = APIRouter()
 async def metrics():
     """
     Prometheus metrics endpoint.
-    
+
     This endpoint exposes metrics in Prometheus text format for scraping.
-    
+
     Metrics include:
     - HTTP request duration, count, and in-progress requests
     - Error rates by type and endpoint
@@ -29,10 +30,10 @@ async def metrics():
     - Celery task metrics
     - Authentication metrics
     - GitHub integration metrics
-    
+
     Returns:
         Response: Prometheus metrics in text format
-        
+
     Example Prometheus scrape config:
         ```yaml
         scrape_configs:
@@ -44,7 +45,4 @@ async def metrics():
         ```
     """
     metrics_data = get_metrics()
-    return Response(
-        content=metrics_data,
-        media_type=get_content_type()
-    )
+    return Response(content=metrics_data, media_type=get_content_type())
