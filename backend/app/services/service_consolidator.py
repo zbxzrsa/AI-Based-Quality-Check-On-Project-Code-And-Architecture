@@ -945,7 +945,7 @@ class ServiceConsolidator:
             "services_analyzed": len(self.services),
             "dependencies_found": len(self.dependencies),
             "overlaps_identified": len(self.overlaps),
-            "consolidation_plans": len(self.consolidation_plans),
+            "consolidation_plan_count": len(self.consolidation_plans),
             "services": {
                 name: {
                     "type": info["type"],

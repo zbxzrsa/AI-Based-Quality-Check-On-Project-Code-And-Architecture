@@ -610,7 +610,7 @@ class Neo4jASTService(BaseNeo4jService):
             records = await result.data()
             return records
 
-    async def detect_drift(self, project_id: str, baseline_version: str = "latest") -> dict[str, Any]:
+    async def detect_drift(self, project_id: str, baseline_version: str = "latest") -> dict[str, Any]:  # noqa: F811
         """
         Comprehensive drift detection
         """

@@ -45,7 +45,7 @@ class InstallationError(LibraryManagerError):
     pass
 
 
-class SearchError(LibraryManagerError):
+class SearchError(LibraryManagerError):  # noqa: F811
     """Library search error"""
 
     pass

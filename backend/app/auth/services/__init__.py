@@ -3,7 +3,7 @@ Authentication and authorization services.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 # Define AuthResult and TokenPayload classes here since AuthService is removed
 from pydantic import BaseModel

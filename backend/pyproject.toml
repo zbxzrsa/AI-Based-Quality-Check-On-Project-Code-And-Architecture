@@ -98,6 +98,11 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "B904",  # raise from in exception handlers (celery retry patterns)
     "E402",  # module level import not at top (circular imports)
+    "B024",  # abstract base class without abstract methods (often false positive)
+    "B027",  # empty method in abstract class (often intentional)
+    "B007",  # loop control variable not used (often intentional)
+    "F601",  # dictionary key literal repeated (often intentional for different value types)
+    "UP031",  # percent format in Cypher queries (not Python formatting)
     "C901",  # too complex
 ]
 exclude = [

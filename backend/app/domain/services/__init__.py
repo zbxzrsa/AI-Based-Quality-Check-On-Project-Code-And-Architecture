@@ -8,7 +8,7 @@ Domain and Application layers depend on these abstractions (DIP).
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class AnalysisType(str, Enum):

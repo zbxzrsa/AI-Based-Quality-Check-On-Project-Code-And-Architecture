@@ -8,11 +8,6 @@ and meets minimum security requirements.
 import logging
 from typing import Any
 
-try:
-    from pydantic import validator
-    from pydantic_settings import BaseSettings
-except ImportError:
-    pass
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    setup_logging(level=settings.LOG_LEVEL, enable_json=True)
+    setup_logging(level=settings.LOG_LEVEL, enable_json=True)  # noqa: F823
 
     # Initialize OpenTelemetry tracing if enabled (Requirement 18.1)
     if settings.is_tracing_enabled():

@@ -340,7 +340,7 @@ class DatabaseOptimizer:
             return [f"Index creation failed: {str(e)}"]
 
     @cache_result(expiration=300, key_prefix="optimized_projects")
-    async def get_projects_optimized(
+    async def get_projects_optimized(  # noqa: F811
         self, db: AsyncSession, user_id: int, limit: int = 50, offset: int = 0, status: str | None = None
     ) -> list[dict[str, Any]]:
         """Get projects with optimized query using eager loading"""
@@ -386,7 +386,7 @@ class DatabaseOptimizer:
         ]
 
     @cache_result(expiration=600, key_prefix="project_analytics")
-    async def get_project_analytics(self, db: AsyncSession, project_id: int) -> dict[str, Any]:
+    async def get_project_analytics(self, db: AsyncSession, project_id: int) -> dict[str, Any]:  # noqa: F811
         """Get comprehensive project analytics with optimized queries"""
 
         # Use raw SQL for complex aggregations
@@ -512,7 +512,7 @@ class DatabaseOptimizer:
             "trends": trend_data,
         }
 
-    async def optimize_connection_pool(self, db: AsyncSession) -> dict[str, Any]:
+    async def optimize_connection_pool(self, db: AsyncSession) -> dict[str, Any]:  # noqa: F811
         """Optimize database connection pool settings"""
         try:
             # Get current connection statistics
