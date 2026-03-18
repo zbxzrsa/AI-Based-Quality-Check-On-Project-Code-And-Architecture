@@ -192,6 +192,7 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
     - frontend/src/__tests__/example.test.tsx
     - frontend/src/services/api.ts (101行，未被引用)
   - 更新 frontend/src/services/index.ts 移除冗余导出
+  - 发现 app/core/metrics.py 与 prometheus_metrics.py 功能重复（metrics.py 未被使用）
 - Category: 环境配置
 - Instructions:
   - 安装 html-to-image 依赖到前端项目
