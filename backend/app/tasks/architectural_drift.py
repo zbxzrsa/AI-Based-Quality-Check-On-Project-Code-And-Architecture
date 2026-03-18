@@ -3,11 +3,8 @@ Architectural drift detection tasks
 Detects cyclic dependencies, layer violations, and other drift patterns
 """
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -15,6 +12,8 @@ from app.celery_config import celery_app
 from app.database.neo4j_db import get_neo4j_driver
 from app.services.architectural_drift_detector import ArchitecturalDriftDetector
 from app.services.neo4j_ast_service import Neo4jASTService
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="app.tasks.detect_architectural_drift", max_retries=2, queue="low_priority")

@@ -45,7 +45,7 @@ def serialize_json(data: Any) -> str:
     try:
         return json.dumps(data, cls=EnhancedJSONEncoder)
     except (TypeError, ValueError) as e:
-        raise ValueError(f"Cannot serialize data to JSON: {e}")
+        raise ValueError(f"Cannot serialize data to JSON: {e}") from e
 
 
 def deserialize_json(json_str: str) -> Any:
@@ -57,7 +57,7 @@ def deserialize_json(json_str: str) -> Any:
     try:
         return json.loads(json_str)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Cannot deserialize JSON: {e}")
+        raise ValueError(f"Cannot deserialize JSON: {e}") from e
 
 
 def serialize_pickle(data: Any) -> bytes:
@@ -77,7 +77,7 @@ def serialize_pickle(data: Any) -> bytes:
     try:
         return pickle.dumps(data)
     except (TypeError, pickle.PickleError) as e:
-        raise ValueError(f"Cannot serialize data with pickle: {e}")
+        raise ValueError(f"Cannot serialize data with pickle: {e}") from e
 
 
 def deserialize_pickle(data: bytes) -> Any:
@@ -103,7 +103,7 @@ def deserialize_pickle(data: bytes) -> Any:
         # Consider adding integrity checks (HMAC) for production use
         return pickle.loads(data)
     except (TypeError, pickle.UnpicklingError) as e:
-        raise ValueError(f"Cannot deserialize pickle data: {e}")
+        raise ValueError(f"Cannot deserialize pickle data: {e}") from e
 
 
 def compress_json(data: Any) -> bytes:

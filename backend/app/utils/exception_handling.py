@@ -138,7 +138,7 @@ def with_exception_handling(default_message: str = "An error occurred", reraise:
                 detailed_error = handle_exception(e, default_message=default_message)
 
                 if reraise:
-                    raise detailed_error
+                    raise detailed_error from e
                 else:
                     logger.error(f"Handled error: {detailed_error.message}")
                     return None
@@ -151,7 +151,7 @@ def with_exception_handling(default_message: str = "An error occurred", reraise:
                 detailed_error = handle_exception(e, default_message=default_message)
 
                 if reraise:
-                    raise detailed_error
+                    raise detailed_error from e
                 else:
                     logger.error(f"Handled error: {detailed_error.message}")
                     return None
@@ -192,7 +192,7 @@ def safe_execute(error_context: dict, default_value: Any = None, reraise: bool =
         detailed_error = handle_exception(e, context=error_context)
 
         if reraise:
-            raise detailed_error
+            raise detailed_error from e
 
         logger.error(f"Handled error in context: {detailed_error.message}")
         yield default_value

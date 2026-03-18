@@ -4,9 +4,6 @@ Handles token generation, validation, and management
 """
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -14,6 +11,8 @@ from typing import Any
 from jose import jwt
 
 from app.database.redis_db import get_redis
+
+logger = logging.getLogger(__name__)
 
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:

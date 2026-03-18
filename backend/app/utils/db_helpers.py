@@ -42,7 +42,7 @@ async def get_or_404_async(
         try:
             id_value = UUID(id_value)
         except ValueError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid {model.__name__} ID format")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid {model.__name__} ID format") from None
 
     stmt = select(model).where(getattr(model, id_field) == id_value)
     result = await db.execute(stmt)

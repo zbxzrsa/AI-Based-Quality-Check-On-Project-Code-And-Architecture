@@ -3,15 +3,14 @@ Extended Neo4j service with AST and architecture analysis operations
 """
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 from datetime import datetime, timezone
 from typing import Any
 
 from app.core.config import settings
 from app.schemas.ast_models import ClassNode, FunctionNode, ParsedFile
 from app.services.neo4j_service import Neo4jService as BaseNeo4jService
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jASTService(BaseNeo4jService):

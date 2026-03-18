@@ -86,7 +86,7 @@ def get_env_int(
     try:
         value = int(value_str)
     except (ValueError, TypeError):
-        raise ValueError(f"Environment variable '{key}' must be an integer, got: {value_str}")
+        raise ValueError(f"Environment variable '{key}' must be an integer, got: {value_str}") from None
 
     if min_value is not None and value < min_value:
         raise ValueError(f"Environment variable '{key}' must be >= {min_value}, got: {value}")
@@ -125,7 +125,7 @@ def get_env_float(
     try:
         value = float(value_str)
     except (ValueError, TypeError):
-        raise ValueError(f"Environment variable '{key}' must be a float, got: {value_str}")
+        raise ValueError(f"Environment variable '{key}' must be a float, got: {value_str}") from None
 
     if min_value is not None and value < min_value:
         raise ValueError(f"Environment variable '{key}' must be >= {min_value}, got: {value}")
