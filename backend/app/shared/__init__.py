@@ -8,9 +8,26 @@ This module provides shared components used across all services:
 - LLM provider abstraction with failover
 - Enhanced Redis cache utilities
 - Celery task queue enhancements
+- Centralized constants
 
 Validates Requirements: 1.3, 1.4, 1.6, 1.7, 3.1, 3.7, 7.2, 7.3, 7.7, 10.6
 """
+
+# Constants
+from .constants import (
+    API_VERSION,
+    API_TITLE,
+    API_DESCRIPTION,
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    CACHE_TTL_SHORT,
+    CACHE_TTL_MEDIUM,
+    CACHE_TTL_LONG,
+    DEFAULT_RATE_LIMIT,
+    MAX_FILES_PER_ANALYSIS,
+    PASSWORD_MIN_LENGTH,
+    JWT_TOKEN_EXPIRE_MINUTES,
+)
 
 from .standards import (
     ISO25010Characteristic,
@@ -41,15 +58,16 @@ from .circuit_breaker import (
     get_all_circuit_breaker_states,
 )
 
-from .llm_provider import (
-    LLMProvider,
-    LLMProviderType,
-    LLMProviderConfig,
-    LLMOrchestrator,
-    OpenAIProvider,
-    AnthropicProvider,
-    OllamaProvider,
-)
+# Note: LLM providers are in app.services.llm
+# from app.services.llm import (
+#     LLMProvider,
+#     LLMProviderType,
+#     LLMProviderConfig,
+#     LLMOrchestrator,
+#     OpenAIProvider,
+#     AnthropicProvider,
+#     OllamaProvider,
+# )
 
 from .cache_manager import (
     CacheManager,
@@ -66,6 +84,20 @@ from .task_priority import (
 )
 
 __all__ = [
+    # Constants
+    "API_VERSION",
+    "API_TITLE", 
+    "API_DESCRIPTION",
+    "DEFAULT_PAGE_SIZE",
+    "MAX_PAGE_SIZE",
+    "CACHE_TTL_SHORT",
+    "CACHE_TTL_MEDIUM", 
+    "CACHE_TTL_LONG",
+    "DEFAULT_RATE_LIMIT",
+    "MAX_FILES_PER_ANALYSIS",
+    "PASSWORD_MIN_LENGTH",
+    "JWT_TOKEN_EXPIRE_MINUTES",
+    
     # Standards models
     "ISO25010Characteristic",
     "ISO25010CharacteristicType",
