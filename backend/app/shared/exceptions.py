@@ -103,9 +103,7 @@ class ValidationException(ServiceException):
 class AuthenticationException(ServiceException):
     """Exception for authentication errors"""
 
-    def __init__(
-        self, message: str, error_code: str | None = "AUTH_FAILED", details: dict[str, Any] | None = None
-    ):
+    def __init__(self, message: str, error_code: str | None = "AUTH_FAILED", details: dict[str, Any] | None = None):
         super().__init__(message, error_code, details)
 
 

@@ -10,6 +10,7 @@ Implements security response headers to protect against common web vulnerabiliti
 
 Validates Requirement 8.5
 """
+
 import logging
 from collections.abc import Callable
 
@@ -56,10 +57,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.enable_csp = enable_csp
         self.environment = environment
 
-        logger.info(
-            f"Security headers middleware initialized: "
-            f"HSTS={enable_hsts}, CSP={enable_csp}, env={environment}"
-        )
+        logger.info(f"Security headers middleware initialized: HSTS={enable_hsts}, CSP={enable_csp}, env={environment}")
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
@@ -91,9 +89,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if self.enable_hsts and self.environment == "production":
             # includeSubDomains: Apply to all subdomains
             # preload: Allow inclusion in browser HSTS preload lists
-            response.headers["Strict-Transport-Security"] = (
-                f"max-age={self.hsts_max_age}; includeSubDomains; preload"
-            )
+            response.headers["Strict-Transport-Security"] = f"max-age={self.hsts_max_age}; includeSubDomains; preload"
 
         # Content-Security-Policy: Control resource loading
         if self.enable_csp:
