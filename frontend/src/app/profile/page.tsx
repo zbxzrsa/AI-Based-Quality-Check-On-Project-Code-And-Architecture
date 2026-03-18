@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/main-layout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,9 +67,9 @@ export default function ProfilePage() {
   const [defaultModel, setDefaultModel] = useState('anthropic/claude-3.5-sonnet');
 
   // Load API settings on mount
-  useState(() => {
+  useEffect(() => {
     loadAPISettings();
-  });
+  }, []);
 
   const loadAPISettings = async () => {
     try {

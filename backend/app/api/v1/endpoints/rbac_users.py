@@ -38,6 +38,22 @@ class UpdateUserRoleRequest(BaseModel):
     role: str
 
 
+class UpdateProfileRequest(BaseModel):
+    """Update current user profile request model."""
+    full_name: Optional[str] = None
+
+
+class ProfileResponse(BaseModel):
+    """User profile response model."""
+    id: str
+    email: str
+    full_name: Optional[str]
+    role: str
+    github_username: Optional[str]
+    created_at: str
+    updated_at: str
+
+
 class UserResponse(BaseModel):
     """User response model."""
     id: str
@@ -299,3 +315,77 @@ async def delete_user(
     )
     
     return MessageResponse(message=f"User {user.username} deleted successfully")
+
+
+@router.get("/me", response_model=ProfileResponse)
+async def get_current_user_profile(
+    current_user: TokenPayload = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get current user profile information.
+    """
+    from app.models import User as UserModel
+    from uuid import UUID
+    
+    user_uuid = UUID(current_user.user_id)
+    stmt = select(UserModel).where(UserModel.id == user_uuid)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return ProfileResponse(
+        id=str(user.id),
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role.value if hasattr(user.role, 'value') else str(user.role),
+        github_username=user.github_username,
+        created_at=user.created_at.isoformat() if user.created_at else "",
+        updated_at=user.updated_at.isoformat() if user.updated_at else ""
+    )
+
+
+@router.put("/me", response_model=ProfileResponse)
+async def update_current_user_profile(
+    profile_data: UpdateProfileRequest,
+    current_user: TokenPayload = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update current user profile information.
+    """
+    from app.models import User as UserModel
+    from uuid import UUID
+    
+    user_uuid = UUID(current_user.user_id)
+    stmt = select(UserModel).where(UserModel.id == user_uuid)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if profile_data.full_name is not None:
+        user.full_name = profile_data.full_name
+    
+    user.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(user)
+    
+    return ProfileResponse(
+        id=str(user.id),
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role.value if hasattr(user.role, 'value') else str(user.role),
+        github_username=user.github_username,
+        created_at=user.created_at.isoformat() if user.created_at else "",
+        updated_at=user.updated_at.isoformat() if user.updated_at else ""
+    )
