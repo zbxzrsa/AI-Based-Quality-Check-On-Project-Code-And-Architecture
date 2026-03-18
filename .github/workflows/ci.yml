@@ -90,7 +90,7 @@ jobs:
         working-directory: ./backend
         run: |
           pip install ruff
-          ruff check app/ --ignore E501 --ignore F401
+          ruff check app/
 
       - name: Run Tech Debt Monitor
         run: |
