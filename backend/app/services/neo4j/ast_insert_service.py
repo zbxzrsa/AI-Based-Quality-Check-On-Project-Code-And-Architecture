@@ -7,13 +7,12 @@ Separated from Neo4jASTService for single responsibility.
 
 import logging
 
-logger = logging.getLogger(__name__)
-
-
 from neo4j import AsyncSession
 
 from app.core.config import settings
 from app.schemas.ast_models import ClassNode, FunctionNode, ParsedFile
+
+logger = logging.getLogger(__name__)
 
 
 class ASTInsertService:

@@ -6,9 +6,6 @@ separation of concerns. This facade simplifies usage for clients.
 """
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 from typing import Any
 
 from app.database.neo4j_db import get_neo4j_driver
@@ -18,6 +15,8 @@ from .ast_insert_service import ASTInsertService
 from .dependency_analyzer import DependencyAnalyzer
 from .drift_detector import DriftDetector
 from .metrics_calculator import MetricsCalculator
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jServiceFacade:

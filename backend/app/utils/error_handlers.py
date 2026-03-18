@@ -8,6 +8,7 @@ Provides reusable decorators for common error handling patterns:
 - Circuit breaker integration
 """
 
+import asyncio
 import functools
 import logging
 import time
@@ -317,7 +318,3 @@ def with_resilience(
         decorators.append(with_performance_logging())
 
     return combine_decorators(*decorators)
-
-
-# Import asyncio for fallback decorator
-import asyncio
