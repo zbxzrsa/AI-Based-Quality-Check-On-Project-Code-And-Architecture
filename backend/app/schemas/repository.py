@@ -5,8 +5,8 @@ Repository management schemas for GitHub dependency integration
 import re
 from datetime import datetime
 
-# Import consolidated enums from common library
-from common.shared.enums import RepositoryStatus, RepositoryURLFormat
+# Import consolidated enums from shared package
+from app.shared.enums import RepositoryStatus, RepositoryURLFormat
 from pydantic import BaseModel, Field, field_validator
 
 

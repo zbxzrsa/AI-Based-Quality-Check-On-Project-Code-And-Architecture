@@ -13,7 +13,7 @@ import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 import asyncpg
 
@@ -36,8 +36,8 @@ class PoolConfig:
     connection_timeout: float = 30.0
     max_queries: int = 50000
     max_inactive_connection_lifetime: float = 300.0
-    setup: callable | None = None
-    init: callable | None = None
+    setup: Callable | None = None
+    init: Callable | None = None
     server_settings: dict[str, str] | None = None
 
 

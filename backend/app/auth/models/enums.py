@@ -2,8 +2,8 @@
 Enums for the Enterprise RBAC Authentication System.
 """
 
-# Import consolidated enums from common library
-from common.shared.enums import Permission, Role
+# Import consolidated enums from shared package
+from app.shared.enums import Permission, Role
 
 # Role-Permission Mapping
 _USER_PERMISSIONS = [

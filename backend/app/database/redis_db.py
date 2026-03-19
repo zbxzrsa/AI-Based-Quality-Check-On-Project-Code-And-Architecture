@@ -24,6 +24,11 @@ async def get_redis() -> redis.Redis:
     return redis_client
 
 
+async def get_redis_client() -> redis.Redis:
+    """Backward-compatible alias for modules importing get_redis_client."""
+    return await get_redis()
+
+
 async def init_redis():
     """Initialize Redis connection"""
     global redis_client

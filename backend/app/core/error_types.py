@@ -7,13 +7,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from backend.tests.utils.secure_test_data import get_test_password
-
-
 class SensitiveDataType(Enum):
     """需要掩码的敏感数据类型"""
 
-    PASSWORD = get_test_password("password")
+    PASSWORD = "password"
     API_KEY = "api_key"
     TOKEN = "token"
     CONNECTION_STRING = "connection_string"

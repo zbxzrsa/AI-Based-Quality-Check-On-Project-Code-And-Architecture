@@ -85,7 +85,7 @@ services:
     image: neo4j:5.19-community
     container_name: ai_review_neo4j
     environment:
-      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j}
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j123}
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
       # Memory optimization - reduced for limited RAM systems
@@ -128,7 +128,7 @@ services:
       - REDIS_DB=${REDIS_DB:-0}
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j123}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -181,7 +181,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://:redis@redis:6379/0}
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j123}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -217,7 +217,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://:redis@redis:6379/0}
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j123}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

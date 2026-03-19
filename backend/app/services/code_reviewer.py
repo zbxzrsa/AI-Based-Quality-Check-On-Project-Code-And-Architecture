@@ -6,6 +6,7 @@ Handles automated code review using LLM analysis with standards classification
 
 import asyncio
 import logging
+from typing import Any
 
 from app.schemas.code_review import CodeReviewResult, ReviewCategory, ReviewComment, ReviewSeverity
 from app.services.architecture_analyzer import ArchitectureAnalyzer
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class CodeReviewer:
     """Service for performing code reviews using LLM analysis"""
 
-    def __init__(self, llm_provider: str = "openai", agentic_ai_service: any | None = None):
+    def __init__(self, llm_provider: str = "openai", agentic_ai_service: Any | None = None):
         self.llm = get_llm_client(llm_provider)
         self.parser_factory = ParserFactory
         self.arch_analyzer = ArchitectureAnalyzer()
@@ -32,7 +33,7 @@ class CodeReviewer:
             logger.info("Code Reviewer initialized without Agentic AI Service")
 
     async def review_pull_request(
-        self, pr_data: dict[str, any], project_id: str, diff_content: str
+        self, pr_data: dict[str, Any], project_id: str, diff_content: str
     ) -> CodeReviewResult:
         """
         Review a pull request and provide feedback

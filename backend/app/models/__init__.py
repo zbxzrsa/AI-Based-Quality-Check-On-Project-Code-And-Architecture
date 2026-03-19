@@ -7,9 +7,8 @@ import uuid
 
 import sqlalchemy as sa
 
-# Import Role from common library to ensure consistency with frontend
-# Note: This is the same Role enum used by auth/models/enums.py
-from common.shared.enums import Role as UserRole
+# Import Role from shared enums to keep domain consistency.
+from app.shared.enums import Role as UserRole
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID

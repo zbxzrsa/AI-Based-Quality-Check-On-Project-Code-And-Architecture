@@ -51,8 +51,9 @@ def reset_cache_manager():
     _cache_manager = None
 
 
-# Analysis cache instance for backward compatibility
-analysis_cache = get_cache_manager()
+# Analysis cache instance for backward compatibility.
+# Initialized after CacheManager definition to avoid import-time NameError.
+analysis_cache: "CacheManager"
 
 
 def get_cache_stats() -> dict[str, Any]:
@@ -606,3 +607,7 @@ class CacheManager:
         """Set cached analysis result (backward compatibility)"""
         cache_key = f"analysis:{project_id}:{analysis_type}"
         await self.set(cache_key, result, ttl)
+
+
+# Backward-compatible singleton alias, created after class definition.
+analysis_cache = get_cache_manager()

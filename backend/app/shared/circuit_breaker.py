@@ -15,7 +15,7 @@ from datetime import datetime
 from threading import Lock
 from typing import Any
 
-from common.shared.enums import CircuitBreakerState
+from app.shared.enums import CircuitBreakerState
 
 from .exceptions import CircuitBreakerException
 

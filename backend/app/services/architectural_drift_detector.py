@@ -10,8 +10,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-# Import consolidated enums from common library
-from common.shared.enums import Severity as DriftSeverity
+# Import consolidated enums from shared package
+from app.shared.enums import Severity as DriftSeverity
 
 from app.services.architecture_golden_standard import GoldenStandardManager
 from app.services.neo4j_ast_service import Neo4jASTService

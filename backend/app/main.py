@@ -208,8 +208,6 @@ async def lifespan(app: FastAPI):
 
     # Initialize authentication system
     try:
-        from app.core.config import settings
-
         logger.info("Authentication initialized (JWT expiry: %d hours)", settings.JWT_EXPIRATION_HOURS)
     except Exception as e:
         logger.warning("Authentication initialization warning: %s", str(e))

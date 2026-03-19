@@ -31,6 +31,7 @@ from .models import (
 from .services import (
     AuditFilter,
     AuditService,
+    AuthService,
     AuthResult,
     RBACService,
     TokenPayload,
@@ -47,6 +48,7 @@ __all__ = [
     "Permission",
     "ROLE_PERMISSIONS",
     # Services
+    "AuthService",
     "AuthResult",
     "TokenPayload",
     "RBACService",

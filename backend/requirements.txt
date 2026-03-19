@@ -11,6 +11,11 @@ alembic==1.13.3
     # via -r requirements.in
 amqp==5.3.1
     # via kombu
+aiohttp==3.11.11
+    # via
+    #   -r requirements.in
+aiofiles==24.1.0
+    # via -r requirements.in
 annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
@@ -109,6 +114,8 @@ googleapis-common-protos==1.72.0
     # via opentelemetry-exporter-otlp-proto-grpc
 grpcio==1.69.0
     # via opentelemetry-exporter-otlp-proto-grpc
+gitpython==3.1.43
+    # via -r requirements.in
 h11==0.16.0
     # via
     #   httpcore
@@ -177,6 +184,8 @@ opentelemetry-instrumentation==0.49b2
 opentelemetry-instrumentation-asgi==0.49b2
     # via opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-fastapi==0.49b2
+    # via -r requirements.in
+opentelemetry-instrumentation-httpx==0.49b2
     # via -r requirements.in
 opentelemetry-instrumentation-redis==0.49b2
     # via -r requirements.in
@@ -301,6 +310,8 @@ starlette==0.50.0
     # via fastapi
 tornado==6.5.4
     # via flower
+tenacity==9.0.0
+    # via -r requirements.in
 tqdm==4.67.1
     # via openai
 tree-sitter==0.23.2

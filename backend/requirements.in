@@ -33,6 +33,11 @@ flower
 
 # HTTP Clients
 requests==2.32.4  # Security: CVE-2024-47081
+aiohttp==3.11.11
+aiofiles==24.1.0
+tenacity==9.0.0
+GitPython==3.1.43
+opentelemetry-instrumentation-httpx==0.49b2
 
 # External APIs & AI
 PyGithub

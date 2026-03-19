@@ -12,7 +12,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from common.shared.enums import Severity
+from app.shared.enums import Severity
 
 logger = logging.getLogger(__name__)
 

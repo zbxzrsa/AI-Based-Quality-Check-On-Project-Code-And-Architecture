@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Any
 
-from common.shared.enums import CircuitBreakerState
+from app.shared.enums import CircuitBreakerState
 
 logger = logging.getLogger(__name__)
 
