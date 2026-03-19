@@ -31,6 +31,77 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _utcnow_iso() -> str:
+    return datetime.utcnow().isoformat()
+
+
+def _default_project_analytics(project_id: str) -> dict[str, Any]:
+    return {
+        "project_id": project_id,
+        "metrics": {
+            "code_quality": 75,
+            "security_rating": 80,
+            "architecture_health": 75,
+            "test_coverage": 70,
+            "overall_health": 75,
+        },
+        "dependency_stats": {"total": 0, "circular": 0, "outdated": 0, "dependency_issues": 0},
+        "performance_metrics": {
+            "avg_build_time": "0m",
+            "avg_test_time": "0m",
+            "avg_analysis_time": "2m",
+            "pr_review_time_avg": "0h",
+        },
+        "issue_stats": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "security": 0,
+            "performance": 0,
+            "code_style": 0,
+            "best_practices": 0,
+            "total": 0,
+        },
+        "trends": {"code_quality_change": 0, "test_coverage_change": 0, "issues_change": 0},
+        "recent_reviews": [],
+        "total_prs": 0,
+        "reviewed_prs": 0,
+        "analysis_timestamp": _utcnow_iso(),
+    }
+
+
+async def _get_project_prs(
+    db: AsyncSession,
+    project_id: str,
+    *,
+    start_dt: datetime | None = None,
+    end_dt: datetime | None = None,
+) -> list[PullRequest]:
+    query = select(PullRequest).filter(PullRequest.project_id == project_id)
+    if start_dt is not None and end_dt is not None:
+        query = query.filter(PullRequest.created_at >= start_dt, PullRequest.created_at <= end_dt)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+def _parse_time_range(start_time: str | None, end_time: str | None) -> tuple[datetime, datetime]:
+    try:
+        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else datetime.utcnow() - timedelta(days=7)
+        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else datetime.utcnow()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid datetime format: {str(e)}. Expected ISO 8601 format.",
+        )
+
+    if start_dt >= end_dt:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="start_time must be before end_time")
+    if (end_dt - start_dt).days > 90:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Time range cannot exceed 90 days")
+    return start_dt, end_dt
+
+
 class ProjectMetrics(BaseModel):
     """project指标response模型"""
 
@@ -83,43 +154,8 @@ async def get_project_analytics(
         analytics = await service.get_complete_project_analytics(project_id)
         return analytics
     except Exception as e:
-        import logging
-
-        logging.error(f"Error fetching analytics for project {project_id}: {str(e)}")
-        # Return default analytics if error
-        return {
-            "project_id": project_id,
-            "metrics": {
-                "code_quality": 75,
-                "security_rating": 80,
-                "architecture_health": 75,
-                "test_coverage": 70,
-                "overall_health": 75,
-            },
-            "dependency_stats": {"total": 0, "circular": 0, "outdated": 0, "dependency_issues": 0},
-            "performance_metrics": {
-                "avg_build_time": "0m",
-                "avg_test_time": "0m",
-                "avg_analysis_time": "2m",
-                "pr_review_time_avg": "0h",
-            },
-            "issue_stats": {
-                "critical": 0,
-                "high": 0,
-                "medium": 0,
-                "low": 0,
-                "security": 0,
-                "performance": 0,
-                "code_style": 0,
-                "best_practices": 0,
-                "total": 0,
-            },
-            "trends": {"code_quality_change": 0, "test_coverage_change": 0, "issues_change": 0},
-            "recent_reviews": [],
-            "total_prs": 0,
-            "reviewed_prs": 0,
-            "analysis_timestamp": datetime.utcnow().isoformat(),
-        }
+        logger.error(f"Error fetching analytics for project {project_id}: {str(e)}")
+        return _default_project_analytics(project_id)
 
 
 @router.get("/{project_id}/issues", response_model=dict[str, Any])
@@ -137,8 +173,7 @@ async def get_project_issues(
     可以按严重程度andclass别筛选
     """
     # getproject的所有 PR
-    pr_result = await db.execute(select(PullRequest).filter(PullRequest.project_id == project_id))
-    prs = pr_result.scalars().all()
+    prs = await _get_project_prs(db, project_id)
     pr_ids = [pr.id for pr in prs]
 
     if not pr_ids:
@@ -188,8 +223,7 @@ async def get_project_architecture(
     getproject的architectureanalyzedata
     """
     # getproject的所有 PR
-    pr_result = await db.execute(select(PullRequest).filter(PullRequest.project_id == project_id))
-    prs = pr_result.scalars().all()
+    prs = await _get_project_prs(db, project_id)
     pr_ids = [pr.id for pr in prs]
 
     if not pr_ids:
@@ -310,39 +344,10 @@ async def get_performance_metrics(
     Requirements: 2.4, 3.7
     """
 
-    # Validate and parse time range parameters
-    try:
-        if start_time:
-            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-        else:
-            start_dt = datetime.utcnow() - timedelta(days=7)
-
-        if end_time:
-            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-        else:
-            end_dt = datetime.utcnow()
-
-        # Validate time range
-        if start_dt >= end_dt:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="start_time must be before end_time")
-
-        # Validate time range is not too large (max 90 days)
-        if (end_dt - start_dt).days > 90:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Time range cannot exceed 90 days")
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid datetime format: {str(e)}. Expected ISO 8601 format.",
-        )
+    start_dt, end_dt = _parse_time_range(start_time, end_time)
 
     # Get project PRs within time range
-    pr_result = await db.execute(
-        select(PullRequest).filter(
-            PullRequest.project_id == project_id, PullRequest.created_at >= start_dt, PullRequest.created_at <= end_dt
-        )
-    )
-    prs = pr_result.scalars().all()
+    prs = await _get_project_prs(db, project_id, start_dt=start_dt, end_dt=end_dt)
 
     # Generate time series data points (daily aggregation)
     current_date = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -515,15 +520,18 @@ async def get_project_architecture_analysis(
         analytics = await service.get_complete_project_analytics(project_id)
 
         # getPRandarchitecture违规data用于AIanalyze
-        pr_result = await db.execute(select(PullRequest).filter(PullRequest.project_id == project_id))
-        prs = pr_result.scalars().all()
+        prs = await _get_project_prs(db, project_id)
+        pr_ids = [pr.id for pr in prs]
 
-        violations_result = await db.execute(
-            select(ArchitectureViolation)
-            .join(ArchitectureAnalysis)
-            .filter(ArchitectureAnalysis.pull_request_id.in_(pr.id for pr in prs))
-        )
-        violations = violations_result.scalars().all()
+        if pr_ids:
+            violations_result = await db.execute(
+                select(ArchitectureViolation)
+                .join(ArchitectureAnalysis)
+                .filter(ArchitectureAnalysis.pull_request_id.in_(pr_ids))
+            )
+            violations = violations_result.scalars().all()
+        else:
+            violations = []
 
         # 构建architecturedata用于AIanalyze
         architecture_data = {
@@ -548,7 +556,7 @@ async def get_project_architecture_analysis(
                 return {
                     "strengths": strengths,
                     "recommendations": recommendations,
-                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                    "analysis_timestamp": _utcnow_iso(),
                     "ai_generated": True,
                 }
             except Exception as ai_error:
@@ -561,7 +569,7 @@ async def get_project_architecture_analysis(
         return {
             "strengths": strengths,
             "recommendations": recommendations,
-            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "analysis_timestamp": _utcnow_iso(),
             "ai_generated": False,
         }
 
@@ -571,7 +579,7 @@ async def get_project_architecture_analysis(
         return {
             "strengths": ["project结构良好", "code组织有序"],
             "recommendations": ["考虑增加更多integrationtest", "定期进行codereview"],
-            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "analysis_timestamp": _utcnow_iso(),
             "ai_generated": False,
         }
 

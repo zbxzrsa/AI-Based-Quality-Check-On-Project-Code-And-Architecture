@@ -63,3 +63,17 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Reduced boilerplate and drift risk:
 - Centralized PR analysis enqueue payload creation.
+
+## Additional Analytics Refactor (Round 5)
+
+1. Refactored shared endpoint logic in `project_analytics.py`:
+- Added `_default_project_analytics()` fallback builder.
+- Added `_get_project_prs()` reusable PR retrieval helper.
+- Added `_parse_time_range()` centralized time-range parsing/validation helper.
+- Added `_utcnow_iso()` helper for consistent timestamps.
+
+2. Reduced duplicated query and validation code:
+- `issues`, `architecture`, `metrics`, and `architecture-analysis` endpoints now reuse helper functions.
+
+3. Improved safety in architecture-analysis query flow:
+- Replaced generator-based `IN` filter input with explicit PR id list handling and empty-list guard.
