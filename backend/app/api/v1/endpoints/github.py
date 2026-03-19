@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,53 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+async def _get_project_by_id_or_404(project_id: str, db: AsyncSession) -> Project:
+    """Get project by id or raise 404."""
+    stmt = select(Project).where(Project.id == project_id)
+    result = await db.execute(stmt)
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return project
+
+
+async def _get_pull_request_or_404(pr_id: str, db: AsyncSession) -> PullRequest:
+    """Get pull request by id or raise 404."""
+    stmt = select(PullRequest).where(PullRequest.id == pr_id)
+    result = await db.execute(stmt)
+    pr = result.scalar_one_or_none()
+    if not pr:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
+    return pr
+
+
+async def _ensure_project_access(project_id: str, current_user: User, db: AsyncSession) -> None:
+    """Enforce project access permission."""
+    if not await check_project_access(project_id, current_user, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to access this PR")
+
+
+async def _enqueue_pr_analysis(
+    pr_id: str,
+    *,
+    project_id: str,
+    pr_number: int,
+    commit_sha: str | None,
+    action: str,
+) -> None:
+    """Enqueue PR analysis payload to cache queue."""
+    cache = await get_cache_service()
+    await cache.enqueue_pr_analysis(
+        pr_id,
+        {
+            "project_id": project_id,
+            "pr_number": pr_number,
+            "commit_sha": commit_sha,
+            "action": action,
+        },
+    )
 
 
 async def process_pull_request_event(payload: dict[str, Any], project: Project, db: AsyncSession) -> dict[str, Any]:
@@ -71,10 +119,12 @@ async def process_pull_request_event(payload: dict[str, Any], project: Project, 
         await db.commit()
 
     # Queue analysis tasks
-    cache = await get_cache_service()
-    await cache.enqueue_pr_analysis(
+    await _enqueue_pr_analysis(
         str(pr.id),
-        {"project_id": str(project.id), "pr_number": pr_number, "commit_sha": pr.commit_sha, "action": action},
+        project_id=str(project.id),
+        pr_number=pr_number,
+        commit_sha=pr.commit_sha,
+        action=action,
     )
 
     return {"message": "PR processing started", "pr_id": str(pr.id)}
@@ -322,9 +372,12 @@ async def handle_pull_request_event(payload: dict[str, Any], project: Project, d
         await db.refresh(pr)
 
         # Queue analysis task
-        cache = await get_cache_service()
-        await cache.enqueue_pr_analysis(
-            str(pr.id), {"project_id": str(project.id), "pr_number": pr_number, "commit_sha": pr.commit_sha}
+        await _enqueue_pr_analysis(
+            str(pr.id),
+            project_id=str(project.id),
+            pr_number=pr_number,
+            commit_sha=pr.commit_sha,
+            action="opened",
         )
 
         return {"message": "PR created and queued for analysis", "pr_id": str(pr.id)}
@@ -345,9 +398,12 @@ async def handle_pull_request_event(payload: dict[str, Any], project: Project, d
         # Queue re-analysis
         cache = await get_cache_service()
         await cache.invalidate_analysis(str(existing_pr.id))
-        await cache.enqueue_pr_analysis(
+        await _enqueue_pr_analysis(
             str(existing_pr.id),
-            {"project_id": str(project.id), "pr_number": pr_number, "commit_sha": existing_pr.commit_sha},
+            project_id=str(project.id),
+            pr_number=pr_number,
+            commit_sha=existing_pr.commit_sha,
+            action="synchronize",
         )
 
         return {"message": "PR updated and queued for re-analysis"}
@@ -377,28 +433,14 @@ async def analyze_pull_request(
     This endpoint can be used to manually trigger analysis of a pull request
     that has already been created.
     """
-    # Get the PR
-    stmt = select(PullRequest).where(PullRequest.id == pr_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
-
-    # Check permissions
-    if not await check_project_access(pr.project_id, current_user, db):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to access this PR")
-
-    # Queue analysis
-    cache = await get_cache_service()
-    await cache.enqueue_pr_analysis(
+    pr = await _get_pull_request_or_404(pr_id, db)
+    await _ensure_project_access(str(pr.project_id), current_user, db)
+    await _enqueue_pr_analysis(
         pr_id,
-        {
-            "project_id": str(pr.project_id),
-            "pr_number": pr.github_pr_number,
-            "commit_sha": pr.commit_sha,
-            "action": "manual_trigger",
-        },
+        project_id=str(pr.project_id),
+        pr_number=pr.github_pr_number,
+        commit_sha=pr.commit_sha,
+        action="manual_trigger",
     )
 
     return {"message": "Analysis queued", "pr_id": pr_id}
@@ -411,17 +453,8 @@ async def get_code_review(
     """
     Get code review results for a pull request
     """
-    # Get the PR
-    stmt = select(PullRequest).where(PullRequest.id == pr_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
-
-    # Check permissions
-    if not await check_project_access(pr.project_id, current_user, db):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to access this PR")
+    pr = await _get_pull_request_or_404(pr_id, db)
+    await _ensure_project_access(str(pr.project_id), current_user, db)
 
     # Get the latest review
     stmt = select(CodeReview).where(CodeReview.pull_request_id == pr_id).order_by(CodeReview.started_at.desc()).limit(1)
@@ -469,16 +502,11 @@ async def sync_project(
     """
     Manually trigger project synchronization with GitHub
     """
-    stmt = select(Project).where(Project.id == project_id)
-    result = await db.execute(stmt)
-    project = result.scalar_one_or_none()
+    project = await _get_project_by_id_or_404(project_id, db)
 
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-        # Get repository info from GitHub
-        github_client = get_github_client()
-        repo_info = await github_client.get_repository(project.github_repo_url)
+    # Get repository info from GitHub
+    github_client = get_github_client()
+    repo_info = await github_client.get_repository(project.github_repo_url)
 
     # Update project info
     project.language = repo_info.get("language")
@@ -500,13 +528,7 @@ async def list_project_pulls(
 
     - **state**: PR state (open, closed, all)
     """
-    # Get project
-    stmt = select(Project).where(Project.id == project_id)
-    result = await db.execute(stmt)
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    await _get_project_by_id_or_404(project_id, db)
 
     # Get PRs from database
     pr_stmt = select(PullRequest).where(PullRequest.project_id == project_id)
@@ -543,16 +565,8 @@ async def get_pr_files(pr_id: str, current_user: User = Depends(get_current_user
     """
     Get changed files in a pull request
     """
-    # Get PR
-    stmt = select(PullRequest).where(PullRequest.id == pr_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
-
-    # Check project access
-    await check_project_access(str(pr.project_id), current_user, db)
+    pr = await _get_pull_request_or_404(pr_id, db)
+    await _ensure_project_access(str(pr.project_id), current_user, db)
 
     # Get project to get repo name
     project_stmt = select(Project).where(Project.id == pr.project_id)
@@ -589,10 +603,6 @@ async def get_pr_files(pr_id: str, current_user: User = Depends(get_current_user
         parsed_files.append(file_data)
 
     return {"pr_id": pr_id, "pr_number": pr.github_pr_number, "files": parsed_files}
-
-
-from pydantic import BaseModel
-
 
 class GitHubConnectRequest(BaseModel):
     code: str

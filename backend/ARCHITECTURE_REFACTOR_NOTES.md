@@ -51,3 +51,15 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Reduced duplication:
 - Added shared internal Neo4j execution helper in `SecurityAuditService` for read-query data access.
+
+## Additional Endpoint Consolidation (Round 4)
+
+1. Refactored `github.py` endpoint internals:
+- Added shared helpers for project lookup, PR lookup, access enforcement, and analysis queueing.
+- Replaced repeated endpoint code with helper calls.
+
+2. Fixed maintainability bug in `sync_project`:
+- Corrected control flow so GitHub `repo_info` is always initialized before use.
+
+3. Reduced boilerplate and drift risk:
+- Centralized PR analysis enqueue payload creation.
