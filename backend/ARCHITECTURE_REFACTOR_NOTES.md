@@ -38,3 +38,16 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Fixed invalid dependency imports:
 - Replaced `app.core.dependencies` imports with `app.api.dependencies` in security endpoints.
+
+## Additional Service-Centric Refactor (Round 3)
+
+1. Moved query-heavy endpoint logic into service use-cases:
+- Added `get_recent_scan_summary()` to `SecurityAuditService`.
+- Added `get_used_scan_tools()` to `SecurityAuditService`.
+
+2. Endpoint simplification:
+- `security_audit.py` now delegates scan-summary and tools retrieval to service methods.
+- API layer now focuses on request/response orchestration only.
+
+3. Reduced duplication:
+- Added shared internal Neo4j execution helper in `SecurityAuditService` for read-query data access.

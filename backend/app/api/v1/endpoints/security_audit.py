@@ -8,21 +8,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import get_current_user, get_security_audit_service
-from app.core.config import settings
-from app.database.neo4j_db import get_neo4j_driver
 from app.models.user import User
 from app.schemas.security_models import ProjectQualityMetrics, SecurityScanResult
 from app.services.security_audit_service import SecurityAuditService
 
 router = APIRouter(prefix="/security-audit", tags=["Security Audit"], dependencies=[Depends(get_current_user)])
-
-
-async def _execute_neo4j_query(query: str, params: dict) -> list[dict]:
-    """Execute read-only Neo4j query with shared connection handling."""
-    driver = await get_neo4j_driver()
-    async with driver.session(database=settings.NEO4J_DATABASE) as session:
-        result = await session.run(query, params)
-        return await result.data()
 
 
 @router.post("/audit-log", response_model=dict)
@@ -228,51 +218,17 @@ async def get_scan_summary(
         current_user: Current authenticated user
     """
     try:
-        # Get recent scan data
-        recent_scan_query = """
-        MATCH (p:Project {projectId: $projectId})-[:HAS_AUDIT_LOG]->(audit:AuditLog)
-        WHERE audit.entityType = 'security_scan'
-        AND audit.timestamp >= datetime() - duration({days: 7})
-        AND audit.scanData IS NOT NULL
-        RETURN audit.scanData AS scanData, audit.timestamp AS timestamp, audit.action AS action
-        ORDER BY audit.timestamp DESC
-        LIMIT 5
-        """
-
-        records = await _execute_neo4j_query(recent_scan_query, {"projectId": project_id})
-
-        # Process scan summary
-        scan_summary = []
-        total_issues = 0
-        critical_issues = 0
-        high_issues = 0
-
-        for record in records:
-            scan_data = record.get("scanData", {})
-            scan_summary.append(
-                {
-                    "timestamp": record.get("timestamp"),
-                    "action": record.get("action"),
-                    "tool": scan_data.get("tool"),
-                    "total_issues": scan_data.get("totalIssues", 0),
-                    "critical_issues": scan_data.get("criticalIssues", 0),
-                    "high_issues": scan_data.get("highIssues", 0),
-                }
-            )
-
-            total_issues += scan_data.get("totalIssues", 0)
-            critical_issues += scan_data.get("criticalIssues", 0)
-            high_issues += scan_data.get("highIssues", 0)
+        scan_aggregate = await service.get_recent_scan_summary(project_id=project_id, days_back=7, limit=5)
 
         # Get quality metrics
         metrics = await service.get_project_quality_metrics(project_id)
 
         return {
             "project_id": project_id,
-            "scan_summary": scan_summary,
-            "total_issues_found": total_issues,
-            "critical_issues_found": critical_issues,
-            "high_issues_found": high_issues,
+            "scan_summary": scan_aggregate["scan_summary"],
+            "total_issues_found": scan_aggregate["total_issues_found"],
+            "critical_issues_found": scan_aggregate["critical_issues_found"],
+            "high_issues_found": scan_aggregate["high_issues_found"],
             "quality_metrics": {
                 "quality_grade": metrics.quality_grade.value,
                 "grade_score": metrics.grade_score,
@@ -301,19 +257,7 @@ async def get_used_tools(
     _ = service
 
     try:
-        # Query to get distinct tools used
-        cypher_query = """
-        MATCH (p:Project {projectId: $projectId})-[:HAS_AUDIT_LOG]->(audit:AuditLog)
-        WHERE audit.entityType = 'security_scan'
-        AND audit.scanData IS NOT NULL
-        RETURN DISTINCT audit.scanData.tool AS tool
-        ORDER BY tool
-        """
-
-        records = await _execute_neo4j_query(cypher_query, {"projectId": project_id})
-
-        tools = [record.get("tool") for record in records if record.get("tool")]
-        return tools
+        return await service.get_used_scan_tools(project_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get used tools: {str(e)}")
 

@@ -17,6 +17,13 @@ class SecurityAuditService:
     Service for managing security audit logs and compliance data in Neo4j
     """
 
+    async def _run_query_data(self, query: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+        """Run Neo4j query and return full record list."""
+        driver = await get_neo4j_driver()
+        async with driver.session(database=settings.NEO4J_DATABASE) as session:
+            result = await session.run(query, params)
+            return await result.data()
+
     async def create_audit_log_entry(
         self,
         project_id: str,
@@ -572,3 +579,59 @@ class SecurityAuditService:
             "recent_scan": recent_scan_info,
             "vulnerability_trend": metrics.vulnerability_trend,
         }
+
+    async def get_recent_scan_summary(self, project_id: str, days_back: int = 7, limit: int = 5) -> dict[str, Any]:
+        """Get summarized recent security scans for dashboards and API endpoints."""
+        recent_scan_query = """
+        MATCH (p:Project {projectId: $projectId})-[:HAS_AUDIT_LOG]->(audit:AuditLog)
+        WHERE audit.entityType = 'security_scan'
+        AND audit.timestamp >= datetime() - duration({days: $daysBack})
+        AND audit.scanData IS NOT NULL
+        RETURN audit.scanData AS scanData, audit.timestamp AS timestamp, audit.action AS action
+        ORDER BY audit.timestamp DESC
+        LIMIT $limit
+        """
+        records = await self._run_query_data(
+            recent_scan_query,
+            {"projectId": project_id, "daysBack": days_back, "limit": limit},
+        )
+
+        scan_summary = []
+        total_issues = 0
+        critical_issues = 0
+        high_issues = 0
+
+        for record in records:
+            scan_data = record.get("scanData", {})
+            scan_summary.append(
+                {
+                    "timestamp": record.get("timestamp"),
+                    "action": record.get("action"),
+                    "tool": scan_data.get("tool"),
+                    "total_issues": scan_data.get("totalIssues", 0),
+                    "critical_issues": scan_data.get("criticalIssues", 0),
+                    "high_issues": scan_data.get("highIssues", 0),
+                }
+            )
+            total_issues += scan_data.get("totalIssues", 0)
+            critical_issues += scan_data.get("criticalIssues", 0)
+            high_issues += scan_data.get("highIssues", 0)
+
+        return {
+            "scan_summary": scan_summary,
+            "total_issues_found": total_issues,
+            "critical_issues_found": critical_issues,
+            "high_issues_found": high_issues,
+        }
+
+    async def get_used_scan_tools(self, project_id: str) -> list[str]:
+        """Get distinct security scanning tools used by a project."""
+        cypher_query = """
+        MATCH (p:Project {projectId: $projectId})-[:HAS_AUDIT_LOG]->(audit:AuditLog)
+        WHERE audit.entityType = 'security_scan'
+        AND audit.scanData IS NOT NULL
+        RETURN DISTINCT audit.scanData.tool AS tool
+        ORDER BY tool
+        """
+        records = await self._run_query_data(cypher_query, {"projectId": project_id})
+        return [record.get("tool") for record in records if record.get("tool")]
