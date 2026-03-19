@@ -77,7 +77,7 @@ async def create_admin_user(email: str = None, password: str = None, full_name: 
                 id=uuid.uuid4(),
                 email=email,
                 password_hash=password_hash,
-                role=UserRole.user,
+                role=UserRole.USER,
                 full_name=full_name,
                 is_active=True,
             )

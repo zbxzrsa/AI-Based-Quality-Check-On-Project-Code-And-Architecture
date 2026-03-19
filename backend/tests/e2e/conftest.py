@@ -53,7 +53,7 @@ async def test_user(test_db) -> User:
         email="test@example.com",
         username="testuser",
         password_hash="$2b$12$test_hash",
-        role=UserRole.user,
+        role=UserRole.USER,
         is_active=True
     )
     test_db.add(user)

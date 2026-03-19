@@ -65,7 +65,7 @@ class TestUnifiedAuthSystem:
                         id="test-id",
                         email="test@example.com",
                         password_hash="hashed",
-                        role=Role.DEVELOPER,
+                        role=Role.USER,
                         is_active=True
                     )
                     
@@ -98,7 +98,7 @@ class TestUnifiedAuthSystem:
                 mock_user = User(
                     id="test_user",
                     email="test@example.com",
-                    role=Role.DEVELOPER,
+                    role=Role.USER,
                     is_active=True
                 )
                 

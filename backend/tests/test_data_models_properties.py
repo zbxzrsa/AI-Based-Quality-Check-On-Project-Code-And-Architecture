@@ -37,7 +37,7 @@ from app.models.code_review import PRStatus as CodeReviewPRStatus
 email_strategy = st.emails()
 
 # Strategy for generating user roles
-user_role_strategy = st.sampled_from([UserRole.user])
+user_role_strategy = st.sampled_from([UserRole.USER])
 
 # Strategy for generating PR statuses
 pr_status_strategy = st.sampled_from([
@@ -65,7 +65,7 @@ async def sample_user(db_session: AsyncSession):
         id=uuid.uuid4(),
         email="test@example.com",
         password_hash="hashed_password",
-        role=UserRole.user,
+        role=UserRole.USER,
         full_name="Test User",
         is_active=True
     )
@@ -171,7 +171,7 @@ class TestReferentialIntegrityProperties:
             id=uuid.uuid4(),
             email="cascade@example.com",
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         db_session.add(user)
@@ -332,7 +332,7 @@ class TestReferentialIntegrityProperties:
             id=uuid.uuid4(),
             email="access@example.com",
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         db_session.add(user)
@@ -433,7 +433,7 @@ class TestConstraintValidationProperties:
             id=uuid.uuid4(),
             email=email,
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         db_session.add(user1)
@@ -444,7 +444,7 @@ class TestConstraintValidationProperties:
             id=uuid.uuid4(),
             email=email,
             password_hash="test_hash2",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         db_session.add(user2)
@@ -679,7 +679,7 @@ class TestConstraintValidationProperties:
             id=uuid.uuid4(),
             email=email,
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         
@@ -702,7 +702,7 @@ class TestConstraintValidationProperties:
             id=uuid.uuid4(),
             email=None,  # NULL email
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         
@@ -886,7 +886,7 @@ class TestDataIntegrityProperties:
             id=uuid.uuid4(),
             email="orphan@example.com",
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         db_session.add(user)
@@ -982,7 +982,7 @@ class TestDataIntegrityProperties:
             id=uuid.uuid4(),
             email="timestamp@example.com",
             password_hash="test_hash",
-            role=UserRole.user,
+            role=UserRole.USER,
             is_active=True
         )
         

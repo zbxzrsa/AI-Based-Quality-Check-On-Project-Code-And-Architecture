@@ -30,7 +30,7 @@ def setup_test_dependencies():
     mock_user = User(
         id="test-user-id",
         email="test@example.com",
-        role=UserRole.user,
+        role=UserRole.USER,
         is_active=True
     )
     

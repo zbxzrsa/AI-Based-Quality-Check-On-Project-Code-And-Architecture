@@ -76,7 +76,7 @@ class TestCompleteAnalysisWorkflow:
                     email="e2e-test@example.com",
                     username="e2e_tester",
                     password_hash="$2b$12$test_hash",  # Dummy hash
-                    role=UserRole.user,
+                    role=UserRole.USER,
                     is_active=True
                 )
                 db.add(test_user)
