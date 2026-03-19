@@ -116,3 +116,27 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 2. Reduced duplicate query and response mapping logic:
 - Reused shared PR lookup in both analyze/reanalyze paths.
 - Centralized Celery task status response shaping.
+
+## RBAC Simplification and Compatibility Hardening (Round 9-11)
+
+1. Unified effective RBAC model to `ADMIN/USER`:
+- Updated role defaults and endpoint policy checks to align with two effective roles.
+- Replaced scattered role assumptions in API dependencies with explicit `require_admin` and `require_user`.
+
+2. Preserved backward compatibility for historical role data:
+- Retained legacy role values in shared enums (`PROGRAMMER`, `VISITOR`, `REVIEWER`, etc.).
+- Added normalization utilities:
+  - Python: `Role.effective()` and `RBACService.normalize_role()`
+  - TypeScript: `toEffectiveRole(...)`
+- This avoids runtime breaks when old JWT payloads or persisted DB rows still use legacy role strings.
+
+3. Reduced RBAC endpoint duplication and drift:
+- Refactored `rbac_projects.py` and `rbac_users.py` to reuse helper functions for:
+  - client IP extraction
+  - response model mapping
+  - project lookup
+- Updated RBAC docs/OpenAPI descriptions to consistently describe `ADMIN/USER` behavior.
+
+4. Test and script alignment:
+- Replaced legacy enum references in tests/scripts (`UserRole.user`, `Role.DEVELOPER`) with effective roles.
+- Verified modified modules with `py_compile` to ensure syntax-level stability after refactor.
