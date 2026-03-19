@@ -53,7 +53,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole, name="user_role"), nullable=False, default=UserRole.user)
+    role = Column(SQLEnum(UserRole, name="user_role"), nullable=False, default=UserRole.USER)
     full_name = Column(String(255))
     is_active = Column(Boolean, default=True)
     github_token = Column(String(500), nullable=True)

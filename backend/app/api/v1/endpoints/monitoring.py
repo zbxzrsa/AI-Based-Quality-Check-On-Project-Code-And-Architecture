@@ -24,7 +24,7 @@ async def get_slow_queries(limit: int = 50, current_user: User = Depends(get_cur
     """
     Get slow database queries.
 
-    Requires admin or reviewer role.
+    Requires admin or user role.
 
     Args:
         limit: Maximum number of slow queries to return
@@ -33,9 +33,9 @@ async def get_slow_queries(limit: int = 50, current_user: User = Depends(get_cur
         List of slow queries with details
     """
     # Check permissions
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value not in ["ADMIN", "USER"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and reviewers can view slow queries"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and users can view slow queries"
         )
 
     try:
@@ -52,14 +52,14 @@ async def get_slow_query_stats(current_user: User = Depends(get_current_user)):
     """
     Get slow query statistics and analysis.
 
-    Requires admin or reviewer role.
+    Requires admin or user role.
 
     Returns:
         Slow query statistics with recommendations
     """
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value not in ["ADMIN", "USER"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and reviewers can view query statistics"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and users can view query statistics"
         )
 
     try:
@@ -76,14 +76,14 @@ async def get_monitor_stats(current_user: User = Depends(get_current_user)):
     """
     Get statistics from the slow query monitor.
 
-    Requires admin or reviewer role.
+    Requires admin or user role.
 
     Returns:
         Monitor statistics including total slow queries, average time, etc.
     """
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value not in ["ADMIN", "USER"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and reviewers can view monitor statistics"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and users can view monitor statistics"
         )
 
     try:

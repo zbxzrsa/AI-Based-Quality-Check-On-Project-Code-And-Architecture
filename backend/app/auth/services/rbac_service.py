@@ -15,6 +15,28 @@ logger = logging.getLogger(__name__)
 class RBACService:
     """Service for handling role-based access control operations."""
 
+    _LEGACY_ROLE_MAP = {
+        "MANAGER": Role.USER,
+        "REVIEWER": Role.USER,
+        "PROGRAMMER": Role.USER,
+        "DEVELOPER": Role.USER,
+        "COMPLIANCE_OFFICER": Role.USER,
+        "VISITOR": Role.USER,
+    }
+
+    @staticmethod
+    def normalize_role(role: str | Role) -> Role | None:
+        """Normalize role input to effective ADMIN/USER roles with legacy compatibility."""
+        if isinstance(role, Role):
+            return Role.ADMIN if role == Role.ADMIN else Role.USER
+        if not role:
+            return None
+
+        normalized = role.strip().upper()
+        if normalized in ("ADMIN", "USER"):
+            return Role(normalized)
+        return RBACService._LEGACY_ROLE_MAP.get(normalized)
+
     @staticmethod
     async def has_permission(db: AsyncSession, user_id: str, permission: Permission) -> bool:
         """
@@ -254,12 +276,7 @@ class RBACService:
         Returns:
             True if role is valid, False otherwise
         """
-        try:
-            # Try to convert to Role enum
-            Role(role)
-            return True
-        except (ValueError, KeyError):
-            return False
+        return RBACService.normalize_role(role) is not None
 
     @staticmethod
     def assign_role(db: DBSession, user_id: str, new_role: Role, assigned_by: str) -> bool:

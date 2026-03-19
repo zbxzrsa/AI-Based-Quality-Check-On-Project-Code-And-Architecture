@@ -117,11 +117,11 @@ class RoleChecker:
         return user
 
 
-# Common role checkers - simplified to single user role
-require_admin = RoleChecker([UserRole.user])
-require_reviewer = RoleChecker([UserRole.user])
-require_compliance = RoleChecker([UserRole.user])
-require_manager = RoleChecker([UserRole.user])
+# Common role checkers - effective roles are ADMIN and USER
+require_admin = RoleChecker([UserRole.ADMIN])
+require_reviewer = RoleChecker([UserRole.USER, UserRole.ADMIN])
+require_compliance = RoleChecker([UserRole.USER, UserRole.ADMIN])
+require_manager = RoleChecker([UserRole.USER, UserRole.ADMIN])
 
 
 async def check_project_access(
@@ -143,8 +143,8 @@ async def check_project_access(
     """
     from app.models import Project, ProjectAccess
 
-    # All users have access to all projects
-    if user.role == UserRole.user:
+    # Admin bypass: admins can access all projects
+    if user.role == UserRole.ADMIN:
         return True
 
     # Check if user has explicit access to the project

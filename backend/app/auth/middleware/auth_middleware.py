@@ -80,7 +80,11 @@ class AuthMiddleware:
             payload = await AuthMiddleware.authenticate_token(request, credentials)
 
             # Check if user's role matches required role
-            user_role = Role(payload.role)
+            user_role = RBACService.normalize_role(payload.role)
+            if user_role is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail=f"Unsupported role in token: {payload.role}"
+                )
 
             if user_role != required_role:
                 raise HTTPException(

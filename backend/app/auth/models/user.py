@@ -27,7 +27,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[Role] = mapped_column(
-        SQLEnum(Role, values_callable=lambda x: [e.value for e in x]), nullable=False, default=Role.VISITOR
+        SQLEnum(Role, values_callable=lambda x: [e.value for e in x]), nullable=False, default=Role.USER
     )
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

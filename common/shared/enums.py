@@ -13,14 +13,26 @@ from enum import Enum
 # ============================================================================
 
 class Role(str, Enum):
-    """User roles in the system - consolidated from multiple sources"""
-    ADMIN = "ADMIN"                    # Full system control
-    MANAGER = "MANAGER"                # Project oversight & ROI
-    REVIEWER = "REVIEWER"              # Read/Write analysis
-    PROGRAMMER = "PROGRAMMER"          # CRUD own branch
-    DEVELOPER = "DEVELOPER"            # Developer role (alias for PROGRAMMER)
-    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"  # Compliance officer
-    VISITOR = "VISITOR"                # Read-only grants
+    """User roles in the system.
+
+    Effective roles are now only ADMIN and USER.
+    Legacy values are retained for backward compatibility with historical data.
+    """
+
+    ADMIN = "ADMIN"  # Full system control
+    USER = "USER"  # Default non-admin role
+
+    # Backward-compatible aliases used by older data and clients.
+    MANAGER = "USER"
+    REVIEWER = "USER"
+    PROGRAMMER = "USER"
+    DEVELOPER = "USER"
+    COMPLIANCE_OFFICER = "USER"
+    VISITOR = "USER"
+
+    # Lowercase aliases used by parts of backend tests/legacy code.
+    admin = "ADMIN"
+    user = "USER"
 
 
 class Permission(str, Enum):

@@ -6,6 +6,14 @@ Enums for the Enterprise RBAC Authentication System.
 from common.shared.enums import Permission, Role
 
 # Role-Permission Mapping
+_USER_PERMISSIONS = [
+    Permission.CREATE_PROJECT,
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+    Permission.EXPORT_REPORT,
+]
+
 ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
     Role.ADMIN: [
         Permission.CREATE_USER,
@@ -20,14 +28,12 @@ ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
         Permission.VIEW_CONFIG,
         Permission.EXPORT_REPORT,
     ],
-    Role.PROGRAMMER: [
-        Permission.CREATE_PROJECT,
-        Permission.UPDATE_PROJECT,
-        Permission.VIEW_PROJECT,
-        Permission.VIEW_CONFIG,
-        Permission.EXPORT_REPORT,
-    ],
-    Role.VISITOR: [
-        Permission.VIEW_PROJECT,
-    ],
+    Role.USER: _USER_PERMISSIONS,
+    # Legacy role compatibility (old data/clients)
+    Role.PROGRAMMER: _USER_PERMISSIONS,
+    Role.REVIEWER: _USER_PERMISSIONS,
+    Role.MANAGER: _USER_PERMISSIONS,
+    Role.DEVELOPER: _USER_PERMISSIONS,
+    Role.COMPLIANCE_OFFICER: _USER_PERMISSIONS,
+    Role.VISITOR: _USER_PERMISSIONS,
 }

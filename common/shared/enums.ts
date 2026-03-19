@@ -11,12 +11,14 @@
 
 export enum Role {
   ADMIN = 'ADMIN',                    // Full system control
-  MANAGER = 'MANAGER',                // Project oversight & ROI
-  REVIEWER = 'REVIEWER',              // Read/Write analysis
-  PROGRAMMER = 'PROGRAMMER',          // CRUD own branch
-  DEVELOPER = 'DEVELOPER',            // Developer role (alias for PROGRAMMER)
-  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',  // Compliance officer
-  VISITOR = 'VISITOR',                // Read-only grants
+  USER = 'USER',                      // Default non-admin role
+  // Backward-compatible aliases (legacy roles now map to USER)
+  MANAGER = 'USER',
+  REVIEWER = 'USER',
+  PROGRAMMER = 'USER',
+  DEVELOPER = 'USER',
+  COMPLIANCE_OFFICER = 'USER',
+  VISITOR = 'USER',
 }
 
 export enum Permission {

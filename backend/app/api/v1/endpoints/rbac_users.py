@@ -91,12 +91,12 @@ async def create_user(
 
     - **username**: Unique username
     - **password**: User's password (will be hashed)
-    - **role**: User role (ADMIN, PROGRAMMER, or VISITOR)
+    - **role**: User role (ADMIN or USER)
 
     Requires CREATE_USER permission (Admin only).
     """
-    # Validate role
-    if not RBACService.validate_role(user_data.role):
+    normalized_role = RBACService.normalize_role(user_data.role)
+    if not normalized_role:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role: {user_data.role}")
 
     # Check if username already exists
@@ -113,7 +113,7 @@ async def create_user(
         id=str(uuid.uuid4()),
         username=user_data.username,
         password_hash=password_hash,
-        role=Role(user_data.role),
+        role=normalized_role,
         created_at=now,
         updated_at=now,
         is_active=True,
@@ -211,18 +211,16 @@ async def update_user_role(
     """
     Update user role (Admin only).
 
-    - **role**: New role (ADMIN, PROGRAMMER, or VISITOR)
+    - **role**: New role (ADMIN or USER)
 
     Requires ADMIN role.
     """
-    # Validate role
-    if not RBACService.validate_role(role_data.role):
+    normalized_role = RBACService.normalize_role(role_data.role)
+    if not normalized_role:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role: {role_data.role}")
 
     # Assign role
-    success = RBACService.assign_role(
-        db=db, user_id=user_id, new_role=Role(role_data.role), assigned_by=current_user.user_id
-    )
+    success = RBACService.assign_role(db=db, user_id=user_id, new_role=normalized_role, assigned_by=current_user.user_id)
 
     if not success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update user role")
