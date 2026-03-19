@@ -8,7 +8,7 @@ info:
     - **LLM Integration**: GPT-4, Claude 3.5, and Ollama for intelligent analysis\n\
     - **GitHub Integration**: Automated PR reviews via webhooks\n\n## Features\n\n\
     - \U0001F50D **Automated Code Review**: AI-powered analysis of pull requests\n\
-    - \U0001F3D7Ô∏è **Architecture Analysis**: Detect patterns, circular dependencies,\
+    - \U0001F3D7Ô∏?**Architecture Analysis**: Detect patterns, circular dependencies,\
     \ and drift\n- \U0001F4CA **Metrics & Visualization**: Interactive dependency\
     \ graphs and quality metrics\n- \U0001F510 **Enterprise Security**: RBAC, JWT\
     \ authentication, audit logging\n- \U0001F4C8 **Monitoring**: Prometheus metrics,\
@@ -1670,7 +1670,7 @@ paths:
 
         - **password**: User''s password (will be hashed)
 
-        - **role**: User role (ADMIN, PROGRAMMER, or VISITOR)
+        - **role**: User role (ADMIN or USER)
 
 
         Requires CREATE_USER permission (Admin only).'
@@ -1769,7 +1769,7 @@ paths:
       description: 'Update user role (Admin only).
 
 
-        - **role**: New role (ADMIN, PROGRAMMER, or VISITOR)
+        - **role**: New role (ADMIN or USER)
 
 
         Requires ADMIN role.'
@@ -1812,9 +1812,9 @@ paths:
 
         - Admins see all projects
 
-        - Programmers see their own projects and projects they have access to
+        - Users see their own projects and projects they have access to
 
-        - Visitors see projects they have been granted access to'
+        - Users can be granted access to additional projects'
       operationId: list_projects_api_v1_rbac_projects__get
       responses:
         '200':
@@ -1832,7 +1832,7 @@ paths:
       tags:
       - RBAC Project Management
       summary: Create Project
-      description: 'Create a new project (Programmer or Admin).
+      description: 'Create a new project (User or Admin).
 
 
         - **name**: Project name
@@ -1840,7 +1840,7 @@ paths:
         - **description**: Optional project description
 
 
-        Requires CREATE_PROJECT permission (Programmer or Admin).
+        Requires CREATE_PROJECT permission (User or Admin).
 
         The creating user becomes the project owner.'
       operationId: create_project_api_v1_rbac_projects__post
@@ -4154,3 +4154,4 @@ tags:
   description: Prometheus metrics endpoint for monitoring
 - name: Database
   description: Database management and migration endpoints
+

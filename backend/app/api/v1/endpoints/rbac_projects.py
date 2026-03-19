@@ -29,6 +29,52 @@ router = APIRouter()
 _log_audit_action = AuditService.log_action
 
 
+def _request_ip(request: Request) -> str:
+    """Extract client IP from request safely."""
+    return request.client.host if request.client else "0.0.0.0"
+
+
+def _to_project_response(project: Project) -> "ProjectResponse":
+    """Convert Project ORM object into API response model."""
+    return ProjectResponse(
+        id=str(project.id),
+        name=project.name,
+        description=project.description,
+        owner_id=str(project.owner_id),
+        github_repo_url=project.github_repo_url,
+        github_connection_type=project.github_connection_type.value if project.github_connection_type else "https",
+        github_ssh_key_id=str(project.github_ssh_key_id) if project.github_ssh_key_id else None,
+        language=project.language,
+        is_active=project.is_active,
+        created_at=project.created_at.isoformat(),
+        updated_at=project.updated_at.isoformat(),
+    )
+
+
+def _to_ssh_key_response(key: SSHKey) -> "SSHKeyResponse":
+    """Convert SSHKey ORM object into API response model."""
+    return SSHKeyResponse(
+        id=str(key.id),
+        name=key.name,
+        public_key=key.public_key,
+        key_fingerprint=key.key_fingerprint,
+        github_username=key.github_username,
+        is_active=key.is_active,
+        created_at=key.created_at.isoformat(),
+        updated_at=key.updated_at.isoformat(),
+        last_used_at=key.last_used_at.isoformat() if key.last_used_at else None,
+    )
+
+
+async def _get_project_or_404(db: AsyncSession, project_id: str) -> Project:
+    """Fetch project by id or raise 404."""
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return project
+
+
 # Request/Response Models
 class CreateProjectRequest(BaseModel):
     """Create project request model with GitHub connection options."""
@@ -179,7 +225,7 @@ async def create_project(
     - **github_cli_token**: GitHub CLI token for CLI connections
     - **language**: Primary programming language
 
-    Requires CREATE_PROJECT permission (Programmer or Admin).
+    Requires CREATE_PROJECT permission (User or Admin).
     The creating user becomes the project owner.
     """
     try:
@@ -261,7 +307,7 @@ async def create_project(
                 logger.warning(f"Failed to create webhook for project {new_project.id}: {str(webhook_error)}")
 
         # Log audit event
-        ip_address = request.client.host if request.client else "0.0.0.0"
+        ip_address = _request_ip(request)
         await _log_audit_action(
             db=db,
             user_id=current_user.user_id,
@@ -315,8 +361,7 @@ async def list_projects(current_user: TokenPayload = Depends(get_current_user), 
     List all accessible projects for the current user.
 
     - Admins see all projects
-    - Programmers see their own projects and projects they have access to
-    - Visitors see projects they have been granted access to
+    - Users see their own projects and projects they have access to
     """
     from uuid import UUID
 
@@ -348,22 +393,7 @@ async def list_projects(current_user: TokenPayload = Depends(get_current_user), 
         # Combine and deduplicate
         projects = list({p.id: p for p in list(owned_projects) + list(granted_projects)}.values())
 
-    return [
-        ProjectResponse(
-            id=str(project.id),
-            name=project.name,
-            description=project.description,
-            owner_id=str(project.owner_id),
-            github_repo_url=project.github_repo_url,
-            github_connection_type=project.github_connection_type.value if project.github_connection_type else "https",
-            github_ssh_key_id=str(project.github_ssh_key_id) if project.github_ssh_key_id else None,
-            language=project.language,
-            is_active=project.is_active,
-            created_at=project.created_at.isoformat(),
-            updated_at=project.updated_at.isoformat(),
-        )
-        for project in projects
-    ]
+    return [_to_project_response(project) for project in projects]
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -377,25 +407,8 @@ async def get_project(
 
     Requires VIEW_PROJECT permission and project access.
     """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    return ProjectResponse(
-        id=str(project.id),
-        name=project.name,
-        description=project.description,
-        owner_id=str(project.owner_id),
-        github_repo_url=project.github_repo_url,
-        github_connection_type=project.github_connection_type.value if project.github_connection_type else "https",
-        github_ssh_key_id=str(project.github_ssh_key_id) if project.github_ssh_key_id else None,
-        language=project.language,
-        is_active=project.is_active,
-        created_at=project.created_at.isoformat(),
-        updated_at=project.updated_at.isoformat(),
-    )
+    project = await _get_project_or_404(db, project_id)
+    return _to_project_response(project)
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
@@ -414,11 +427,7 @@ async def update_project(
 
     Requires UPDATE_PROJECT permission and project ownership or admin role.
     """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    project = await _get_project_or_404(db, project_id)
 
     # Update fields
     if project_data.name is not None:
@@ -432,7 +441,7 @@ async def update_project(
     await db.refresh(project)
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -445,19 +454,7 @@ async def update_project(
         user_agent=request.headers.get("user-agent"),
     )
 
-    return ProjectResponse(
-        id=str(project.id),
-        name=project.name,
-        description=project.description,
-        owner_id=str(project.owner_id),
-        github_repo_url=project.github_repo_url,
-        github_connection_type=project.github_connection_type.value if project.github_connection_type else "https",
-        github_ssh_key_id=str(project.github_ssh_key_id) if project.github_ssh_key_id else None,
-        language=project.language,
-        is_active=project.is_active,
-        created_at=project.created_at.isoformat(),
-        updated_at=project.updated_at.isoformat(),
-    )
+    return _to_project_response(project)
 
 
 @router.delete("/{project_id}", response_model=MessageResponse)
@@ -500,7 +497,7 @@ async def delete_project(
 
         # Log action
         try:
-            ip_address = request.client.host if request.client else "0.0.0.0"
+            ip_address = _request_ip(request)
             await _log_audit_action(
                 db=db,
                 user_id=current_user.user_id,
@@ -560,7 +557,7 @@ async def grant_project_access(
     access_grant = result.scalar_one_or_none()
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -606,7 +603,7 @@ async def revoke_project_access(
         )
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -690,7 +687,7 @@ async def create_ssh_key(
         await db.refresh(new_ssh_key)
 
         # Log audit event
-        ip_address = request.client.host if request.client else "0.0.0.0"
+        ip_address = _request_ip(request)
         await _log_audit_action(
             db=db,
             user_id=current_user.user_id,
@@ -703,17 +700,7 @@ async def create_ssh_key(
             user_agent=request.headers.get("user-agent"),
         )
 
-        return SSHKeyResponse(
-            id=str(new_ssh_key.id),
-            name=new_ssh_key.name,
-            public_key=new_ssh_key.public_key,
-            key_fingerprint=new_ssh_key.key_fingerprint,
-            github_username=new_ssh_key.github_username,
-            is_active=new_ssh_key.is_active,
-            created_at=new_ssh_key.created_at.isoformat(),
-            updated_at=new_ssh_key.updated_at.isoformat(),
-            last_used_at=new_ssh_key.last_used_at.isoformat() if new_ssh_key.last_used_at else None,
-        )
+        return _to_ssh_key_response(new_ssh_key)
 
     except Exception as e:
         logger.error(f"Error creating SSH key: {str(e)}")
@@ -728,20 +715,7 @@ async def list_ssh_keys(current_user: TokenPayload = Depends(get_current_user), 
     result = await db.execute(select(SSHKey).filter(SSHKey.user_id == current_user.user_id, SSHKey.is_active))
     ssh_keys = result.scalars().all()
 
-    return [
-        SSHKeyResponse(
-            id=str(key.id),
-            name=key.name,
-            public_key=key.public_key,
-            key_fingerprint=key.key_fingerprint,
-            github_username=key.github_username,
-            is_active=key.is_active,
-            created_at=key.created_at.isoformat(),
-            updated_at=key.updated_at.isoformat(),
-            last_used_at=key.last_used_at.isoformat() if key.last_used_at else None,
-        )
-        for key in ssh_keys
-    ]
+    return [_to_ssh_key_response(key) for key in ssh_keys]
 
 
 @router.delete("/ssh-keys/{key_id}", response_model=MessageResponse)
@@ -775,7 +749,7 @@ async def delete_ssh_key(
     await db.commit()
 
     # Log audit event
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -875,7 +849,7 @@ async def invite_user_to_project(
     await db.commit()
 
     # Log audit event
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,

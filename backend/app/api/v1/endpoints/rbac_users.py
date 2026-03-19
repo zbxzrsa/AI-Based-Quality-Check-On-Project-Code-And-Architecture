@@ -28,6 +28,11 @@ from app.database.postgresql import get_db
 router = APIRouter()
 
 
+def _request_ip(request: Request) -> str:
+    """Extract client IP from request safely."""
+    return request.client.host if request.client else "0.0.0.0"
+
+
 # Request/Response Models
 class CreateUserRequest(BaseModel):
     """Create user request model."""
@@ -124,7 +129,7 @@ async def create_user(
     db.refresh(new_user)
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     AuditService.log_action(
         db=db,
         user_id=current_user.user_id,
@@ -229,7 +234,7 @@ async def update_user_role(
     user = db.query(User).filter(User.id == user_id).first()
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     AuditService.log_action(
         db=db,
         user_id=current_user.user_id,
@@ -285,7 +290,7 @@ async def delete_user(
     db.commit()
 
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = _request_ip(request)
     AuditService.log_action(
         db=db,
         user_id=current_user.user_id,
