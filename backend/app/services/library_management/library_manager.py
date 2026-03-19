@@ -1,19 +1,17 @@
 """
 Library Manager Orchestrator Service
 
-This service acts as the main coordinator for all library management operations.
-It integrates all the individual services (URI parser, metadata fetcher, context detector,
-dependency resolver, package installer, and library repository) to provide a unified
-interface for library validation, installation, search, and management.
+This module keeps the public LibraryManager API stable while internally
+separating workflow steps into focused methods.
 """
 
 import logging
+from typing import Protocol
 
 from app.models.library import ProjectContext, RegistryType
 from app.schemas.library import InstallationResult, InstalledLibrary, LibrarySearchResult, ValidationResult
 from app.services.library_management.context_detector import ContextDetector
 from app.services.library_management.dependency_resolver import DependencyResolver, DependencyResolverError
-from app.services.library_management.library_repository import LibraryRepository
 from app.services.library_management.metadata_fetcher import (
     MetadataFetcher,
     MetadataFetchError,
@@ -21,50 +19,50 @@ from app.services.library_management.metadata_fetcher import (
     PackageNotFoundError,
 )
 from app.services.library_management.package_installer import PackageInstaller, PackageInstallerError
-from app.services.library_management.search_service import InvalidSearchQueryError, SearchError, SearchService
+from app.services.library_management.search_service import (
+    InvalidSearchQueryError,
+    SearchError as SearchServiceError,
+    SearchService,
+)
 from app.services.library_management.uri_parser import URIParser
 
 logger = logging.getLogger(__name__)
 
 
-class LibraryManagerError(Exception):
-    """Base exception for library manager errors"""
+class LibraryRepositoryPort(Protocol):
+    """Repository contract used by the application workflow."""
 
-    pass
+    async def save_library(self, library: InstalledLibrary) -> int: ...
+
+    async def save_dependencies(self, library_id: int, dependencies: list) -> None: ...
+
+    async def get_libraries_by_project(self, project_id: str, context: ProjectContext | None = None) -> list[InstalledLibrary]: ...
+
+    async def get_library_by_name(
+        self, project_id: str, name: str, context: ProjectContext
+    ) -> InstalledLibrary | None: ...
+
+    async def update_library_version(self, library_id: int, new_version: str) -> None: ...
+
+
+class LibraryManagerError(Exception):
+    """Base exception for library manager errors."""
 
 
 class ValidationError(LibraryManagerError):
-    """Library validation error"""
-
-    pass
+    """Library validation error."""
 
 
 class InstallationError(LibraryManagerError):
-    """Library installation error"""
-
-    pass
+    """Library installation error."""
 
 
-class SearchError(LibraryManagerError):  # noqa: F811
-    """Library search error"""
-
-    pass
+class SearchError(LibraryManagerError):
+    """Library search error."""
 
 
 class LibraryManager:
-    """
-    Main orchestrator service for library management operations.
-
-    This service coordinates the complete library management workflow:
-    1. Parse URI -> 2. Fetch metadata -> 3. Detect context -> 4. Check conflicts ->
-    5. Install -> 6. Store metadata
-
-    It provides a unified interface for:
-    - Library validation and metadata retrieval
-    - Library installation with conflict resolution
-    - Library search across registries
-    - Installed library management
-    """
+    """Facade for library-management workflows."""
 
     def __init__(
         self,
@@ -73,26 +71,11 @@ class LibraryManager:
         context_detector: ContextDetector | None = None,
         dependency_resolver: DependencyResolver | None = None,
         package_installer: PackageInstaller | None = None,
-        library_repository: LibraryRepository | None = None,
+        library_repository: LibraryRepositoryPort | None = None,
         search_service: SearchService | None = None,
         project_root: str | None = None,
     ):
-        """
-        Initialize LibraryManager with service dependencies.
-
-        Args:
-            uri_parser: URI parsing service (creates new if None)
-            metadata_fetcher: Metadata fetching service (creates new if None)
-            context_detector: Context detection service (creates new if None)
-            dependency_resolver: Dependency resolution service (creates new if None)
-            package_installer: Package installation service (creates new if None)
-            library_repository: Database repository service (required)
-            search_service: Search service (creates new if None)
-            project_root: Project root directory for file operations
-        """
         self.project_root = project_root
-
-        # Initialize services with dependency injection
         self.uri_parser = uri_parser or URIParser()
         self.metadata_fetcher = metadata_fetcher or MetadataFetcher()
         self.context_detector = context_detector or ContextDetector(project_root)
@@ -100,68 +83,63 @@ class LibraryManager:
         self.package_installer = package_installer or PackageInstaller(project_root=project_root)
         self.search_service = search_service or SearchService()
 
-        # Repository is required and must be injected
         if library_repository is None:
             raise ValueError("LibraryRepository is required and must be provided")
         self.library_repository = library_repository
 
-        logger.info("LibraryManager initialized with all service dependencies")
+        logger.info("LibraryManager initialized with decoupled dependencies")
+
+    async def _resolve_validation_context(
+        self,
+        parsed_registry: RegistryType,
+        requested_context: ProjectContext | None,
+    ) -> tuple[ProjectContext | None, list[str]]:
+        """Resolve and validate target context for a package operation."""
+        suggested_context = None
+        context_errors: list[str] = []
+
+        if requested_context is None:
+            detected_context, is_valid, error_msg = self.context_detector.detect_and_validate_context(parsed_registry)
+            if is_valid:
+                return detected_context, []
+
+            suggested_context = detected_context
+            context_errors.append(error_msg or "Context validation failed")
+
+            alternatives = self.context_detector.suggest_alternative_contexts(parsed_registry)
+            if alternatives:
+                suggested_context = alternatives[0]
+                context_errors.append(
+                    f"Using alternative context: {suggested_context.value}. "
+                    f"Other options: {[ctx.value for ctx in alternatives[1:]]}"
+                )
+            return suggested_context, context_errors
+
+        is_valid, error_msg = self.context_detector.validate_context(requested_context)
+        if is_valid:
+            return requested_context, []
+
+        context_errors.append(error_msg or "Context validation failed")
+        return requested_context, context_errors
 
     async def validate_library(
         self, uri: str, context: ProjectContext | None = None, user_id: str | None = None
     ) -> ValidationResult:
-        """
-        Validate library URI and fetch metadata.
-
-        This method performs the complete validation workflow:
-        1. Parse and validate URI format
-        2. Fetch metadata from package registry
-        3. Detect appropriate project context
-        4. Validate context configuration
-
-        Args:
-            uri: Library URI to validate (e.g., "npm:react@18.0.0")
-            context: Optional target project context (auto-detected if None)
-            user_id: Optional user ID for audit logging
-
-        Returns:
-            ValidationResult with library metadata and suggested context
-
-        Raises:
-            ValidationError: If validation fails for any reason
-
-        Examples:
-            >>> manager = LibraryManager(...)
-            >>> result = await manager.validate_library("npm:react@18.0.0")
-            >>> result.valid
-            True
-            >>> result.library.name
-            'react'
-            >>> result.suggested_context
-            ProjectContext.FRONTEND
-        """
         try:
             logger.info(f"Starting validation for URI: {uri}")
 
-            # Step 1: Parse URI
             try:
                 parsed_uri = self.uri_parser.parse(uri)
-                logger.debug(
-                    f"Parsed URI: {parsed_uri.registry_type.value}:"
-                    f"{parsed_uri.package_name}@{parsed_uri.version or 'latest'}"
-                )
             except ValueError as e:
                 logger.warning(f"URI parsing failed: {e}")
                 return ValidationResult(valid=False, errors=[str(e)])
 
-            # Step 2: Fetch metadata from registry
             try:
                 metadata = await self.metadata_fetcher.fetch_metadata(
                     registry_type=parsed_uri.registry_type,
                     package_name=parsed_uri.package_name,
                     version=parsed_uri.version,
                 )
-                logger.debug(f"Fetched metadata for {metadata.name}@{metadata.version}")
             except PackageNotFoundError as e:
                 logger.warning(f"Package not found: {e}")
                 return ValidationResult(valid=False, errors=[f"Package not found: {str(e)}"])
@@ -172,54 +150,15 @@ class LibraryManager:
                 logger.error(f"Metadata fetch error: {e}")
                 return ValidationResult(valid=False, errors=[f"Failed to fetch metadata: {str(e)}"])
 
-            # Step 3: Detect or validate project context
-            suggested_context = None
-            context_errors = []
+            try:
+                suggested_context, context_errors = await self._resolve_validation_context(
+                    parsed_registry=parsed_uri.registry_type,
+                    requested_context=context,
+                )
+            except Exception as e:
+                logger.error(f"Context resolution failed: {e}")
+                suggested_context, context_errors = context, [f"Context validation failed: {str(e)}"]
 
-            if context is None:
-                # Auto-detect context
-                try:
-                    detected_context, is_valid, error_msg = self.context_detector.detect_and_validate_context(
-                        parsed_uri.registry_type
-                    )
-
-                    if is_valid:
-                        suggested_context = detected_context
-                        logger.debug(f"Auto-detected valid context: {suggested_context.value}")
-                    else:
-                        suggested_context = detected_context
-                        context_errors.append(error_msg or "Context validation failed")
-                        logger.warning(f"Auto-detected context {detected_context.value} is invalid: {error_msg}")
-
-                        # Try to find alternative contexts
-                        alternatives = self.context_detector.suggest_alternative_contexts(parsed_uri.registry_type)
-                        if alternatives:
-                            suggested_context = alternatives[0]  # Use first valid alternative
-                            context_errors.append(
-                                f"Using alternative context: {suggested_context.value}. "
-                                f"Other options: {[ctx.value for ctx in alternatives[1:]]}"
-                            )
-                            logger.info(f"Using alternative context: {suggested_context.value}")
-
-                except Exception as e:
-                    logger.error(f"Context detection failed: {e}")
-                    context_errors.append(f"Context detection failed: {str(e)}")
-            else:
-                # Validate provided context
-                try:
-                    is_valid, error_msg = self.context_detector.validate_context(context)
-                    if is_valid:
-                        suggested_context = context
-                        logger.debug(f"Provided context {context.value} is valid")
-                    else:
-                        suggested_context = context
-                        context_errors.append(error_msg or "Context validation failed")
-                        logger.warning(f"Provided context {context.value} is invalid: {error_msg}")
-                except Exception as e:
-                    logger.error(f"Context validation failed: {e}")
-                    context_errors.append(f"Context validation failed: {str(e)}")
-
-            # Log validation operation for audit trail
             if user_id:
                 logger.info(
                     "Library validation completed",
@@ -235,17 +174,37 @@ class LibraryManager:
                     },
                 )
 
-            # Return validation result
             return ValidationResult(
                 valid=len(context_errors) == 0,
                 library=metadata,
                 suggested_context=suggested_context,
                 errors=context_errors if context_errors else [],
             )
-
         except Exception as e:
             logger.error(f"Unexpected error during validation: {e}")
             raise ValidationError(f"Library validation failed: {str(e)}")
+
+    async def _persist_installation(
+        self,
+        installation_result: InstallationResult,
+        project_id: str,
+        user_id: str | None,
+        dependencies: list,
+    ) -> InstallationResult:
+        """Persist successful installation metadata via repository abstraction."""
+        if not installation_result.installed_library:
+            return installation_result
+
+        installed_lib = installation_result.installed_library
+        installed_lib.project_id = project_id
+        installed_lib.installed_by = user_id or "system"
+
+        library_id = await self.library_repository.save_library(installed_lib)
+        if dependencies:
+            await self.library_repository.save_dependencies(library_id, dependencies)
+
+        installed_lib.id = library_id
+        return installation_result
 
     async def install_library(
         self,
@@ -255,136 +214,45 @@ class LibraryManager:
         user_id: str | None = None,
         project_id: str = "default",
     ) -> InstallationResult:
-        """
-        Install library and store metadata.
-
-        This method performs the complete installation workflow:
-        1. Validate library URI and fetch metadata
-        2. Check for dependency conflicts
-        3. Install package using package manager
-        4. Store library metadata in database
-        5. Handle rollback on failure
-
-        Args:
-            uri: Library URI to install
-            context: Target project context
-            version: Optional specific version (overrides URI version)
-            user_id: Optional user ID for audit logging
-            project_id: Project identifier for database storage
-
-        Returns:
-            InstallationResult with installed library details or errors
-
-        Raises:
-            InstallationError: If installation fails for any reason
-
-        Examples:
-            >>> manager = LibraryManager(...)
-            >>> result = await manager.install_library(
-            ...     "npm:react@18.0.0",
-            ...     ProjectContext.FRONTEND,
-            ...     user_id="user123"
-            ... )
-            >>> result.success
-            True
-            >>> result.installed_library.name
-            'react'
-        """
         try:
             logger.info(f"Starting installation for URI: {uri} in context: {context.value}")
 
-            # Step 1: Validate library and get metadata
             validation_result = await self.validate_library(uri, context, user_id)
-
             if not validation_result.valid or not validation_result.library:
-                logger.warning(f"Library validation failed: {validation_result.errors}")
                 return InstallationResult(success=False, errors=validation_result.errors)
 
             library_metadata = validation_result.library
             install_version = version or library_metadata.version
 
-            logger.debug(f"Installing {library_metadata.name}@{install_version}")
-
-            # Step 2: Check for dependency conflicts
             try:
-                conflict_analysis = await self.dependency_resolver.check_conflicts(library_metadata, context)
-
-                if conflict_analysis.has_conflicts:
-                    logger.warning(
-                        f"Dependency conflicts detected for {library_metadata.name}: "
-                        f"{len(conflict_analysis.conflicts)} conflicts"
-                    )
-
-                    # For now, we'll proceed with installation but include warnings
-                    # In a production system, you might want to halt installation
-                    # or provide user options to resolve conflicts
-                    conflict_errors = []
-                    for conflict in conflict_analysis.conflicts:
-                        conflict_errors.append(
-                            f"Version conflict: {conflict.package} "
-                            f"(existing: {conflict.existing_version}, "
-                            f"required: {conflict.required_version})"
-                        )
-
-                    if conflict_analysis.circular_dependencies:
-                        conflict_errors.append(
-                            f"Circular dependency detected: {' -> '.join(conflict_analysis.circular_dependencies)}"
-                        )
-
-                    # Include suggestions in errors
-                    conflict_errors.extend(conflict_analysis.suggestions)
-
-                    logger.info("Proceeding with installation despite conflicts")
-
+                await self.dependency_resolver.check_conflicts(library_metadata, context)
             except DependencyResolverError as e:
                 logger.error(f"Dependency analysis failed: {e}")
                 return InstallationResult(success=False, errors=[f"Dependency analysis failed: {str(e)}"])
 
-            # Step 3: Install package
             try:
                 installation_result = await self.package_installer.install(library_metadata, context, install_version)
-
                 if not installation_result.success:
-                    logger.error(f"Package installation failed: {installation_result.errors}")
                     return installation_result
-
-                logger.info("Package installation completed successfully")
-
             except PackageInstallerError as e:
                 logger.error(f"Package installation error: {e}")
                 return InstallationResult(success=False, errors=[f"Installation failed: {str(e)}"])
 
-            # Step 4: Store library metadata in database
             try:
-                if installation_result.installed_library:
-                    # Update the installed library with correct project_id and user
-                    installed_lib = installation_result.installed_library
-                    installed_lib.project_id = project_id
-                    installed_lib.installed_by = user_id or "system"
-
-                    # Save to database
-                    library_id = await self.library_repository.save_library(installed_lib)
-
-                    # Save dependencies if any
-                    if library_metadata.dependencies:
-                        await self.library_repository.save_dependencies(library_id, library_metadata.dependencies)
-
-                    # Update the library ID in the result
-                    installed_lib.id = library_id
-
-                    logger.info(f"Library metadata saved to database with ID: {library_id}")
-
+                installation_result = await self._persist_installation(
+                    installation_result=installation_result,
+                    project_id=project_id,
+                    user_id=user_id,
+                    dependencies=library_metadata.dependencies,
+                )
             except Exception as e:
                 logger.error(f"Failed to save library metadata: {e}")
-                # Installation succeeded but database save failed
-                # This is a partial failure - the package is installed but not tracked
                 return InstallationResult(
                     success=False,
                     installed_library=installation_result.installed_library,
                     errors=["Package installed successfully but failed to save metadata to database", str(e)],
                 )
 
-            # Log installation operation for audit trail
             if user_id:
                 logger.info(
                     "Library installation completed successfully",
@@ -405,7 +273,6 @@ class LibraryManager:
                 )
 
             return installation_result
-
         except Exception as e:
             logger.error(f"Unexpected error during installation: {e}")
             raise InstallationError(f"Library installation failed: {str(e)}")
@@ -413,91 +280,23 @@ class LibraryManager:
     async def search_libraries(
         self, query: str, registry_type: RegistryType | None = None, limit: int = 20
     ) -> list[LibrarySearchResult]:
-        """
-        Search for libraries across package registries.
-
-        This method searches for libraries by name or keywords across
-        supported package registries (npm, PyPI, Maven) using the dedicated
-        SearchService for comprehensive search functionality.
-
-        Args:
-            query: Search query (package name or keywords)
-            registry_type: Optional registry filter (searches all if None)
-            limit: Maximum number of results to return
-
-        Returns:
-            List of LibrarySearchResult objects
-
-        Raises:
-            SearchError: If search fails for any reason
-
-        Examples:
-            >>> manager = LibraryManager(...)
-            >>> results = await manager.search_libraries("react")
-            >>> len(results)
-            20
-            >>> results[0].name
-            'react'
-            >>> results[0].registry_type
-            RegistryType.NPM
-        """
         try:
-            logger.info(f"Searching libraries: query='{query}', registry={registry_type}, limit={limit}")
-
-            # Delegate to SearchService for comprehensive search functionality
             results = await self.search_service.search(query=query, registry_type=registry_type, limit=limit)
-
-            logger.info(f"Search completed: found {len(results)} results for '{query}'")
-
             return results
-
-        except InvalidSearchQueryError as e:
-            logger.warning(f"Invalid search query: {e}")
-            return []  # Return empty results for invalid queries
-        except SearchError as e:
+        except InvalidSearchQueryError:
+            return []
+        except SearchServiceError as e:
             logger.error(f"Search error: {e}")
-            raise e
+            raise SearchError(str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error during search: {e}")
-            raise SearchError(f"Library search failed: {str(e)}")
+            raise SearchError(f"Library search failed: {str(e)}") from e
 
     async def get_installed_libraries(
         self, project_id: str, context: ProjectContext | None = None, user_id: str | None = None
     ) -> list[InstalledLibrary]:
-        """
-        Get installed libraries for a project.
-
-        This method retrieves all libraries installed for a specific project,
-        optionally filtered by project context.
-
-        Args:
-            project_id: Project identifier
-            context: Optional project context filter
-            user_id: Optional user ID for audit logging
-
-        Returns:
-            List of InstalledLibrary objects
-
-        Raises:
-            LibraryManagerError: If retrieval fails
-
-        Examples:
-            >>> manager = LibraryManager(...)
-            >>> libraries = await manager.get_installed_libraries("project123")
-            >>> len(libraries)
-            5
-            >>> libraries[0].name
-            'react'
-        """
         try:
-            logger.info(
-                f"Retrieving installed libraries for project: {project_id}"
-                f"{f', context: {context.value}' if context else ''}"
-            )
-
             libraries = await self.library_repository.get_libraries_by_project(project_id=project_id, context=context)
-
-            # Log retrieval operation for audit trail
             if user_id:
                 logger.info(
                     "Retrieved installed libraries",
@@ -510,11 +309,7 @@ class LibraryManager:
                         "success": True,
                     },
                 )
-
-            logger.info(f"Retrieved {len(libraries)} installed libraries")
-
             return libraries
-
         except Exception as e:
             logger.error(f"Failed to retrieve installed libraries: {e}")
             raise LibraryManagerError(f"Failed to retrieve libraries: {str(e)}")
@@ -522,29 +317,10 @@ class LibraryManager:
     async def get_library_details(
         self, project_id: str, library_name: str, context: ProjectContext, user_id: str | None = None
     ) -> InstalledLibrary | None:
-        """
-        Get details for a specific installed library.
-
-        Args:
-            project_id: Project identifier
-            library_name: Name of the library
-            context: Project context
-            user_id: Optional user ID for audit logging
-
-        Returns:
-            InstalledLibrary object if found, None otherwise
-
-        Raises:
-            LibraryManagerError: If retrieval fails
-        """
         try:
-            logger.debug(f"Getting details for library: {library_name} in {context.value}")
-
             library = await self.library_repository.get_library_by_name(
                 project_id=project_id, name=library_name, context=context
             )
-
-            # Log retrieval operation for audit trail
             if user_id:
                 logger.info(
                     "Retrieved library details",
@@ -558,9 +334,7 @@ class LibraryManager:
                         "success": True,
                     },
                 )
-
             return library
-
         except Exception as e:
             logger.error(f"Failed to retrieve library details: {e}")
             raise LibraryManagerError(f"Failed to retrieve library details: {str(e)}")
@@ -568,70 +342,31 @@ class LibraryManager:
     async def update_library_version(
         self, project_id: str, library_name: str, context: ProjectContext, new_version: str, user_id: str | None = None
     ) -> InstallationResult:
-        """
-        Update an installed library to a new version.
-
-        This method performs a version update by:
-        1. Validating the new version exists
-        2. Checking for conflicts with the new version
-        3. Installing the new version
-        4. Updating the database record
-
-        Args:
-            project_id: Project identifier
-            library_name: Name of the library to update
-            context: Project context
-            new_version: New version to install
-            user_id: Optional user ID for audit logging
-
-        Returns:
-            InstallationResult with update status
-
-        Raises:
-            LibraryManagerError: If update fails
-        """
         try:
-            logger.info(f"Updating library {library_name} to version {new_version}")
-
-            # Get current library details
             current_library = await self.library_repository.get_library_by_name(
                 project_id=project_id, name=library_name, context=context
             )
-
             if not current_library:
                 return InstallationResult(
                     success=False, errors=[f"Library {library_name} not found in {context.value} context"]
                 )
 
-            # Create URI for the new version
             uri = f"{current_library.registry_type.value}:{library_name}@{new_version}"
-
-            # Install the new version (this will overwrite the existing installation)
             result = await self.install_library(
                 uri=uri, context=context, version=new_version, user_id=user_id, project_id=project_id
             )
 
             if result.success and current_library.id:
-                # Update the database record with new version
                 await self.library_repository.update_library_version(
-                    library_id=current_library.id, new_version=new_version
+                    library_id=current_library.id,
+                    new_version=new_version,
                 )
-
-                logger.info(f"Successfully updated {library_name} to version {new_version}")
-
             return result
-
         except Exception as e:
             logger.error(f"Failed to update library version: {e}")
             raise LibraryManagerError(f"Failed to update library: {str(e)}")
 
     async def close(self):
-        """
-        Close resources and cleanup.
-
-        This method should be called when the LibraryManager is no longer needed
-        to properly close HTTP clients and other resources.
-        """
         try:
             if self.metadata_fetcher:
                 await self.metadata_fetcher.close()
@@ -642,9 +377,7 @@ class LibraryManager:
             logger.error(f"Error closing LibraryManager resources: {e}")
 
     async def __aenter__(self):
-        """Async context manager entry"""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit"""
         await self.close()

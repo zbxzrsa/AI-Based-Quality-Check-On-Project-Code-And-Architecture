@@ -48,6 +48,47 @@ def _sanitize_log_input(value: str, max_length: int = 200) -> str:
     return sanitized
 
 
+def _mask_uri(uri: str) -> str:
+    """Mask URI values for safe logging."""
+    if len(uri) <= 10:
+        return "***"
+    return f"{uri[:4]}...{uri[-4:]}"
+
+
+def _parse_registry_type(registry: str | None) -> RegistryType | None:
+    """Parse optional registry query parameter into RegistryType enum."""
+    if not registry:
+        return None
+
+    mapping = {
+        "npm": RegistryType.NPM,
+        "pypi": RegistryType.PYPI,
+        "maven": RegistryType.MAVEN,
+    }
+    return mapping.get(registry.lower())
+
+
+def _installation_status_code(errors: list[str] | None) -> int:
+    """Infer HTTP status code from installation error content."""
+    if not errors:
+        return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    error_text = " ".join(errors).lower()
+    if any(
+        keyword in error_text
+        for keyword in ["invalid uri", "not found", "validation failed", "invalid format", "unsupported", "malformed"]
+    ):
+        return status.HTTP_400_BAD_REQUEST
+
+    if any(
+        keyword in error_text
+        for keyword in ["conflict", "version conflict", "circular dependency", "already installed", "incompatible"]
+    ):
+        return status.HTTP_409_CONFLICT
+
+    return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
 router = APIRouter()
 
 
@@ -83,7 +124,7 @@ async def validate_library(
     """
     try:
         # Use a safe version for logging to avoid sensitive data exposure
-        masked_uri = f"{request.uri[:4]}...{request.uri[-4:]}" if len(request.uri) > 10 else "***"
+        masked_uri = _mask_uri(request.uri)
         logger.info(
             f"Validating library URI: {masked_uri}",
             extra={
@@ -172,7 +213,7 @@ async def install_library(
     Validates Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4
     """
     try:
-        masked_uri = f"{request.uri[:4]}...{request.uri[-4:]}" if len(request.uri) > 10 else "***"
+        masked_uri = _mask_uri(request.uri)
         logger.info(
             f"Installing library URI: {masked_uri} in context: {request.project_context.value}",
             extra={
@@ -231,42 +272,7 @@ async def install_library(
                 },
             )
 
-            # Determine appropriate HTTP status code based on error type
-            if installation_result.errors:
-                error_text = " ".join(installation_result.errors).lower()
-
-                # Check for validation errors (400)
-                if any(
-                    keyword in error_text
-                    for keyword in [
-                        "invalid uri",
-                        "not found",
-                        "validation failed",
-                        "invalid format",
-                        "unsupported",
-                        "malformed",
-                    ]
-                ):
-                    status_code = status.HTTP_400_BAD_REQUEST
-
-                # Check for conflict errors (409)
-                elif any(
-                    keyword in error_text
-                    for keyword in [
-                        "conflict",
-                        "version conflict",
-                        "circular dependency",
-                        "already installed",
-                        "incompatible",
-                    ]
-                ):
-                    status_code = status.HTTP_409_CONFLICT
-
-                # Default to 500 for installation failures
-                else:
-                    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            else:
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code = _installation_status_code(installation_result.errors)
 
             return JSONResponse(status_code=status_code, content=response.model_dump())
 
@@ -312,33 +318,24 @@ async def search_libraries(
             },
         )
 
-        # Validate and convert registry parameter to RegistryType enum
-        registry_type = None
-        if registry:
-            registry_lower = registry.lower()
-            if registry_lower == "npm":
-                registry_type = RegistryType.NPM
-            elif registry_lower == "pypi":
-                registry_type = RegistryType.PYPI
-            elif registry_lower == "maven":
-                registry_type = RegistryType.MAVEN
-            else:
-                logger.warning(
-                    f"Invalid registry type: {registry}",
-                    extra={
-                        "user_id": str(current_user.id),
-                        "operation": "search_libraries_endpoint",
-                        "invalid_registry": registry,
-                    },
-                )
-                return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={
-                        "results": [],
-                        "total": 0,
-                        "error": f"Invalid registry type: {registry}. Supported types: npm, pypi, maven",
-                    },
-                )
+        registry_type = _parse_registry_type(registry)
+        if registry and registry_type is None:
+            logger.warning(
+                f"Invalid registry type: {registry}",
+                extra={
+                    "user_id": str(current_user.id),
+                    "operation": "search_libraries_endpoint",
+                    "invalid_registry": registry,
+                },
+            )
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "results": [],
+                    "total": 0,
+                    "error": f"Invalid registry type: {registry}. Supported types: npm, pypi, maven",
+                },
+            )
 
         # Call LibraryManager to search libraries (limit to 20 as per requirements)
         search_results = await library_manager.search_libraries(query=q, registry_type=registry_type, limit=20)
