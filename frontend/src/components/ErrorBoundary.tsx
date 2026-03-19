@@ -1,13 +1,13 @@
 /**
- * ErrorBoundarycomponent
+ * ErrorBoundary Component
  * 
- * feature:
- * - 捕获Reactcomponent树中的error
- * - show降级UI
- * - integrationErrorMonitor上报error
- * - provide"重新load"and"report问题"feature
+ * Features:
+ * - Captures errors in React component tree
+ * - Shows fallback UI
+ * - Integrates with ErrorMonitor for error reporting
+ * - Provides "reload" and "report issue" functionality
  * 
- * verifyRequirement: 1.3
+ * Verification Requirement: 1.3
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -27,8 +27,8 @@ interface ErrorBoundaryState {
 }
 
 /**
- * ErrorBoundaryclasscomponent
- * 捕获子component树中的JavaScripterror，recorderror并show降级UI
+ * ErrorBoundary class component
+ * Catches JavaScript errors in child component tree, records error, and shows fallback UI
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * 当子component抛出error时调用
+   * Called when a child component throws an error
    */
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
@@ -51,15 +51,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * 捕获error并上报到监控service
+   * Captures error and reports to monitoring service
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // updatestatus以containerrorInfo
+    // Update state to contain errorInfo
     this.setState({
       errorInfo,
     });
 
-    // 上报到ErrorMonitor
+    // Report to ErrorMonitor
     try {
       const errorMonitor = getErrorMonitor();
       errorMonitor.captureError(error, {
@@ -72,12 +72,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         },
       });
     } catch (monitorError) {
-      // 如果ErrorMonitor未初始化或出错，至少output到控制台
+      // If ErrorMonitor is not initialized or fails, at least output to console
       console.error('Failed to report error to ErrorMonitor:', monitorError);
       console.error('Original error:', error, errorInfo);
     }
 
-    // 调用自定义errorhandle器
+    // Call custom error handler
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo);
@@ -88,7 +88,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * reseterrorstatus，尝试重新render
+   * Reset error state and try to re-render
    */
   handleReset = (): void => {
     this.setState({
@@ -97,7 +97,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo: null,
     });
 
-    // 调用自定义resethandle器
+    // Call custom reset handler
     if (this.props.onReset) {
       try {
         this.props.onReset();
@@ -108,19 +108,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   /**
-   * 重新load页面
+   * Reload the page
    */
   handleReload = (): void => {
     window.location.reload();
   };
 
   /**
-   * report问题（open反馈form或邮件）
+   * Report issue (open feedback form or email)
    */
   handleReportIssue = (): void => {
     const { error, errorInfo } = this.state;
     
-    // 构建问题reportcontent
+    // Build issue report content
     const issueBody = encodeURIComponent(
       `## Error Report\n\n` +
       `**Error Message:** ${error?.message || 'Unknown error'}\n\n` +
@@ -131,11 +131,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       `**Timestamp:** ${new Date().toISOString()}\n`
     );
 
-    // 在实际应用中，这里可以：
-    // 1. open内部问题跟踪system
-    // 2. 发送到support邮箱
-    // 3. open反馈form
-    // 这里usemailto作为示例
+    // In a real application, this could:
+    // 1. Open internal issue tracking system
+    // 2. Send to support email
+    // 3. Open feedback form
+    // Here we use mailto as an example
     const mailtoLink = `mailto:support@example.com?subject=${encodeURIComponent('Error Report')}&body=${issueBody}`;
     window.location.href = mailtoLink;
   };
@@ -145,12 +145,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const { children, fallback } = this.props;
 
     if (hasError && error) {
-      // 如果provide了自定义fallback，use它
+      // If custom fallback is provided, use it
       if (fallback && errorInfo) {
         return fallback(error, errorInfo, this.handleReset);
       }
 
-      // 默认降级UI
+      // Default fallback UI
       return (
         <div
           style={{

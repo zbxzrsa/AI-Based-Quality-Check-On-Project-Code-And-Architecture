@@ -1,13 +1,13 @@
 /**
- * PullRequests页面component
+ * PullRequests Page Component
  * 
- * feature:
- * - 展示Pull Request列表
- * - integrationCodeDiffcomponentshowcode差异
- * - supportviewPRdetailandcode变更
- * - useErrorBoundary包裹
+ * Features:
+ * - Display Pull Request list
+ * - Integrate CodeDiff component to show code differences
+ * - Support viewing PR details and code changes
+ * - Wrapped with ErrorBoundary
  * 
- * verifyRequirement: 3.1
+ * Verification Requirement: 3.1
  */
 
 'use client';
@@ -22,7 +22,7 @@ import type { Comment } from '../components/CodeDiff';
 import '../styles/responsive.css';
 
 /**
- * PullRequests页面主component
+ * PullRequests Page Main Component
  */
 export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs = [] }) => {
   const [pullRequests, setPullRequests] = useState<PullRequest[]>(initialPRs);

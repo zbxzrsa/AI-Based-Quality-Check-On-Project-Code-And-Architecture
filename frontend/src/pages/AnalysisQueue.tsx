@@ -1,13 +1,13 @@
 /**
- * AnalysisQueue页面component
+ * AnalysisQueue Page Component
  * 
- * feature:
- * - 展示analyzetaskqueue
- * - useVirtualListsupport50+task的高性能render
- * - showtaskstatus、进度and优先级
- * - supporttask优先级调整and手动操作
+ * Features:
+ * - Display analysis task queue
+ * - Use VirtualList to support high-performance rendering of 50+ tasks
+ * - Show task status, progress, and priority
+ * - Support task priority adjustment and manual operations
  * 
- * verifyRequirement: 5.5
+ * Verification Requirement: 5.5
  */
 
 import React, { Component } from 'react';
