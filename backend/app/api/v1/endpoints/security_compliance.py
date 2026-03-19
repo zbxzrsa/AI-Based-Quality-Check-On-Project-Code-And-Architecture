@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.core.dependencies import get_security_compliance_service
+from app.api.dependencies import get_security_compliance_service
 from app.schemas.security_models import ComplianceReport
 from app.services.security_compliance_service import SecurityComplianceService
 

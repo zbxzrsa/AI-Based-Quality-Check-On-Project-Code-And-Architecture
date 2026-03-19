@@ -7,12 +7,22 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_security_audit_service
+from app.core.config import settings
+from app.database.neo4j_db import get_neo4j_driver
 from app.models.user import User
 from app.schemas.security_models import ProjectQualityMetrics, SecurityScanResult
 from app.services.security_audit_service import SecurityAuditService
 
 router = APIRouter(prefix="/security-audit", tags=["Security Audit"], dependencies=[Depends(get_current_user)])
+
+
+async def _execute_neo4j_query(query: str, params: dict) -> list[dict]:
+    """Execute read-only Neo4j query with shared connection handling."""
+    driver = await get_neo4j_driver()
+    async with driver.session(database=settings.NEO4J_DATABASE) as session:
+        result = await session.run(query, params)
+        return await result.data()
 
 
 @router.post("/audit-log", response_model=dict)
@@ -28,6 +38,7 @@ async def create_audit_log(
     compliance_framework: str | None = None,
     regulatory_requirements: list[str] | None = None,
     current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
 ):
     """
     Create an audit log entry for security and compliance events
@@ -45,8 +56,6 @@ async def create_audit_log(
         regulatory_requirements: Regulatory requirements addressed
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         audit_id = await service.create_audit_log_entry(
             project_id=project_id,
@@ -70,7 +79,11 @@ async def create_audit_log(
 
 @router.post("/scan-results", response_model=dict)
 async def store_scan_results(
-    project_id: str, commit_sha: str, scan_result: SecurityScanResult, current_user: User = Depends(get_current_user)
+    project_id: str,
+    commit_sha: str,
+    scan_result: SecurityScanResult,
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
 ):
     """
     Store comprehensive security scan results and create audit log
@@ -81,8 +94,6 @@ async def store_scan_results(
         scan_result: Complete security scan results
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         audit_id = await service.store_security_scan_result(
             project_id=project_id,
@@ -105,7 +116,11 @@ async def store_scan_results(
 
 
 @router.get("/quality-metrics/{project_id}", response_model=ProjectQualityMetrics)
-async def get_quality_metrics(project_id: str, current_user: User = Depends(get_current_user)):
+async def get_quality_metrics(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
+):
     """
     Get project quality metrics based on recent security scans
 
@@ -113,8 +128,6 @@ async def get_quality_metrics(project_id: str, current_user: User = Depends(get_
         project_id: Project identifier
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         metrics = await service.get_project_quality_metrics(project_id)
         return metrics
@@ -123,7 +136,11 @@ async def get_quality_metrics(project_id: str, current_user: User = Depends(get_
 
 
 @router.get("/quality-grade/{project_id}", response_model=dict)
-async def get_quality_grade(project_id: str, current_user: User = Depends(get_current_user)):
+async def get_quality_grade(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
+):
     """
     Get quality grade and metrics for dashboard display
 
@@ -131,8 +148,6 @@ async def get_quality_grade(project_id: str, current_user: User = Depends(get_cu
         project_id: Project identifier
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         grade_data = await service.get_quality_grade_for_dashboard(project_id)
         return grade_data
@@ -149,6 +164,7 @@ async def get_audit_trail(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
 ):
     """
     Get audit trail for a project with filtering options
@@ -162,8 +178,6 @@ async def get_audit_trail(
         end_date: Filter to this date
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         audit_trail = await service.get_audit_trail(
             project_id=project_id,
@@ -180,7 +194,10 @@ async def get_audit_trail(
 
 @router.get("/compliance-report/{project_id}", response_model=dict)
 async def get_compliance_report(
-    project_id: str, days_back: int = Query(30, ge=1, le=365), current_user: User = Depends(get_current_user)
+    project_id: str,
+    days_back: int = Query(30, ge=1, le=365),
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
 ):
     """
     Generate a comprehensive security compliance report
@@ -190,8 +207,6 @@ async def get_compliance_report(
         days_back: Number of days to look back
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         report = await service.get_security_compliance_report(project_id=project_id, days_back=days_back)
         return report
@@ -200,7 +215,11 @@ async def get_compliance_report(
 
 
 @router.get("/scan-summary/{project_id}", response_model=dict)
-async def get_scan_summary(project_id: str, current_user: User = Depends(get_current_user)):
+async def get_scan_summary(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
+):
     """
     Get summary of recent security scans for a project
 
@@ -208,8 +227,6 @@ async def get_scan_summary(project_id: str, current_user: User = Depends(get_cur
         project_id: Project identifier
         current_user: Current authenticated user
     """
-    service = SecurityAuditService()
-
     try:
         # Get recent scan data
         recent_scan_query = """
@@ -222,13 +239,7 @@ async def get_scan_summary(project_id: str, current_user: User = Depends(get_cur
         LIMIT 5
         """
 
-        from app.core.config import settings
-        from app.database.neo4j_db import get_neo4j_driver
-
-        driver = await get_neo4j_driver()
-        async with driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(recent_scan_query, {"projectId": project_id})
-            records = await result.data()
+        records = await _execute_neo4j_query(recent_scan_query, {"projectId": project_id})
 
         # Process scan summary
         scan_summary = []
@@ -275,7 +286,11 @@ async def get_scan_summary(project_id: str, current_user: User = Depends(get_cur
 
 
 @router.get("/tools/{project_id}", response_model=list[str])
-async def get_used_tools(project_id: str, current_user: User = Depends(get_current_user)):
+async def get_used_tools(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    service: SecurityAuditService = Depends(get_security_audit_service),
+):
     """
     Get list of security scanning tools used for a project
 
@@ -283,7 +298,7 @@ async def get_used_tools(project_id: str, current_user: User = Depends(get_curre
         project_id: Project identifier
         current_user: Current authenticated user
     """
-    SecurityAuditService()
+    _ = service
 
     try:
         # Query to get distinct tools used
@@ -295,13 +310,7 @@ async def get_used_tools(project_id: str, current_user: User = Depends(get_curre
         ORDER BY tool
         """
 
-        from app.core.config import settings
-        from app.database.neo4j_db import get_neo4j_driver
-
-        driver = await get_neo4j_driver()
-        async with driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(cypher_query, {"projectId": project_id})
-            records = await result.data()
+        records = await _execute_neo4j_query(cypher_query, {"projectId": project_id})
 
         tools = [record.get("tool") for record in records if record.get("tool")]
         return tools

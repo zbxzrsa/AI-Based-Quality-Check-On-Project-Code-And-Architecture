@@ -15,6 +15,8 @@ from app.database.postgresql import get_db
 from app.domain.services import ICacheService, IGitHubService, IGraphService, ILLMService
 from app.infrastructure.container import DIContainer, get_container
 from app.models import User, UserRole
+from app.services.security_compliance_service import SecurityComplianceService
+from app.services.security_audit_service import SecurityAuditService
 from app.utils.jwt import verify_token
 
 # HTTP Bearer token security scheme
@@ -201,6 +203,16 @@ def get_graph_service(container: DIContainer = Depends(get_container)) -> IGraph
         return container.resolve(IGraphService)
     except KeyError:
         raise HTTPException(status_code=500, detail="Graph service not configured")
+
+
+def get_security_audit_service() -> SecurityAuditService:
+    """Dependency to get security audit service."""
+    return SecurityAuditService()
+
+
+def get_security_compliance_service() -> SecurityComplianceService:
+    """Dependency to get security compliance service."""
+    return SecurityComplianceService()
 
 
 def require_services(*service_types):

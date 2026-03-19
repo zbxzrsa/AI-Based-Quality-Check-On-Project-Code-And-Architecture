@@ -25,3 +25,16 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 - Lower coupling: manager logic targets a repository protocol, not a concrete class.
 - Better testability: workflow methods can be unit-tested with mocked protocol implementations.
 - Better evolvability: storage implementation can be swapped with minimal changes.
+
+## Additional API Decoupling (Round 2)
+
+1. Unified security service dependency providers in `app/api/dependencies.py`:
+- `get_security_audit_service()`
+- `get_security_compliance_service()`
+
+2. Reduced endpoint-level infrastructure coupling:
+- `security_audit.py` now uses DI-provided services instead of directly constructing service objects per endpoint.
+- Reused a shared Neo4j query helper (`_execute_neo4j_query`) to avoid duplicated connection/session boilerplate.
+
+3. Fixed invalid dependency imports:
+- Replaced `app.core.dependencies` imports with `app.api.dependencies` in security endpoints.
