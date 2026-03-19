@@ -5,18 +5,21 @@ Provides code review feature using user-configured API key.
 """
 
 import re
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, status
 from pydantic import BaseModel, Field, validator
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import TokenPayload, get_current_user
 from app.database.postgresql import get_db
-from app.models.code_review import PullRequest
+from app.models.code_review import CodeReview, PullRequest, ReviewComment
 from app.services.ai_pr_reviewer_service import AIReviewService, ReviewRequest
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # API version constant
 API_VERSION = "1.0.0"
@@ -26,6 +29,36 @@ def is_valid_uuid(uuid_string: str) -> bool:
     """Verify UUID format."""
     uuid_pattern = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
     return bool(uuid_pattern.match(uuid_string))
+
+
+def _parse_uuid_or_422(raw_id: str) -> UUID:
+    """Parse UUID and return 422 with consistent error message on failure."""
+    if not is_valid_uuid(raw_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {raw_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        )
+    try:
+        return UUID(raw_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {raw_id}",
+        )
+
+
+def _to_comment_model(comment: ReviewComment) -> "CodeReviewComment":
+    """Convert ReviewComment ORM record to API response model."""
+    return CodeReviewComment(
+        id=str(comment.id),
+        file_path=comment.file_path or "unknown",
+        line_number=comment.line_number or 1,
+        severity=comment.severity or "info",
+        category=comment.category or "general",
+        message=comment.message or "",
+        suggestion=comment.suggested_fix,
+        code_snippet=None,
+    )
 
 
 class TriggerReviewRequest(BaseModel):
@@ -86,15 +119,7 @@ async def trigger_code_review(
     """
     # Input validation is completed in Pydantic model
 
-    # Get PR info
-    from sqlalchemy import select
-
-    try:
-        pr_uuid = UUID(request.pr_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid UUID format: {request.pr_id}"
-        )
+    pr_uuid = _parse_uuid_or_422(request.pr_id)
 
     result = await db.execute(select(PullRequest).filter(PullRequest.id == pr_uuid))
     pr = result.scalar_one_or_none()
@@ -187,21 +212,7 @@ async def get_review_status(
         HTTPException 422: Invalid UUID format
         HTTPException 404: Pull request not found
     """
-    # Input validation: verify UUID format (Requirement 3.6)
-    if not is_valid_uuid(pr_id):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid UUID format: {pr_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        )
-
-    try:
-        pr_uuid = UUID(pr_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid UUID format: {pr_id}")
-
-    from sqlalchemy import select
-
-    from app.models.code_review import CodeReview
+    pr_uuid = _parse_uuid_or_422(pr_id)
 
     try:
         # Get latest review record
@@ -318,23 +329,7 @@ async def get_code_review(
         HTTPException 404: Code review not found
         HTTPException 403: No permission to access
     """
-    # Input validation: verify UUID format (Requirement 3.6)
-    if not is_valid_uuid(review_id):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid UUID format: {review_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        )
-
-    try:
-        review_uuid = UUID(review_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid UUID format: {review_id}"
-        )
-
-    from sqlalchemy import select
-
-    from app.models.code_review import CodeReview, ReviewComment
+    review_uuid = _parse_uuid_or_422(review_id)
 
     try:
         # Query code review
@@ -365,18 +360,7 @@ async def get_code_review(
         categories_set = set()
 
         for comment in comments:
-            comment_list.append(
-                CodeReviewComment(
-                    id=str(comment.id),
-                    file_path=comment.file_path or "unknown",
-                    line_number=comment.line_number or 1,
-                    severity=comment.severity or "info",
-                    category=comment.category or "general",
-                    message=comment.message or "",
-                    suggestion=comment.suggested_fix,
-                    code_snippet=None,  # Can be extracted from file
-                )
-            )
+            comment_list.append(_to_comment_model(comment))
 
             # Count severity
             severity = (comment.severity or "info").lower()
@@ -461,12 +445,7 @@ async def get_review_comments(
         HTTPException 422: Invalid UUID format or parameter
         HTTPException 404: Code review not found
     """
-    # Input validation: verify UUID format (Requirement 3.6)
-    if not is_valid_uuid(review_id):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid UUID format: {review_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        )
+    review_uuid = _parse_uuid_or_422(review_id)
 
     # Verify severity parameter
     if severity:
@@ -476,17 +455,6 @@ async def get_review_comments(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid severity: {severity}. Must be one of {valid_severities}",
             )
-
-    try:
-        review_uuid = UUID(review_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid UUID format: {review_id}"
-        )
-
-    from sqlalchemy import select
-
-    from app.models.code_review import CodeReview, ReviewComment
 
     try:
         # Verify review exists
@@ -514,18 +482,7 @@ async def get_review_comments(
         # Build comment list
         comment_list = []
         for comment in comments:
-            comment_list.append(
-                CodeReviewComment(
-                    id=str(comment.id),
-                    file_path=comment.file_path or "unknown",
-                    line_number=comment.line_number or 1,
-                    severity=comment.severity or "info",
-                    category=comment.category or "general",
-                    message=comment.message or "",
-                    suggestion=comment.suggested_fix,
-                    code_snippet=None,
-                )
-            )
+            comment_list.append(_to_comment_model(comment))
 
         return comment_list
 
@@ -536,8 +493,3 @@ async def get_review_comments(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get review comments: {str(e)}"
         )
-
-
-import logging
-
-logger = logging.getLogger(__name__)

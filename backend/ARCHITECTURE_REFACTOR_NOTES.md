@@ -93,3 +93,16 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Improved resilience:
 - Login now consistently uses safe client IP extraction helper (`get_client_ip`).
+
+## Additional Code Review Endpoint Refactor (Round 7)
+
+1. Consolidated repeated endpoint logic in `code_review.py`:
+- Added `_parse_uuid_or_422()` for centralized UUID parsing/validation.
+- Added `_to_comment_model()` for unified comment response mapping.
+
+2. Reduced local import and drift issues:
+- Moved repeated function-local imports to module scope.
+- Removed duplicate logger definition at file end.
+
+3. Maintained API behavior while reducing complexity:
+- Trigger/status/detail/comments endpoints now share validation and serialization helpers.
