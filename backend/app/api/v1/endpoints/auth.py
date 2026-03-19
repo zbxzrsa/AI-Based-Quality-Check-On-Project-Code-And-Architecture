@@ -43,13 +43,78 @@ from app.schemas.auth import Message, PasswordChange, TokenRefresh, TokenRespons
 from app.services.account_lockout_service import AccountLockoutService
 from app.services.redis_cache_service import get_cache_service
 from app.utils.error_sanitizer import get_generic_auth_error
-from app.utils.jwt import create_access_token, create_refresh_token, verify_token
+from app.utils.jwt import create_access_token, create_refresh_token, decode_token, is_token_revoked, revoke_token, verify_token
 from app.utils.password import hash_password, validate_password_strength, verify_password
 
 logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+async def _get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    """Fetch user by email."""
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalar_one_or_none()
+
+
+async def _get_user_by_id(db: AsyncSession, user_id: str | None) -> User | None:
+    """Fetch user by id."""
+    if not user_id:
+        return None
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def _log_auth_failure(
+    db: AsyncSession,
+    *,
+    email: str,
+    client_ip: str,
+    user_agent: str | None,
+    reason: str,
+    user_id: str | None = None,
+) -> None:
+    """Log authentication failure in unified way."""
+    await AuditService.log_auth_failure(
+        db=db,
+        email=email,
+        ip_address=client_ip,
+        user_agent=user_agent,
+        failure_reason=reason,
+        user_id=user_id,
+    )
+
+
+async def _store_refresh_metadata(user_id: str, refresh_token: str) -> None:
+    """Store refresh token metadata in Redis with matching TTL."""
+    payload = decode_token(refresh_token)
+    if not payload:
+        return
+
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti or not exp:
+        return
+
+    from app.database.redis_db import get_redis
+
+    redis_client = await get_redis()
+    refresh_metadata = {
+        "user_id": user_id,
+        "jti": jti,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat(),
+    }
+
+    ttl_seconds = exp - int(datetime.now(timezone.utc).timestamp())
+    if ttl_seconds <= 0:
+        return
+
+    import json
+
+    await redis_client.set(f"refresh_token:{jti}", json.dumps(refresh_metadata), ex=ttl_seconds)
+    logger.info(f"Stored refresh token metadata for user {user_id}, JTI: {jti}")
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -68,9 +133,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_message)
 
     # Check if user already exists
-    stmt = select(User).where(User.email == user_data.email)
-    result = await db.execute(stmt)
-    existing_user = result.scalar_one_or_none()
+    existing_user = await _get_user_by_email(db, user_data.email)
 
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -109,7 +172,8 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
     """
     # Rate limiting check
     cache = await get_cache_service()
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("User-Agent")
     allowed, remaining = await cache.check_rate_limit(client_ip, "login", max_requests=5, window=60)
 
     if not allowed:
@@ -118,24 +182,21 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
         )
 
     # Find user
-    stmt = select(User).where(User.email == credentials.email)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = await _get_user_by_email(db, credentials.email)
 
     # Check account lockout first (if user exists)
     if user:
-        cache = await get_cache_service()
         lockout_service = AccountLockoutService(cache.redis)
         is_locked, unlock_time = await lockout_service.is_account_locked(user.id)
 
         if is_locked:
             logger.warning(f"Login attempt for locked account: {credentials.email}")
-            await AuditService.log_auth_failure(
-                db=db,
+            await _log_auth_failure(
+                db,
                 email=credentials.email,
-                ip_address=client_ip,
-                user_agent=request.headers.get("User-Agent"),
-                failure_reason="Account locked",
+                client_ip=client_ip,
+                user_agent=user_agent,
+                reason="Account locked",
                 user_id=user.id,
             )
 
@@ -151,28 +212,27 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
 
         # Record failed attempt if user exists
         if user:
-            cache = await get_cache_service()
             lockout_service = AccountLockoutService(cache.redis)
             should_lock, lockout_time = await lockout_service.record_failed_attempt(user.id)
 
             if should_lock:
                 # Log account lockout
-                await AuditService.log_auth_failure(
-                    db=db,
+                await _log_auth_failure(
+                    db,
                     email=credentials.email,
-                    ip_address=client_ip,
-                    user_agent=request.headers.get("User-Agent"),
-                    failure_reason="Account locked due to too many failed attempts",
+                    client_ip=client_ip,
+                    user_agent=user_agent,
+                    reason="Account locked due to too many failed attempts",
                     user_id=user.id,
                 )
 
         # Log authentication failure to audit log (Requirement 8.8)
-        await AuditService.log_auth_failure(
-            db=db,
+        await _log_auth_failure(
+            db,
             email=credentials.email,
-            ip_address=client_ip,
-            user_agent=request.headers.get("User-Agent"),
-            failure_reason="Invalid credentials",
+            client_ip=client_ip,
+            user_agent=user_agent,
+            reason="Invalid credentials",
             user_id=user.id if user else None,
         )
 
@@ -187,12 +247,12 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
         logger.warning(f"Login attempt for inactive account: {credentials.email}")
 
         # Log authentication failure to audit log (Requirement 8.8)
-        await AuditService.log_auth_failure(
-            db=db,
+        await _log_auth_failure(
+            db,
             email=credentials.email,
-            ip_address=client_ip,
-            user_agent=request.headers.get("User-Agent"),
-            failure_reason="Account inactive",
+            client_ip=client_ip,
+            user_agent=user_agent,
+            reason="Account inactive",
             user_id=user.id,
         )
 
@@ -276,8 +336,6 @@ async def refresh_token(token_data: TokenRefresh, request: Request, db: AsyncSes
     # Check if refresh token has been revoked (Requirement 5.1)
     old_jti = payload.get("jti")
     if old_jti:
-        from app.utils.jwt import is_token_revoked
-
         if await is_token_revoked(old_jti):
             logger.warning(f"Attempted reuse of revoked refresh token: {old_jti}")
 
@@ -300,10 +358,7 @@ async def refresh_token(token_data: TokenRefresh, request: Request, db: AsyncSes
 
     user_id = payload.get("sub")
 
-    # Get user
-    stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = await _get_user_by_id(db, user_id)
 
     if not user or not user.is_active:
         # Log token refresh failure (Requirement 8.8)
@@ -321,8 +376,6 @@ async def refresh_token(token_data: TokenRefresh, request: Request, db: AsyncSes
     # Invalidate old refresh token (rotation) atomically before issuing new ones (Requirement 5.2)
     # This mitigates concurrent refresh race conditions
     if old_jti:
-        from app.utils.jwt import revoke_token
-
         old_exp = payload.get("exp")
         if old_exp:
             old_expires_at = datetime.fromtimestamp(old_exp, tz=timezone.utc)
@@ -352,33 +405,7 @@ async def refresh_token(token_data: TokenRefresh, request: Request, db: AsyncSes
     new_refresh_token = create_refresh_token({"sub": str(user.id)})
 
     # Store new refresh token metadata in Redis (Requirement 5.5)
-    # Decode the new refresh token to get its JTI and expiration
-    from app.utils.jwt import decode_token
-
-    new_payload = decode_token(new_refresh_token)
-    if new_payload:
-        new_jti = new_payload.get("jti")
-        new_exp = new_payload.get("exp")
-
-        if new_jti and new_exp:
-            from app.database.redis_db import get_redis
-
-            redis_client = await get_redis()
-
-            refresh_metadata = {
-                "user_id": str(user.id),
-                "jti": new_jti,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "expires_at": datetime.fromtimestamp(new_exp, tz=timezone.utc).isoformat(),
-            }
-
-            # Store with TTL matching token expiration (7 days default)
-            ttl_seconds = new_exp - int(datetime.now(timezone.utc).timestamp())
-            if ttl_seconds > 0:
-                import json
-
-                await redis_client.set(f"refresh_token:{new_jti}", json.dumps(refresh_metadata), ex=ttl_seconds)
-                logger.info(f"Stored refresh token metadata for user {user.id}, JTI: {new_jti}")
+    await _store_refresh_metadata(str(user.id), new_refresh_token)
 
     logger.info(f"Successfully refreshed tokens for user {user.id}")
 

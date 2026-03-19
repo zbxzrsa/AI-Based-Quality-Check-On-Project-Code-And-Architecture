@@ -77,3 +77,19 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Improved safety in architecture-analysis query flow:
 - Replaced generator-based `IN` filter input with explicit PR id list handling and empty-list guard.
+
+## Additional Auth Refactor (Round 6)
+
+1. Consolidated auth endpoint workflow helpers in `auth.py`:
+- `_get_user_by_email()`
+- `_get_user_by_id()`
+- `_log_auth_failure()`
+- `_store_refresh_metadata()`
+
+2. Reduced endpoint coupling and duplication:
+- Reused one cache instance in login flow instead of repeated service retrieval.
+- Unified audit failure logging call structure.
+- Centralized refresh token metadata persistence logic.
+
+3. Improved resilience:
+- Login now consistently uses safe client IP extraction helper (`get_client_ip`).
