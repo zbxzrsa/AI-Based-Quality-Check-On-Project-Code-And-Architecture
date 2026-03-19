@@ -22,17 +22,21 @@ class Role(str, Enum):
     ADMIN = "ADMIN"  # Full system control
     USER = "USER"  # Default non-admin role
 
-    # Backward-compatible aliases used by older data and clients.
-    MANAGER = "USER"
-    REVIEWER = "USER"
-    PROGRAMMER = "USER"
-    DEVELOPER = "USER"
-    COMPLIANCE_OFFICER = "USER"
-    VISITOR = "USER"
+    # Backward-compatible legacy values retained for stored data compatibility.
+    MANAGER = "MANAGER"
+    REVIEWER = "REVIEWER"
+    PROGRAMMER = "PROGRAMMER"
+    DEVELOPER = "DEVELOPER"
+    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"
+    VISITOR = "VISITOR"
 
     # Lowercase aliases used by parts of backend tests/legacy code.
     admin = "ADMIN"
     user = "USER"
+
+    def effective(self) -> "Role":
+        """Normalize any legacy role to the effective ADMIN/USER model."""
+        return Role.ADMIN if self == Role.ADMIN else Role.USER
 
 
 class Permission(str, Enum):

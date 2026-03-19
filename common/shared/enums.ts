@@ -12,14 +12,17 @@
 export enum Role {
   ADMIN = 'ADMIN',                    // Full system control
   USER = 'USER',                      // Default non-admin role
-  // Backward-compatible aliases (legacy roles now map to USER)
-  MANAGER = 'USER',
-  REVIEWER = 'USER',
-  PROGRAMMER = 'USER',
-  DEVELOPER = 'USER',
-  COMPLIANCE_OFFICER = 'USER',
-  VISITOR = 'USER',
+  // Backward-compatible legacy values retained for payload/data compatibility
+  MANAGER = 'MANAGER',
+  REVIEWER = 'REVIEWER',
+  PROGRAMMER = 'PROGRAMMER',
+  DEVELOPER = 'DEVELOPER',
+  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',
+  VISITOR = 'VISITOR',
 }
+
+export const toEffectiveRole = (role: Role | string): Role.ADMIN | Role.USER =>
+  role === Role.ADMIN ? Role.ADMIN : Role.USER;
 
 export enum Permission {
   // User Management
