@@ -18,6 +18,37 @@ from app.tasks.pull_request_analysis import analyze_pull_request_sync
 router = APIRouter()
 
 
+async def _get_project_pr_or_404(db: AsyncSession, project_id: str, pr_id: str) -> PullRequest:
+    """Fetch PR by project and id, or raise 404."""
+    stmt = select(PullRequest).where(PullRequest.id == pr_id, PullRequest.project_id == project_id)
+    result = await db.execute(stmt)
+    pr = result.scalar_one_or_none()
+    if not pr:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
+    return pr
+
+
+def _build_task_status_response(task_id: str, task_result: AsyncResult) -> dict:
+    """Map Celery status into consistent API response."""
+    response = {"task_id": task_id, "status": task_result.status}
+    if task_result.status == "PENDING":
+        response["result"] = None
+        response["error"] = None
+    elif task_result.status == "SUCCESS":
+        response["result"] = task_result.result
+        response["error"] = None
+    elif task_result.status == "FAILURE":
+        response["result"] = None
+        response["error"] = str(task_result.info)
+    elif task_result.status == "RETRY":
+        response["result"] = None
+        response["error"] = "Task is retrying"
+    else:
+        response["result"] = None
+        response["error"] = None
+    return response
+
+
 @router.post("/projects/{project_id}/analyze")
 async def analyze_pull_request_endpoint(
     project_id: str,
@@ -42,13 +73,7 @@ async def analyze_pull_request_endpoint(
         "message": "PR analysis queued and will begin shortly"
     }
     """
-    # Verify PR exists and belongs to project
-    stmt = select(PullRequest).where(PullRequest.id == pr_id, PullRequest.project_id == project_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
+    await _get_project_pr_or_404(db, project_id, pr_id)
 
     # Queue async task
     task_result = analyze_pull_request_sync(pr_id, project_id)
@@ -71,25 +96,7 @@ async def get_analysis_status(task_id: str, current_user: User = Depends(get_cur
     """
     task_result = AsyncResult(task_id, app=celery_app)
 
-    response = {
-        "task_id": task_id,
-        "status": task_result.status,
-    }
-
-    if task_result.status == "PENDING":
-        response["result"] = None
-        response["error"] = None
-    elif task_result.status == "SUCCESS":
-        response["result"] = task_result.result
-        response["error"] = None
-    elif task_result.status == "FAILURE":
-        response["result"] = None
-        response["error"] = str(task_result.info)
-    elif task_result.status == "RETRY":
-        response["result"] = None
-        response["error"] = "Task is retrying"
-
-    return response
+    return _build_task_status_response(task_id, task_result)
 
 
 @router.post("/projects/{project_id}/pull-requests/{pr_id}/reanalyze")
@@ -107,13 +114,7 @@ async def reanalyze_pull_request(
 
     Returns task info with task_id
     """
-    # Verify PR exists
-    stmt = select(PullRequest).where(PullRequest.id == pr_id, PullRequest.project_id == project_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
+    await _get_project_pr_or_404(db, project_id, pr_id)
 
     # Queue new analysis task
     task_result = analyze_pull_request_sync(pr_id, project_id)

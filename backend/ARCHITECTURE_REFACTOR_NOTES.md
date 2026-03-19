@@ -106,3 +106,13 @@ This refactor establishes a cleaner boundary for library-management workflows wi
 
 3. Maintained API behavior while reducing complexity:
 - Trigger/status/detail/comments endpoints now share validation and serialization helpers.
+
+## Additional Pull Request Endpoint Refactor (Round 8)
+
+1. Added endpoint-level reusable helpers in `pull_request.py`:
+- `_get_project_pr_or_404()`
+- `_build_task_status_response()`
+
+2. Reduced duplicate query and response mapping logic:
+- Reused shared PR lookup in both analyze/reanalyze paths.
+- Centralized Celery task status response shaping.
