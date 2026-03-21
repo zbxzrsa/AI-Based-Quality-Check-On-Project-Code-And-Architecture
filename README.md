@@ -215,9 +215,6 @@ docker-compose up -d --build
 ### 清理缓存
 
 ```bash
-# 自动清理脚本
-python scripts/clean_cache.py
-
 # 手动清理
 rm -rf .mypy_cache backend/.mypy_cache
 rm -rf .ruff_cache backend/.ruff_cache

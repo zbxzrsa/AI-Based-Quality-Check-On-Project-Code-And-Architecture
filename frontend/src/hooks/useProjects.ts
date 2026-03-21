@@ -36,6 +36,19 @@ export interface PullRequest {
   analyzed_at: string | null;
 }
 
+interface ProjectPullRequestsResponse {
+  project_id: string;
+  total: number;
+  pull_requests: Array<{
+    id: string;
+    number: number;
+    title: string;
+    status: string;
+    risk_score: number | null;
+    created_at: string;
+  }>;
+}
+
 export interface ProjectMetrics {
   code_quality: number;
   security_rating: number;
@@ -133,9 +146,26 @@ export function useProjectPullRequests(projectId: string, state: string = 'all')
   return useQuery({
     queryKey: ['projects', projectId, 'pulls', state],
     queryFn: async () => {
-      return apiClient.get(`/github/projects/${projectId}/pulls`, {
+      const response = await apiClient.get<ProjectPullRequestsResponse>(`/github/projects/${projectId}/pulls`, {
         params: { state },
       });
+
+      return response.pull_requests.map((pr) => ({
+        id: pr.id,
+        project_id: response.project_id,
+        github_pr_number: pr.number,
+        title: pr.title,
+        description: null,
+        branch_name: 'unknown',
+        commit_sha: '',
+        status: pr.status,
+        risk_score: pr.risk_score,
+        files_changed: 0,
+        lines_added: 0,
+        lines_deleted: 0,
+        created_at: pr.created_at,
+        analyzed_at: null,
+      })) satisfies PullRequest[];
     },
     enabled: !!projectId,
   });

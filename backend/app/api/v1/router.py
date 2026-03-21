@@ -4,7 +4,7 @@ API v1 router configuration
 
 from fastapi import APIRouter
 
-from app.api.v1 import repositories
+from app.api.v1 import performance, repositories
 from app.api.v1.endpoints import (
     analyze,
     architecture,
@@ -20,10 +20,14 @@ from app.api.v1.endpoints import (
     metrics,
     monitoring,
     project_analytics,
+    project_invitations,
     pull_request,
     rbac_audit,
     rbac_projects,
     rbac_users,
+    security_audit,
+    security_compliance,
+    tasks,
     user_data,
     user_settings,
     webhooks,
@@ -74,3 +78,16 @@ api_router.include_router(errors.router, tags=["Error Reporting"])
 
 # Monitoring endpoints
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring"])
+
+# Project invitation and membership endpoints
+api_router.include_router(project_invitations.router, tags=["Project Invitations"])
+
+# Background task monitoring endpoints
+api_router.include_router(tasks.router, tags=["Task Monitoring"])
+
+# Security audit and compliance endpoints
+api_router.include_router(security_audit.router, tags=["Security Audit"])
+api_router.include_router(security_compliance.router, tags=["Security Compliance"])
+
+# Performance monitoring and optimization endpoints
+api_router.include_router(performance.router, tags=["Performance"])

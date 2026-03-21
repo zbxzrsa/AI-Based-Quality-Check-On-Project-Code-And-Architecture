@@ -76,7 +76,7 @@ requests>=2.28.0
 
 ### 1. Clone the Script
 
-The AI self-healing script is located at `scripts/ai_self_healing.py`.
+The AI self-healing script is located at `tools/ai_self_healing.py`.
 
 ### 2. Configure GitHub Actions
 
@@ -88,7 +88,7 @@ The system is pre-integrated into your CI/CD workflow (`.github/workflows/ci-cd.
   run: |
       echo "🤖 Running AI Self-Healing Analysis..."
       cd backend
-      python ../scripts/ai_self_healing.py --analyze-failure --pr-number ${{ github.event.number }}
+      python ../tools/ai_self_healing.py --analyze-failure --pr-number ${{ github.event.number }}
   env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
@@ -104,7 +104,7 @@ Analyze a specific PR's latest failure:
 
 ```bash
 cd backend
-python ../scripts/ai_self_healing.py --analyze-failure --pr-number 123
+python ../tools/ai_self_healing.py --analyze-failure --pr-number 123
 ```
 
 ### Analyze Specific Jobs
@@ -112,7 +112,7 @@ python ../scripts/ai_self_healing.py --analyze-failure --pr-number 123
 Target specific job names:
 
 ```bash
-python scripts/ai_self_healing.py --analyze-failure --job-names "Backend Tests" "Critical Security Checks"
+python tools/ai_self_healing.py --analyze-failure --job-names "Backend Tests" "Critical Security Checks"
 ```
 
 ### Debug Mode
@@ -120,7 +120,7 @@ python scripts/ai_self_healing.py --analyze-failure --job-names "Backend Tests" 
 Analyze a specific workflow run without posting:
 
 ```bash
-python scripts/ai_self_healing.py --workflow-run-id 456789012
+python tools/ai_self_healing.py --workflow-run-id 456789012
 ```
 
 ## 📊 Supported Failure Types
@@ -308,7 +308,7 @@ curl -H "Authorization: token YOUR_TOKEN" \
 # Test full pipeline locally
 export GITHUB_TOKEN=test_token
 export DRY_RUN=true
-python scripts/ai_self_healing.py --analyze-failure --pr-number 1
+python tools/ai_self_healing.py --analyze-failure --pr-number 1
 ```
 
 ## 🔒 Security Considerations
@@ -414,7 +414,7 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
 
 1. **Set up Ollama**: `ollama pull qwen2.5-coder && ollama serve`
 2. **Configure secrets**: Add `GITHUB_TOKEN`, `OLLAMA_URL`, `OLLAMA_MODEL`
-3. **Test locally**: `python scripts/ai_self_healing.py --dry-run --analyze-failure`
+3. **Test locally**: `python tools/ai_self_healing.py --dry-run --analyze-failure`
 4. **Deploy**: Push to trigger CI/CD integration
 5. **Monitor**: Check PR comments on failures
 

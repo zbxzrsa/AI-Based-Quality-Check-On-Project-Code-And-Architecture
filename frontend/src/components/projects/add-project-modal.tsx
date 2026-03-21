@@ -204,6 +204,8 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
       await createProject.mutateAsync({
         name: data.name,
         description: data.description || undefined,
+        github_repo_url: data.github_repo_url,
+        language: selectedRepo?.language || undefined,
       })
       
       toast({
@@ -283,7 +285,9 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
                   variant="ghost" 
                   size="sm" 
                   onClick={() => {
-                    setGithubConnected(false)
+                    setGithubUsername(null)
+                    setRepositories([])
+                    setSelectedRepo(null)
                     setStep('github')
                   }}
                 >

@@ -10,6 +10,7 @@ This guide explains how to clean up test data, placeholder content, and false in
 
 ```bash
 # From project root
+cd backend
 python scripts/cleanup_test_data.py
 ```
 
@@ -221,6 +222,7 @@ docker-compose up -d postgres redis neo4j
 sleep 10
 
 # Run cleanup again
+cd backend
 python scripts/cleanup_test_data.py
 ```
 

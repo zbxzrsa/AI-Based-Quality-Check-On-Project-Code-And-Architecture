@@ -1,377 +1,345 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/main-layout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import CodeDiffViewer from '@/components/reviews/code-diff-viewer';
-import ReviewCommentCard, {
-  ReviewComment,
-} from '@/components/reviews/review-comment-card';
-import CommentFiltersComponent, {
-  CommentFilters,
-} from '@/components/reviews/comment-filters';
+import ReviewCommentCard, { ReviewComment } from '@/components/reviews/review-comment-card';
+import CommentFiltersComponent, { CommentFilters } from '@/components/reviews/comment-filters';
 import ComplianceStatus from '@/components/reviews/compliance-status';
 import {
-  GitPullRequest,
-  ExternalLink,
-  FileCode,
-  GitCommit,
-  User,
+  AlertCircle,
   Calendar,
   CheckCircle2,
-  XCircle,
-  AlertCircle,
+  FileCode,
+  GitCommit,
+  GitPullRequest,
   Info,
+  RefreshCw,
+  User,
+  XCircle,
 } from 'lucide-react';
+
+type ReviewStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+type CommentStatus = 'open' | 'resolved' | 'wont_fix';
+
+interface ReviewApiResponse {
+  review_id: string;
+  status: ReviewStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  summary?: {
+    total_issues?: number;
+    severity_counts?: Record<string, number>;
+  } | null;
+  comments: Array<{
+    id: string;
+    file_path: string;
+    line_number: number | null;
+    message: string;
+    severity: string;
+    category: string | null;
+    suggested_fix?: string | null;
+    rule_id?: string | null;
+    rule_name?: string | null;
+  }>;
+}
+
+interface PullFilesApiResponse {
+  pr_id: string;
+  pr_number: number;
+  files: Array<{
+    filename: string;
+    status: 'added' | 'modified' | 'deleted' | 'renamed';
+    additions: number;
+    deletions: number;
+    changes: number;
+    diff?: {
+      lines?: Array<{
+        line_number?: number | null;
+        old_line_number?: number | null;
+        new_line_number?: number | null;
+        type?: 'add' | 'remove' | 'context' | 'header';
+        content?: string;
+      }>;
+    };
+  }>;
+}
+
+interface PullRequestReviewData {
+  reviewId: string;
+  prId: string;
+  prNumber: number;
+  status: ReviewStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+  summary: ReviewApiResponse['summary'];
+  files: PullFilesApiResponse['files'];
+  comments: ReviewComment[];
+}
+
+const normalizeSeverity = (severity: string | null | undefined): ReviewComment['severity'] => {
+  switch ((severity || '').toLowerCase()) {
+    case 'critical':
+      return 'critical';
+    case 'high':
+      return 'high';
+    case 'medium':
+      return 'medium';
+    default:
+      return 'low';
+  }
+};
+
+const getStatusBadgeVariant = (status: ReviewStatus) => {
+  switch (status) {
+    case 'completed':
+      return 'default';
+    case 'in_progress':
+      return 'secondary';
+    case 'failed':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+};
+
+const getStatusIcon = (status: ReviewStatus) => {
+  switch (status) {
+    case 'completed':
+      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case 'failed':
+      return <XCircle className="h-4 w-4 text-red-600" />;
+    case 'in_progress':
+      return <RefreshCw className="h-4 w-4 text-blue-600" />;
+    default:
+      return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+  }
+};
+
+const formatReviewComments = (comments: ReviewApiResponse['comments']): ReviewComment[] =>
+  comments.map((comment) => ({
+    id: comment.id,
+    severity: normalizeSeverity(comment.severity),
+    category: comment.category || 'general',
+    message: comment.message,
+    filename: comment.file_path,
+    lineNumber: comment.line_number || 1,
+    suggestedFix: comment.suggested_fix || undefined,
+    reasoning: comment.rule_name || comment.rule_id || undefined,
+    status: 'open',
+  }));
+
+const toViewerFiles = (files: PullFilesApiResponse['files']) =>
+  files.map((file) => ({
+    filename: file.filename,
+    status: file.status,
+    additions: file.additions,
+    deletions: file.deletions,
+    lines: (file.diff?.lines || []).map((line, index) => ({
+      lineNumber: line.new_line_number ?? line.old_line_number ?? index + 1,
+      oldLineNumber: line.old_line_number ?? null,
+      newLineNumber: line.new_line_number ?? null,
+      type: line.type || 'context',
+      content: line.content || '',
+    })),
+  }));
 
 export default function PullRequestReviewPage() {
   const params = useParams();
-  const [isLoading] = useState(false);
+  const router = useRouter();
+  const prId = (params?.id as string) || '';
+
+  const [reviewData, setReviewData] = useState<PullRequestReviewData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [commentFilters, setCommentFilters] = useState<CommentFilters>({
     severity: [],
     category: [],
     status: [],
   });
+  const [commentStatuses, setCommentStatuses] = useState<Record<string, CommentStatus>>({});
 
-  // Mock data - replace with actual API call
-  const prData = {
-    id: params?.id,
-    number: 123,
-    title: 'Add user authentication with JWT tokens',
-    status: 'in_review',
-    author: 'john.doe',
-    createdAt: '2026-01-15T10:30:00Z',
-    githubUrl: 'https://github.com/example/repo/pull/123',
-    filesChanged: 12,
-    additions: 245,
-    deletions: 89,
-    reviewers: ['jane.smith', 'bob.wilson'],
-    labels: ['feature', 'security'],
-    overallScore: 85,
-    issuesBySeverity: {
-      critical: 1,
-      high: 3,
-      medium: 8,
-      low: 12,
-    },
-    complianceStatus: {
-      iso25010: 'passed',
-      iso23396: 'warning',
-    },
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  // Mock diff data
-  const mockDiffFiles = [
-    {
-      filename: 'src/auth/jwt.ts',
-      status: 'added' as const,
-      additions: 85,
-      deletions: 0,
-      lines: [
-        {
-          lineNumber: 1,
-          oldLineNumber: null,
-          newLineNumber: 1,
-          type: 'add' as const,
-          content: "import jwt from 'jsonwebtoken';",
-        },
-        {
-          lineNumber: 2,
-          oldLineNumber: null,
-          newLineNumber: 2,
-          type: 'add' as const,
-          content: "import { User } from '../types';",
-        },
-        {
-          lineNumber: 3,
-          oldLineNumber: null,
-          newLineNumber: 3,
-          type: 'add' as const,
-          content: '',
-        },
-        {
-          lineNumber: 4,
-          oldLineNumber: null,
-          newLineNumber: 4,
-          type: 'add' as const,
-          content: 'export function generateToken(user: User): string {',
-        },
-        {
-          lineNumber: 5,
-          oldLineNumber: null,
-          newLineNumber: 5,
-          type: 'add' as const,
-          content: '  return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET);',
-        },
-        {
-          lineNumber: 6,
-          oldLineNumber: null,
-          newLineNumber: 6,
-          type: 'add' as const,
-          content: '}',
-        },
-      ],
-    },
-    {
-      filename: 'src/middleware/auth.ts',
-      status: 'modified' as const,
-      additions: 15,
-      deletions: 8,
-      lines: [
-        {
-          lineNumber: 1,
-          oldLineNumber: 1,
-          newLineNumber: 1,
-          type: 'context' as const,
-          content: "import { Request, Response, NextFunction } from 'express';",
-        },
-        {
-          lineNumber: 2,
-          oldLineNumber: 2,
-          newLineNumber: null,
-          type: 'remove' as const,
-          content: "import { verifySession } from './session';",
-        },
-        {
-          lineNumber: 3,
-          oldLineNumber: null,
-          newLineNumber: 2,
-          type: 'add' as const,
-          content: "import { verifyToken } from '../auth/jwt';",
-        },
-        {
-          lineNumber: 4,
-          oldLineNumber: 3,
-          newLineNumber: 3,
-          type: 'context' as const,
-          content: '',
-        },
-        {
-          lineNumber: 5,
-          oldLineNumber: 4,
-          newLineNumber: 4,
-          type: 'context' as const,
-          content: 'export async function authenticate(req: Request, res: Response, next: NextFunction) {',
-        },
-        {
-          lineNumber: 6,
-          oldLineNumber: 5,
-          newLineNumber: null,
-          type: 'remove' as const,
-          content: '  const session = await verifySession(req.cookies.session);',
-        },
-        {
-          lineNumber: 7,
-          oldLineNumber: null,
-          newLineNumber: 5,
-          type: 'add' as const,
-          content: '  const token = req.headers.authorization?.split(" ")[1];',
-        },
-        {
-          lineNumber: 8,
-          oldLineNumber: null,
-          newLineNumber: 6,
-          type: 'add' as const,
-          content: '  if (!token) return res.status(401).json({ error: "No token provided" });',
-        },
-        {
-          lineNumber: 9,
-          oldLineNumber: null,
-          newLineNumber: 7,
-          type: 'add' as const,
-          content: '  const user = await verifyToken(token);',
-        },
-      ],
-    },
-    {
-      filename: 'src/routes/auth.ts',
-      status: 'modified' as const,
-      additions: 45,
-      deletions: 12,
-      lines: [
-        {
-          lineNumber: 1,
-          oldLineNumber: 1,
-          newLineNumber: 1,
-          type: 'context' as const,
-          content: "import express from 'express';",
-        },
-        {
-          lineNumber: 2,
-          oldLineNumber: 2,
-          newLineNumber: 2,
-          type: 'context' as const,
-          content: "import { login, register } from '../controllers/auth';",
-        },
-        {
-          lineNumber: 3,
-          oldLineNumber: null,
-          newLineNumber: 3,
-          type: 'add' as const,
-          content: "import { authenticate } from '../middleware/auth';",
-        },
-      ],
-    },
-  ];
+    const loadReview = async () => {
+      if (!prId) {
+        setError('Missing pull request identifier');
+        setIsLoading(false);
+        return;
+      }
 
-  // Mock review comments
-  const mockComments: ReviewComment[] = [
-    {
-      id: '1',
-      severity: 'critical',
-      category: 'security',
-      message: 'JWT secret should not be hardcoded or exposed in environment variables without proper encryption',
-      filename: 'src/auth/jwt.ts',
-      lineNumber: 5,
-      codeSnippet: "  return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET);",
-      suggestedFix: "  const secret = await getEncryptedSecret('JWT_SECRET');\n  return jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '1h' });",
-      reasoning: 'Storing JWT secrets in plain environment variables is a security risk. Use a secure secret management service like AWS Secrets Manager or HashiCorp Vault. Additionally, tokens should have an expiration time to limit the impact of token theft.',
-      status: 'open',
-    },
-    {
-      id: '2',
-      severity: 'high',
-      category: 'security',
-      message: 'Missing token expiration validation',
-      filename: 'src/middleware/auth.ts',
-      lineNumber: 7,
-      codeSnippet: '  const user = await verifyToken(token);',
-      suggestedFix: '  try {\n    const user = await verifyToken(token);\n    if (!user || user.exp < Date.now() / 1000) {\n      return res.status(401).json({ error: "Token expired" });\n    }\n  } catch (error) {\n    return res.status(401).json({ error: "Invalid token" });\n  }',
-      reasoning: 'The current implementation does not check if the token has expired. This could allow attackers to use old tokens indefinitely. Always validate token expiration and handle verification errors properly.',
-      status: 'open',
-    },
-    {
-      id: '3',
-      severity: 'medium',
-      category: 'best-practices',
-      message: 'Consider using async/await consistently',
-      filename: 'src/routes/auth.ts',
-      lineNumber: 3,
-      codeSnippet: "import { authenticate } from '../middleware/auth';",
-      reasoning: 'The codebase uses a mix of promises and async/await. For consistency and better error handling, consider using async/await throughout the authentication flow.',
-      status: 'open',
-    },
-    {
-      id: '4',
-      severity: 'low',
-      category: 'documentation',
-      message: 'Missing JSDoc comments for public functions',
-      filename: 'src/auth/jwt.ts',
-      lineNumber: 4,
-      codeSnippet: 'export function generateToken(user: User): string {',
-      suggestedFix: '/**\n * Generates a JWT token for the authenticated user\n * @param user - The user object containing id and email\n * @returns A signed JWT token string\n */\nexport function generateToken(user: User): string {',
-      reasoning: 'Public API functions should have JSDoc comments to improve code maintainability and provide better IDE support.',
-      status: 'open',
-    },
-  ];
+      setIsLoading(true);
+      setError(null);
 
-  // Filter comments based on active filters
+      try {
+        const [reviewResponse, filesResponse] = await Promise.all([
+          fetch(`/api/github/pr/${prId}/review`, { credentials: 'include' }),
+          fetch(`/api/github/pulls/${prId}/files`, { credentials: 'include' }),
+        ]);
+
+        if (!reviewResponse.ok) {
+          const reviewError = await reviewResponse.json().catch(() => ({ detail: 'Failed to load review' }));
+          throw new Error(reviewError.detail || 'Failed to load review');
+        }
+
+        if (!filesResponse.ok) {
+          const filesError = await filesResponse.json().catch(() => ({ detail: 'Failed to load pull request files' }));
+          throw new Error(filesError.detail || 'Failed to load pull request files');
+        }
+
+        const review = (await reviewResponse.json()) as ReviewApiResponse;
+        const files = (await filesResponse.json()) as PullFilesApiResponse;
+
+        if (cancelled) {
+          return;
+        }
+
+        setReviewData({
+          reviewId: review.review_id,
+          prId,
+          prNumber: files.pr_number,
+          status: review.status,
+          startedAt: review.started_at,
+          completedAt: review.completed_at,
+          summary: review.summary || null,
+          files: files.files,
+          comments: formatReviewComments(review.comments),
+        });
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : 'Failed to load review details');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadReview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [prId]);
+
+  const comments = useMemo(() => {
+    if (!reviewData) {
+      return [];
+    }
+
+    return reviewData.comments.map((comment) => ({
+      ...comment,
+      status: commentStatuses[comment.id] || comment.status,
+    }));
+  }, [commentStatuses, reviewData]);
+
   const filteredComments = useMemo(() => {
-    return mockComments.filter((comment) => {
-      // Severity filter
-      if (
-        commentFilters.severity.length > 0 &&
-        !commentFilters.severity.includes(comment.severity)
-      ) {
+    return comments.filter((comment) => {
+      if (commentFilters.severity.length > 0 && !commentFilters.severity.includes(comment.severity)) {
         return false;
       }
 
-      // Category filter
-      if (
-        commentFilters.category.length > 0 &&
-        !commentFilters.category.includes(comment.category)
-      ) {
+      if (commentFilters.category.length > 0 && !commentFilters.category.includes(comment.category)) {
         return false;
       }
 
-      // Status filter
-      if (
-        commentFilters.status.length > 0 &&
-        !commentFilters.status.includes(comment.status)
-      ) {
+      if (commentFilters.status.length > 0 && !commentFilters.status.includes(comment.status)) {
         return false;
       }
 
       return true;
     });
-  }, [commentFilters]);
+  }, [commentFilters, comments]);
 
-  // Get unique categories from comments
-  const availableCategories = useMemo(() => {
-    return Array.from(new Set(mockComments.map((c) => c.category)));
-  }, [mockComments]);
+  const availableCategories = useMemo(
+    () => Array.from(new Set(comments.map((comment) => comment.category))).sort(),
+    [comments]
+  );
 
-  // Mock compliance data
-  const complianceData = {
-    iso25010: {
-      name: 'ISO/IEC 25010',
-      status: 'passed' as const,
-      score: 92,
-      violations: [],
-    },
-    iso23396: {
-      name: 'ISO/IEC 23396',
-      status: 'warning' as const,
-      score: 78,
-      violations: [
-        {
-          id: 'v1',
-          rule: 'Layered Architecture',
-          description:
-            'Business logic detected in presentation layer. Maintain clear separation of concerns.',
-          severity: 'medium' as const,
-          affectedFiles: ['src/components/UserProfile.tsx'],
-        },
-        {
-          id: 'v2',
-          rule: 'Dependency Direction',
-          description:
-            'Data layer component depends on presentation layer. Dependencies should flow inward.',
-          severity: 'high' as const,
-          affectedFiles: ['src/database/UserRepository.ts'],
-        },
-      ],
-    },
-  };
+  const severityCounts = useMemo(() => {
+    const counts = { critical: 0, high: 0, medium: 0, low: 0 };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'bg-green-500';
-      case 'in_review':
-        return 'bg-yellow-500';
-      case 'changes_requested':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
+    comments.forEach((comment) => {
+      counts[comment.severity] += 1;
+    });
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'Approved';
-      case 'in_review':
-        return 'In Review';
-      case 'changes_requested':
-        return 'Changes Requested';
-      default:
-        return 'Pending';
-    }
+    return counts;
+  }, [comments]);
+
+  const complianceData = useMemo(() => {
+    const violations = comments
+      .filter((comment) => comment.severity === 'critical' || comment.severity === 'high')
+      .slice(0, 5)
+      .map((comment) => ({
+        id: comment.id,
+        rule: comment.category,
+        description: comment.message,
+        severity: comment.severity,
+        affectedFiles: [comment.filename],
+      }));
+
+    const issueCount = comments.length;
+    const highSeverityCount = severityCounts.critical + severityCounts.high;
+
+    return {
+      iso25010: {
+        name: 'ISO/IEC 25010',
+        status: highSeverityCount > 0 ? 'warning' as const : 'passed' as const,
+        score: Math.max(0, 100 - issueCount * 5),
+        violations,
+      },
+      iso23396: {
+        name: 'ISO/IEC 23396',
+        status: severityCounts.critical > 0 ? 'failed' as const : highSeverityCount > 0 ? 'warning' as const : 'passed' as const,
+        score: Math.max(0, 100 - highSeverityCount * 10 - severityCounts.medium * 4),
+        violations,
+      },
+    };
+  }, [comments, severityCounts]);
+
+  const viewerFiles = useMemo(() => toViewerFiles(reviewData?.files || []), [reviewData?.files]);
+
+  const updateCommentStatus = (commentId: string, status: CommentStatus) => {
+    setCommentStatuses((current) => ({ ...current, [commentId]: status }));
   };
 
   if (isLoading) {
     return (
       <MainLayout>
         <div className="space-y-6">
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-10 w-1/2" />
+          <Skeleton className="h-40 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
+      </MainLayout>
+    );
+  }
+
+  if (error || !reviewData) {
+    return (
+      <MainLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Unable to load review</CardTitle>
+            <CardDescription>{error || 'This pull request does not have a review yet.'}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-3">
+            <Button variant="outline" onClick={() => router.back()}>
+              Back
+            </Button>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </MainLayout>
     );
   }
@@ -379,314 +347,201 @@ export default function PullRequestReviewPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header Section */}
-        <Card className="p-6">
-          <div className="space-y-4">
-            {/* Title and Status */}
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <GitPullRequest className="h-6 w-6 text-muted-foreground" />
-                  <h1 className="text-2xl font-bold">
-                    {prData.title}
-                    <span className="text-muted-foreground ml-2">
-                      #{prData.number}
-                    </span>
-                  </h1>
-                </div>
-                <Badge className={getStatusColor(prData.status)}>
-                  {getStatusLabel(prData.status)}
-                </Badge>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href={prData.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View on GitHub
-                </a>
-              </Button>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <GitPullRequest className="h-4 w-4" />
+              <span>Pull Request Review</span>
             </div>
-
-            {/* Metadata */}
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span>
-                  <span className="font-medium text-foreground">
-                    {prData.author}
-                  </span>{' '}
-                  opened this pull request
+            <h1 className="text-3xl font-semibold">PR #{reviewData.prNumber}</h1>
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                {getStatusIcon(reviewData.status)}
+                Review {reviewData.status.replace('_', ' ')}
+              </span>
+              {reviewData.startedAt && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Started {new Date(reviewData.startedAt).toLocaleString()}
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {new Date(prData.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
+              )}
+              {reviewData.completedAt && (
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Completed {new Date(reviewData.completedAt).toLocaleString()}
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FileCode className="h-4 w-4" />
-                <span>
-                  {prData.filesChanged} files changed
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <GitCommit className="h-4 w-4" />
-                <span className="text-green-600">
-                  +{prData.additions}
-                </span>
-                <span className="text-red-600">
-                  -{prData.deletions}
-                </span>
-              </div>
-            </div>
-
-            {/* Reviewers and Labels */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Reviewers:</span>
-                <div className="flex gap-2">
-                  {prData.reviewers.map((reviewer) => (
-                    <Badge key={reviewer} variant="secondary">
-                      {reviewer}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Labels:</span>
-                <div className="flex gap-2">
-                  {prData.labels.map((label) => (
-                    <Badge key={label} variant="outline">
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
-        </Card>
 
-        {/* Main Content Area with Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-3 space-y-6">
-            <Tabs defaultValue="review" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="review">AI Review</TabsTrigger>
-                <TabsTrigger value="diff">Code Changes</TabsTrigger>
-                <TabsTrigger value="compliance">Compliance</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="review" className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                  {/* Filters Sidebar */}
-                  <div className="lg:col-span-1">
-                    <Card className="p-4 sticky top-4">
-                      <CommentFiltersComponent
-                        filters={commentFilters}
-                        onFiltersChange={setCommentFilters}
-                        availableCategories={availableCategories}
-                      />
-                    </Card>
-                  </div>
-
-                  {/* Comments List */}
-                  <div className="lg:col-span-3 space-y-4">
-                    {filteredComments.length === 0 ? (
-                      <Card className="p-6">
-                        <p className="text-center text-muted-foreground">
-                          No comments match the selected filters.
-                        </p>
-                      </Card>
-                    ) : (
-                      filteredComments.map((comment) => (
-                        <ReviewCommentCard
-                          key={comment.id}
-                          comment={comment}
-                          onResolve={() => {
-                            console.log('Resolve comment:', comment.id);
-                          }}
-                          onWontFix={() => {
-                            console.log("Won't fix comment:", comment.id);
-                          }}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="diff" className="space-y-4">
-                <CodeDiffViewer
-                  files={mockDiffFiles}
-                  onLineClick={(filename, lineNumber) => {
-                    console.log(`Clicked line ${lineNumber} in ${filename}`);
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="compliance" className="space-y-4">
-                <ComplianceStatus
-                  iso25010={complianceData.iso25010}
-                  iso23396={complianceData.iso23396}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Summary Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Overall Score */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Overall Score</h3>
-              <div className="flex items-center justify-center">
-                <div className="relative w-32 h-32">
-                  <svg className="w-full h-full" viewBox="0 0 100 100">
-                    <circle
-                      className="text-muted stroke-current"
-                      strokeWidth="10"
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                    />
-                    <circle
-                      className="text-primary stroke-current"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      strokeDasharray={`${prData.overallScore * 2.51} 251`}
-                      transform="rotate(-90 50 50)"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold">
-                      {prData.overallScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                Code Quality Score
-              </p>
-            </Card>
-
-            {/* Issues by Severity */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Issues by Severity</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm">Critical</span>
-                  </div>
-                  <Badge variant="destructive">
-                    {prData.issuesBySeverity.critical}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm">High</span>
-                  </div>
-                  <Badge className="bg-orange-500">
-                    {prData.issuesBySeverity.high}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm">Medium</span>
-                  </div>
-                  <Badge className="bg-yellow-500">
-                    {prData.issuesBySeverity.medium}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">Low</span>
-                  </div>
-                  <Badge className="bg-blue-500">
-                    {prData.issuesBySeverity.low}
-                  </Badge>
-                </div>
-              </div>
-            </Card>
-
-            {/* Compliance Status */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Compliance Status</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">ISO/IEC 25010</span>
-                  <Badge
-                    className={
-                      prData.complianceStatus.iso25010 === 'passed'
-                        ? 'bg-green-500'
-                        : 'bg-yellow-500'
-                    }
-                  >
-                    {prData.complianceStatus.iso25010 === 'passed' ? (
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                    ) : (
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                    )}
-                    {prData.complianceStatus.iso25010}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">ISO/IEC 23396</span>
-                  <Badge
-                    className={
-                      prData.complianceStatus.iso23396 === 'passed'
-                        ? 'bg-green-500'
-                        : 'bg-yellow-500'
-                    }
-                  >
-                    {prData.complianceStatus.iso23396 === 'passed' ? (
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                    ) : (
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                    )}
-                    {prData.complianceStatus.iso23396}
-                  </Badge>
-                </div>
-              </div>
-            </Card>
-
-            {/* Action Buttons */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Actions</h3>
-              <div className="space-y-2">
-                <Button className="w-full" variant="default">
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Approve PR
-                </Button>
-                <Button className="w-full" variant="destructive">
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Request Changes
-                </Button>
-                <Button className="w-full" variant="outline">
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Add Comment
-                </Button>
-              </div>
-            </Card>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={getStatusBadgeVariant(reviewData.status)}>
+              {reviewData.status.replace('_', ' ')}
+            </Badge>
+            <Badge variant="outline">Review ID {reviewData.reviewId}</Badge>
+            <Button variant="outline" onClick={() => router.back()}>
+              Back
+            </Button>
           </div>
         </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription>Total Findings</CardDescription>
+              <CardTitle>{comments.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription>Files Changed</CardDescription>
+              <CardTitle>{viewerFiles.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription>High Severity</CardDescription>
+              <CardTitle>{severityCounts.critical + severityCounts.high}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardDescription>Medium and Low</CardDescription>
+              <CardTitle>{severityCounts.medium + severityCounts.low}</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="comments" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="comments">Findings</TabsTrigger>
+            <TabsTrigger value="changes">Code Changes</TabsTrigger>
+            <TabsTrigger value="compliance">Compliance</TabsTrigger>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="comments" className="space-y-4">
+            <CommentFiltersComponent
+              filters={commentFilters}
+              onFiltersChange={setCommentFilters}
+              availableCategories={availableCategories}
+            />
+
+            {filteredComments.length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12 text-muted-foreground">
+                  No findings match the current filters.
+                </CardContent>
+              </Card>
+            ) : (
+              filteredComments.map((comment) => (
+                <ReviewCommentCard
+                  key={comment.id}
+                  comment={comment}
+                  onResolve={() => updateCommentStatus(comment.id, 'resolved')}
+                  onWontFix={() => updateCommentStatus(comment.id, 'wont_fix')}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="changes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Changed Files</CardTitle>
+                <CardDescription>Unified and split diff views for the reviewed pull request</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {viewerFiles.length > 0 ? (
+                  <CodeDiffViewer files={viewerFiles} />
+                ) : (
+                  <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    <FileCode className="mr-2 h-4 w-4" />
+                    No diff data available for this pull request.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="compliance">
+            <ComplianceStatus
+              iso25010={complianceData.iso25010}
+              iso23396={complianceData.iso23396}
+            />
+          </TabsContent>
+
+          <TabsContent value="summary">
+            <Card>
+              <CardHeader>
+                <CardTitle>Review Summary</CardTitle>
+                <CardDescription>Overview of the automated review results</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border p-4">
+                    <div className="mb-2 flex items-center gap-2 font-medium">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      Severity breakdown
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>Critical</span>
+                        <span>{severityCounts.critical}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>High</span>
+                        <span>{severityCounts.high}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Medium</span>
+                        <span>{severityCounts.medium}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Low</span>
+                        <span>{severityCounts.low}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <div className="mb-2 flex items-center gap-2 font-medium">
+                      <GitCommit className="h-4 w-4 text-purple-600" />
+                      Review metadata
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>Review status</span>
+                        <span>{reviewData.status}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Tracked files</span>
+                        <span>{viewerFiles.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Total issues</span>
+                        <span>{reviewData.summary?.total_issues ?? comments.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>PR identifier</span>
+                        <span>{reviewData.prId}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                  <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
+                    <User className="h-4 w-4" />
+                    What this page shows
+                  </div>
+                  It is now backed by the live pull request review and changed-file APIs, so the findings, severities,
+                  and diff viewer all reflect the latest stored review data instead of placeholder content.
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </MainLayout>
   );

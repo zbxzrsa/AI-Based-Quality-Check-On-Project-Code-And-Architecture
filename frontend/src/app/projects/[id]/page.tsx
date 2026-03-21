@@ -421,8 +421,8 @@ export default function ProjectDetailPage() {
                               <div>
                                 <p className="text-muted-foreground">Risk Score</p>
                                 <p className={`font-medium ${
-                                  pr.risk_score > 70 ? 'text-red-600' : 
-                                  pr.risk_score > 40 ? 'text-yellow-600' : 
+                                  (pr.risk_score ?? 0) > 70 ? 'text-red-600' : 
+                                  (pr.risk_score ?? 0) > 40 ? 'text-yellow-600' : 
                                   'text-green-600'
                                 }`}>
                                   {pr.risk_score || 'N/A'}
@@ -442,7 +442,7 @@ export default function ProjectDetailPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => router.push(`/projects/${projectId}/pulls/${pr.id}`)}
+                            onClick={() => router.push(`/reviews/${pr.id}`)}
                           >
                             View Details
                           </Button>

@@ -140,7 +140,7 @@ npm run build
 |------|---------|
 | `frontend/lighthouserc.json` | Lighthouse CI configuration |
 | `frontend/package.json` | Scripts and dependencies |
-| `frontend/.env.production` | Production environment variables |
+| `frontend/.env.production.example` | Production environment template for local copies |
 
 ## Required Secrets
 

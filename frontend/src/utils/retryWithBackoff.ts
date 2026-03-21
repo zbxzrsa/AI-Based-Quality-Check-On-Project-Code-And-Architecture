@@ -40,28 +40,58 @@ export interface RetryOptions {
   shouldRetry?: (error: Error) => boolean;
 }
 
+interface RetryableError extends Error {
+  code?: string;
+  response?: {
+    status?: number;
+  };
+}
+
+function normalizeError(error: unknown): RetryableError {
+  if (error instanceof Error) {
+    return error as RetryableError;
+  }
+
+  return Object.assign(new Error('Unknown retry error'), {
+    cause: error,
+  }) as RetryableError;
+}
+
 /**
  * 默认的retry判断function
  * 对于网络errorand5xxservice器error进行retry
  */
-function defaultShouldRetry(error: any): boolean {
+function defaultShouldRetry(error: Error): boolean {
+  const retryableError = normalizeError(error);
   // 网络error
-  if (error.code === 'ECONNABORTED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+  if (
+    retryableError.code === 'ECONNABORTED' ||
+    retryableError.code === 'ENOTFOUND' ||
+    retryableError.code === 'ETIMEDOUT'
+  ) {
     return true;
   }
 
   // 5xxservice器error
-  if (error.response?.status >= 500 && error.response?.status < 600) {
+  if (
+    retryableError.response?.status !== undefined &&
+    retryableError.response.status >= 500 &&
+    retryableError.response.status < 600
+  ) {
     return true;
   }
 
   // 429 Too Many Requests
-  if (error.response?.status === 429) {
+  if (retryableError.response?.status === 429) {
     return true;
   }
 
   // 不retry客户端error (4xx) andautherror
-  if (error.response?.status >= 400 && error.response?.status < 500) {
+  if (
+    retryableError.response?.status !== undefined &&
+    retryableError.response.status >= 400 &&
+    retryableError.response.status < 500
+  ) {
     return false;
   }
 
@@ -111,17 +141,18 @@ export async function retryWithBackoff<T>(
     try {
       // 尝试executefunction
       return await fn();
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      const normalizedError = normalizeError(error);
+      lastError = normalizedError;
 
       // check是否shouldretry
-      if (!shouldRetry(error)) {
-        throw error;
+      if (!shouldRetry(normalizedError)) {
+        throw normalizedError;
       }
 
       // 如果已达到最大retrytimes数，抛出error
       if (attempt >= maxRetries) {
-        throw error;
+        throw normalizedError;
       }
 
       // 计算延迟时间: initialDelay * (factor ^ attempt)
@@ -202,7 +233,7 @@ export const TASK_QUEUE_RETRY_OPTIONS_EXACT: RetryOptions = {
   initialDelay: 5 * 60 * 1000, // 5min
   maxDelay: 30 * 60 * 1000, // 30min
   factor: 3, // use自定义延迟计算
-  shouldRetry: (error: any) => {
+  shouldRetry: (_error: Error) => {
     // taskfailure总是retry
     return true;
   },
@@ -221,12 +252,13 @@ export async function retryTaskWithExactDelays<T>(
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
       return await fn();
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      const normalizedError = normalizeError(error);
+      lastError = normalizedError;
 
       // 如果是最后一times尝试，抛出error
       if (attempt >= delays.length) {
-        throw error;
+        throw normalizedError;
       }
 
       // use精确的延迟时间

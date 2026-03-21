@@ -65,12 +65,29 @@ export interface ArchitectureProps {
   onExport?: (format: 'png' | 'svg') => void;
 }
 
+type ArchitectureNodeMetrics = NonNullable<ArchitectureNode['metrics']>;
+
+interface ArchitectureFlowNodeData {
+  label: string;
+  type: ArchitectureNode['type'];
+  description?: string;
+  metrics?: ArchitectureNodeMetrics;
+  hasChildren: boolean;
+  isExpanded: boolean;
+  isHighlighted: boolean;
+  isSelected: boolean;
+}
+
 /**
  * Custom node component for architecture visualization
  * Displays node information including type, metrics, and health status
  */
-function ArchitectureNodeComponent({ data }: { data: any }) {
-  const getNodeColor = (type: string) => {
+function ArchitectureNodeComponent({
+  data,
+}: {
+  data: ArchitectureFlowNodeData;
+}) {
+  const getNodeColor = (type: ArchitectureNode['type']) => {
     switch (type) {
       case 'service':
         return 'border-blue-500 bg-blue-50 dark:bg-blue-950/30';
@@ -87,7 +104,7 @@ function ArchitectureNodeComponent({ data }: { data: any }) {
     }
   };
 
-  const getHealthStatus = (metrics?: any) => {
+  const getHealthStatus = (metrics?: ArchitectureNodeMetrics) => {
     if (!metrics) return 'unknown';
     if (metrics.errorRate > 5) return 'critical';
     if (metrics.errorRate > 1 || metrics.responseTime > 1000) return 'warning';
@@ -440,17 +457,18 @@ function ArchitectureInner({
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { getNodes, getEdges, getViewport } = useReactFlow();
   
   const handleExportPNG = useCallback(async () => {
     if (!reactFlowWrapper.current) return;
     
     setIsExporting(true);
+    setExportError(null);
     try {
       const flowElement = reactFlowWrapper.current.querySelector('.react-flow');
       if (!flowElement) {
-        console.error('React Flow element not found');
+        setExportError('Architecture canvas is not ready for export yet.');
         return;
       }
       
@@ -464,21 +482,23 @@ function ArchitectureInner({
       link.download = `architecture-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-    } catch (error) {
-      console.error('Failed to export PNG:', error);
+      onExport?.('png');
+    } catch {
+      setExportError('Failed to export PNG. Please try again.');
     } finally {
       setIsExporting(false);
     }
-  }, [getNodes, getEdges, getViewport]);
+  }, [onExport]);
 
   const handleExportSVG = useCallback(async () => {
     if (!reactFlowWrapper.current) return;
     
     setIsExporting(true);
+    setExportError(null);
     try {
       const flowElement = reactFlowWrapper.current.querySelector('.react-flow');
       if (!flowElement) {
-        console.error('React Flow element not found');
+        setExportError('Architecture canvas is not ready for export yet.');
         return;
       }
       
@@ -490,12 +510,13 @@ function ArchitectureInner({
       link.download = `architecture-${Date.now()}.svg`;
       link.href = dataUrl;
       link.click();
-    } catch (error) {
-      console.error('Failed to export SVG:', error);
+      onExport?.('svg');
+    } catch {
+      setExportError('Failed to export SVG. Please try again.');
     } finally {
       setIsExporting(false);
     }
-  }, [getNodes, getEdges, getViewport]);
+  }, [onExport]);
   const architectureData = useMemo(
     () => data || generateSampleData(),
     [data]

@@ -13,10 +13,12 @@ This guide covers the development setup and workflow for the AI-powered code rev
 
 1. **Clone and setup the project:**
    ```bash
-   # Run the setup script
-   ./scripts/setup-dev.sh  # Linux/macOS
-   # or
-   .\scripts\setup-dev.ps1  # Windows PowerShell
+   git clone <repository-url>
+   cd AI-Based-Quality-Check-On-Project-Code-And-Architecture
+
+   npm install
+   cd frontend
+   npm install
    ```
 
 2. **Configure environment variables:**
@@ -94,7 +96,7 @@ Common types and interfaces are located in the `shared/` directory:
 
 ### Database Management
 
-The PostgreSQL database is automatically initialized with the schema defined in `scripts/init-db.sql`.
+The PostgreSQL database is initialized from the SQL files in `backend/database/init_scripts/`.
 
 To connect to the database:
 ```bash

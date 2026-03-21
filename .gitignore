@@ -61,7 +61,6 @@ backend/.env.*
 !.env.production.template
 !frontend/.env*.example
 !backend/.env*.template
-!backend/.env.production.secure
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -161,6 +160,7 @@ collection_errors_summary.txt
 test-results.json
 report.json
 *.log
+frontend/lint-report.json
 
 # Coverage reports
 .coverage
