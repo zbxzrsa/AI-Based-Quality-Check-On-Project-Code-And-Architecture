@@ -55,6 +55,13 @@ jspm_packages/
 
 # dotenv environment variables file
 .env
+.env.*
+frontend/.env.*
+backend/.env.*
+!.env.production.template
+!frontend/.env*.example
+!backend/.env*.template
+!backend/.env.production.secure
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -129,6 +136,11 @@ temp/
 __pycache__/
 .mypy_cache/
 .ruff_cache/
+backend/pytest-cache-files-*/
+backend/tests/.tmp_service_config_generator/
+backend/logs/
+backend/scripts/__pycache__/
+backend/tests/__pycache__/
 
 # Backup directories
 .consolidation_backups/
@@ -164,3 +176,6 @@ models/*.gguf
 # Large binary files
 *.pack
 *.gz
+
+# Local database snapshots and runtime state
+test_db_data/
