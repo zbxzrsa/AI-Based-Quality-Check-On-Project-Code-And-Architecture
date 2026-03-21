@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { fetchBackendWithFallback } from '@/lib/server/backend';
 
-// Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+async function parseBackendError(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => ({ detail: 'Authentication request failed' }));
+  }
+
+  const text = await response.text().catch(() => '');
+  return { detail: text || 'Authentication request failed' };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend login endpoint
-    const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+    const { response } = await fetchBackendWithFallback('/api/v1/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -26,7 +35,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await parseBackendError(response);
       return NextResponse.json(error, { status: response.status });
     }
 
@@ -68,8 +77,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Login error:', error);
+    const detail = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { detail: 'Internal server error' },
+      { detail },
       { status: 500 }
     );
   }

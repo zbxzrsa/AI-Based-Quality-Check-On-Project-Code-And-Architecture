@@ -9,7 +9,7 @@
  * Validates Requirements: 3.2, 3.3, 3.4, 3.5, 3.6
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, X, RefreshCw } from 'lucide-react';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { Button } from '@/components/ui/button';
@@ -17,13 +17,6 @@ import { Button } from '@/components/ui/button';
 export function BackendStatusBanner() {
   const { isOnline, isChecking, retry } = useBackendStatus();
   const [isDismissed, setIsDismissed] = useState(false);
-
-  // Auto-dismiss banner when backend becomes available
-  useEffect(() => {
-    if (isOnline === true) {
-      setIsDismissed(false);
-    }
-  }, [isOnline]);
 
   // Don't show banner if backend is online or status is unknown
   if (isOnline !== false || isDismissed) {

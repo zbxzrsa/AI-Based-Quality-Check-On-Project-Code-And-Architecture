@@ -6,7 +6,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { usePermission } from '@/hooks/usePermission';
@@ -64,7 +63,11 @@ export function RBACGuard({
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+        <div
+          role="status"
+          aria-label="Loading access control state"
+          className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+        />
       </div>
     );
   }

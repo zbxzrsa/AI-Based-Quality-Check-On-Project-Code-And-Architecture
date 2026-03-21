@@ -22,4 +22,5 @@ export const ChevronDown = ({ className }: { className?: string }) => <svg data-
 export const ChevronRight = ({ className }: { className?: string }) => <svg data-testid="chevron-right-icon" className={className} />;
 export const MessageSquare = ({ className }: { className?: string }) => <svg data-testid="message-square-icon" className={className} />;
 export const ChevronLeft = ({ className }: { className?: string }) => <svg data-testid="chevron-left-icon" className={className} />;
+export const Loader2 = ({ className }: { className?: string }) => <svg data-testid="loader-2-icon" className={className} role="status" />;
 

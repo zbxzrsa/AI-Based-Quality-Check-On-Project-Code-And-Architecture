@@ -8,8 +8,8 @@ Validates Requirements: 1.4, 1.5
 """
 
 import json
-import tempfile
 import time
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +21,18 @@ from app.core.configuration_manager import (
     ConfigurationSource,
     ServiceConfig
 )
+
+TEST_USER = "postgres"
+TEST_PASSWORD = "postgres_password_12345678"
+TEST_DB = "ai_code_review"
+TEST_TMP_ROOT = Path(__file__).resolve().parent / ".tmp_service_config_generator"
+TEST_TMP_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def make_test_dir(prefix: str) -> Path:
+    path = TEST_TMP_ROOT / f"{prefix}_{time.time_ns()}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 from app.core.service_config_generator import (
     ServiceConfigGenerator,
     ServiceDefinition,
@@ -296,23 +308,25 @@ class TestServiceConfigGenerator:
         """Test writing service configuration to file (Requirement 1.4, 1.5)"""
         generator = ServiceConfigGenerator(mock_config_manager)
         
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_file = Path(temp_dir) / "test.env"
-            
-            # Update service definition with config file path
-            service_def = generator.service_definitions["frontend"]
-            service_def.config_file_path = config_file
-            
-            # Write config file
-            success = generator.write_service_config_file("frontend", force=True)
-            
-            assert success
-            assert config_file.exists()
-            
-            # Check file content
-            content = config_file.read_text()
-            assert "NEXT_PUBLIC_API_URL=" in content
-            assert "# Auto-generated configuration" in content
+        temp_dir = make_test_dir("write_service_config")
+        config_file = temp_dir / "test.env"
+
+        # Update service definition with config file path
+        service_def = generator.service_definitions["frontend"]
+        service_def.config_file_path = config_file
+
+        # Write config file
+        success = generator.write_service_config_file("frontend", force=True)
+
+        assert success
+        assert config_file.exists()
+
+        # Check file content
+        content = config_file.read_text()
+        assert "NEXT_PUBLIC_API_URL=" in content
+        assert "# Auto-generated configuration" in content
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
     
     def test_configuration_change_propagation(self, mock_config_manager):
         """Test configuration change propagation (Requirement 1.5)"""
@@ -506,14 +520,15 @@ class TestGlobalServiceConfigGenerator:
         mock_generator.export_service_config.return_value = mock_content
         mock_get_generator.return_value = mock_generator
         
-        with tempfile.TemporaryDirectory() as temp_dir:
-            output_file = Path(temp_dir) / "config.env"
-            
-            result = export_service_configuration("test_service", format="env", output_file=output_file)
-            
-            assert result == mock_content
-            assert output_file.exists()
-            assert output_file.read_text() == mock_content
+        temp_dir = make_test_dir("export_service_config")
+        output_file = temp_dir / "config.env"
+
+        result = export_service_configuration("test_service", format="env", output_file=output_file)
+
+        assert result == mock_content
+        assert output_file.exists()
+        assert output_file.read_text() == mock_content
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 class TestServiceConfigIntegration:
@@ -522,15 +537,14 @@ class TestServiceConfigIntegration:
     @pytest.fixture
     def temp_project_dir(self):
         """Create a temporary project directory with config files"""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            project_path = Path(temp_dir)
-            
-            # Create directory structure
-            (project_path / "frontend").mkdir()
-            (project_path / "backend").mkdir()
-            
-            # Create root .env file
-            (project_path / ".env").write_text("""
+        project_path = make_test_dir("integration_project")
+
+        # Create directory structure
+        (project_path / "frontend").mkdir()
+        (project_path / "backend").mkdir()
+
+        # Create root .env file
+        (project_path / ".env").write_text("""
 JWT_SECRET=jwt_secret_32_characters_long_test
 SECRET_KEY=secret_key_32_characters_long_test
 POSTGRES_HOST=localhost
@@ -541,15 +555,16 @@ NEO4J_PASSWORD=neo4j_password_12345678
 REDIS_HOST=localhost
 REDIS_PORT=6379
 """.strip())
-            
-            # Create frontend .env.local
-            (project_path / "frontend" / ".env.local").write_text("""
+
+        # Create frontend .env.local
+        (project_path / "frontend" / ".env.local").write_text("""
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=nextauth_secret_32_characters_long
 """.strip())
-            
-            yield project_path
+
+        yield project_path
+        shutil.rmtree(project_path, ignore_errors=True)
     
     def test_end_to_end_service_configuration(self, temp_project_dir):
         """Test end-to-end service configuration generation"""

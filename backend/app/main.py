@@ -181,7 +181,7 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import select
 
             from app.models import User, UserRole
-            from app.utils.password import hash_password
+            from app.utils.password import hash_password, verify_password
 
             async for db in get_db():
                 stmt = select(User).where(User.email == "admin@example.com")
@@ -193,7 +193,7 @@ async def lifespan(app: FastAPI):
                         id=uuid.uuid4(),
                         email="admin@example.com",
                         password_hash=hash_password("Admin123!"),
-                        role=UserRole.ADMIN,
+                        role=UserRole.USER,
                         full_name="Admin User",
                         is_active=True,
                     )
@@ -201,7 +201,27 @@ async def lifespan(app: FastAPI):
                     await db.commit()
                     logger.info("Default test user created: admin@example.com / Admin123!")
                 else:
-                    logger.info("Default test user already exists")
+                    updated = False
+                    # Keep development credentials deterministic so local login always works.
+                    if settings.ENVIRONMENT != "production" and not verify_password(
+                        "Admin123!", existing_user.password_hash
+                    ):
+                        existing_user.password_hash = hash_password("Admin123!")
+                        updated = True
+
+                    if existing_user.role != UserRole.USER:
+                        existing_user.role = UserRole.USER
+                        updated = True
+
+                    if not existing_user.is_active:
+                        existing_user.is_active = True
+                        updated = True
+
+                    if updated:
+                        await db.commit()
+                        logger.info("Default test user normalized: admin@example.com / Admin123!")
+                    else:
+                        logger.info("Default test user already exists")
                 break
         except Exception as e:
             logger.warning("Could not create default user: %s", str(e))

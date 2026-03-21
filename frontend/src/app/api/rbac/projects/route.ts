@@ -4,7 +4,11 @@ import { cookies } from 'next/headers';
 // Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-export async function GET(request: NextRequest) {
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -80,10 +84,10 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating project:', error);
     return NextResponse.json(
-      { detail: `Internal server error: ${error.message}` },
+      { detail: `Internal server error: ${getErrorMessage(error)}` },
       { status: 500 }
     );
   }

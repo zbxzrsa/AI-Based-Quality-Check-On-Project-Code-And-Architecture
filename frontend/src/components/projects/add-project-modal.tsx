@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -18,13 +18,6 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Github, ExternalLink } from 'lucide-react'
 import { useCreateProject } from '@/hooks/useProjects'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
 
 const projectSchema = z.object({
@@ -53,7 +46,6 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
   const { toast } = useToast()
   const createProject = useCreateProject()
   const [step, setStep] = useState<'github' | 'select-repo' | 'confirm'>('github')
-  const [githubConnected, setGithubConnected] = useState(false)
   const [githubUsername, setGithubUsername] = useState<string | null>(null)
   const [repositories, setRepositories] = useState<GitHubRepo[]>([])
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
@@ -74,71 +66,111 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
     },
   })
 
+  const fetchRepositories = useCallback(async () => {
+    setLoadingRepos(true)
+    try {
+      const response = await fetch('/api/github/status')
+
+      if (response.ok) {
+        const data = await response.json()
+        setGithubUsername(data.username)
+
+        if (data.connected) {
+          setStep('select-repo')
+          const repositoriesResponse = await fetch('/api/github/repositories')
+
+          if (repositoriesResponse.ok) {
+            const repositoriesData = await repositoriesResponse.json()
+            setRepositories(repositoriesData.repositories || [])
+          } else if (repositoriesResponse.status === 401 || repositoriesResponse.status === 400) {
+            setStep('github')
+            toast({
+              variant: 'destructive',
+              title: 'GitHub Connection Lost',
+              description: 'Please reconnect your GitHub account',
+            })
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Failed to fetch repositories',
+              description: 'Please try again or reconnect your GitHub account',
+            })
+          }
+        } else {
+          setStep('github')
+        }
+      } else {
+        setStep('github')
+      }
+    } catch (error) {
+      console.error('[GitHub] Failed to refresh connection state:', error)
+      setStep('github')
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch GitHub repositories',
+      })
+    } finally {
+      setLoadingRepos(false)
+    }
+  }, [toast])
+
+  const checkGitHubConnection = useCallback(async () => {
+    try {
+      const response = await fetch('/api/github/status')
+
+      if (response.ok) {
+        const data = await response.json()
+        setGithubUsername(data.username)
+
+        if (data.connected) {
+          setStep('select-repo')
+          await fetchRepositories()
+        } else {
+          setStep('github')
+        }
+      } else {
+        setStep('github')
+      }
+    } catch (error) {
+      console.error('[GitHub] Failed to check connection status:', error)
+      setStep('github')
+      setGithubUsername(null)
+    }
+  }, [fetchRepositories])
+
   // Check if GitHub is already connected
   useEffect(() => {
     if (open) {
-      checkGitHubConnection()
+      void checkGitHubConnection()
     }
-  }, [open])
+  }, [checkGitHubConnection, open])
 
   // Listen for GitHub connection success from URL params
   useEffect(() => {
     if (open) {
       const params = new URLSearchParams(window.location.search)
       if (params.get('github_connected') === 'true') {
-        // GitHub was just connected, refresh the connection status
-        setTimeout(() => {
-          checkGitHubConnection()
+        const timeoutId = window.setTimeout(() => {
+          void checkGitHubConnection()
         }, 500)
         
-        // Clean up URL
         const url = new URL(window.location.href)
         url.searchParams.delete('github_connected')
         window.history.replaceState({}, '', url.toString())
-      }
-    }
-  }, [open])
 
-  const checkGitHubConnection = async () => {
-    try {
-      console.log('[Check GitHub] Checking connection status...')
-      const response = await fetch('/api/github/status')
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('[Check GitHub] Status:', data)
-        setGithubConnected(data.connected)
-        setGithubUsername(data.username)
-        
-        if (data.connected) {
-          console.log('[Check GitHub] Connected! Moving to select-repo step')
-          setStep('select-repo')
-          fetchRepositories()
-        } else {
-          console.log('[Check GitHub] Not connected, staying on github step')
-          setStep('github')
+        return () => {
+          window.clearTimeout(timeoutId)
         }
-      } else {
-        console.error('[Check GitHub] Status check failed:', response.status)
-        setStep('github')
       }
-    } catch (error) {
-      console.error('[Check GitHub] Failed to check GitHub connection:', error)
-      // Don't block the UI, just show the GitHub connection step
-      setStep('github')
-      setGithubConnected(false)
     }
-  }
+  }, [checkGitHubConnection, open])
 
   const connectGitHub = () => {
-    console.log('[Connect GitHub] Button clicked')
-    
     // Redirect to GitHub OAuth
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-    console.log('[Connect GitHub] Client ID:', clientId)
-    
+
     if (!clientId) {
-      console.error('[Connect GitHub] Client ID not configured')
       toast({
         variant: 'destructive',
         title: 'Configuration Error',
@@ -150,58 +182,12 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/github/callback`)
     const scope = 'repo,read:user'
     const state = crypto.randomUUID()
-    
-    console.log('[Connect GitHub] Redirect URI:', redirectUri)
-    console.log('[Connect GitHub] State:', state)
-    
+
     // Store state in sessionStorage for verification
     sessionStorage.setItem('github_oauth_state', state)
-    
-    const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
-    console.log('[Connect GitHub] OAuth URL:', oauthUrl)
-    console.log('[Connect GitHub] Redirecting to GitHub...')
-    
-    window.location.href = oauthUrl
-  }
 
-  const fetchRepositories = async () => {
-    setLoadingRepos(true)
-    try {
-      console.log('[Fetch Repos] Fetching repositories...')
-      const response = await fetch('/api/github/repositories')
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('[Fetch Repos] Received repositories:', data.repositories?.length || 0)
-        setRepositories(data.repositories || [])
-      } else if (response.status === 401 || response.status === 400) {
-        // Token expired or invalid, need to reconnect
-        console.error('[Fetch Repos] Authentication failed, need to reconnect')
-        setGithubConnected(false)
-        setStep('github')
-        toast({
-          variant: 'destructive',
-          title: 'GitHub Connection Lost',
-          description: 'Please reconnect your GitHub account',
-        })
-      } else {
-        console.error('[Fetch Repos] Failed with status:', response.status)
-        toast({
-          variant: 'destructive',
-          title: 'Failed to fetch repositories',
-          description: 'Please try again or reconnect your GitHub account',
-        })
-      }
-    } catch (error) {
-      console.error('[Fetch Repos] Error:', error)
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch GitHub repositories',
-      })
-    } finally {
-      setLoadingRepos(false)
-    }
+    const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
+    window.location.href = oauthUrl
   }
 
   const handleRepoSelect = (repo: GitHubRepo) => {
@@ -214,8 +200,6 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
 
   const onSubmit = async (data: ProjectFormData) => {
     try {
-      console.log('[AddProjectModal] Submitting project:', data);
-      
       // Only send name and description to match backend schema
       await createProject.mutateAsync({
         name: data.name,
@@ -231,9 +215,10 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
       setStep('github')
       setSelectedRepo(null)
       onClose()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[AddProjectModal] Error creating project:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'An error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An error occurred'
       toast({
         variant: 'destructive',
         title: 'Creation Failed',

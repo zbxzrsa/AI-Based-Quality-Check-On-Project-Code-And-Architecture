@@ -83,10 +83,10 @@ docker-compose -f docker-compose.production.yml logs -f
 curl http://localhost:8000/health
 
 # Check frontend health
-curl http://localhost:3000/api/health
+curl http://localhost:6066/api/health
 
 # Access services
-# Frontend: http://localhost:3000
+# Frontend: http://localhost:6066
 # Backend API: http://localhost:8000
 # API Docs: http://localhost:8000/docs
 # Neo4j Browser: http://localhost:7474
@@ -158,7 +158,7 @@ docker-compose up -d
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Frontend | http://localhost:3000 | - |
+| Frontend | http://localhost:6066 | - |
 | Backend API | http://localhost:8000 | - |
 | API Documentation | http://localhost:8000/docs | - |
 | Neo4j Browser | http://localhost:7474 | neo4j / (from .env) |
@@ -244,7 +244,7 @@ crontab -e
 ## Monitoring
 
 ### Performance Dashboard
-Access at: http://localhost:3000/performance
+Access at: http://localhost:6066/performance
 
 Monitors:
 - API response times

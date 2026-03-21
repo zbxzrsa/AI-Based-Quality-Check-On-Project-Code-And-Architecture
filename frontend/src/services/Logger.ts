@@ -10,6 +10,7 @@
  * 
  * verifyRequirement: 8.4, 9.2, 9.3
  */
+/* eslint-disable no-console */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -19,7 +20,7 @@ export interface LogEntry {
   message: string;
   timestamp: Date;
   source?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   userId?: string;
   sessionId?: string;
 }
@@ -42,7 +43,7 @@ export interface UserActionLog {
   action: string;
   userId: string;
   page: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   timestamp: Date;
 }
 
@@ -129,28 +130,28 @@ export class Logger {
   /**
    * Debug级别log
    */
-  debug(message: string, context?: Record<string, any>): void {
+  debug(message: string, context?: Record<string, unknown>): void {
     this.log('debug', message, context);
   }
 
   /**
    * Info级别log
    */
-  info(message: string, context?: Record<string, any>): void {
+  info(message: string, context?: Record<string, unknown>): void {
     this.log('info', message, context);
   }
 
   /**
    * Warn级别log
    */
-  warn(message: string, context?: Record<string, any>): void {
+  warn(message: string, context?: Record<string, unknown>): void {
     this.log('warn', message, context);
   }
 
   /**
    * Error级别log
    */
-  error(message: string, error?: Error, context?: Record<string, any>): void {
+  error(message: string, error?: Error, context?: Record<string, unknown>): void {
     const errorContext = error
       ? {
           ...context,
@@ -208,7 +209,7 @@ export class Logger {
   /**
    * recorduser操作log
    */
-  logUserAction(action: string, userId: string, details?: Record<string, any>): void {
+  logUserAction(action: string, userId: string, details?: Record<string, unknown>): void {
     const log: UserActionLog = {
       id: this.generateLogId(),
       action,
@@ -232,7 +233,7 @@ export class Logger {
   /**
    * 通用logrecordmethod
    */
-  private log(level: LogLevel, message: string, context?: Record<string, any>): void {
+  private log(level: LogLevel, message: string, context?: Record<string, unknown>): void {
     // checklog级别
     if (!this.shouldLog(level)) {
       return;
@@ -337,7 +338,7 @@ export class Logger {
 
     try {
       // 发送log到service器
-      const payload = {
+      const _payload = {
         logs: logsToSend,
         apiLogs: apiLogsToSend,
         userActions: userActionsToSend,

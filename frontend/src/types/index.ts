@@ -15,4 +15,5 @@ export type { DashboardData, MetricCard, ChartConfig } from './dashboard';
 export type { PullRequest, PullRequestStatus } from './pullRequest';
 
 // RBAC
-export type { Role, Permission, UserRole, ProjectAccess } from './rbac';
+export { Role, Permission } from './rbac';
+export type { UserRole, ProjectAccess, RBACUser } from './rbac';

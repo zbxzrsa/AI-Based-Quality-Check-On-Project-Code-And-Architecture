@@ -5,13 +5,13 @@
       "startServerReadyPattern": "ready on",
       "startServerReadyTimeout": 30000,
       "url": [
-        "http://localhost:3000/",
-        "http://localhost:3000/Dashboard",
-        "http://localhost:3000/Projects",
-        "http://localhost:3000/PullRequests",
-        "http://localhost:3000/Architecture",
-        "http://localhost:3000/AnalysisQueue",
-        "http://localhost:3000/Metrics"
+        "http://localhost:6066/",
+        "http://localhost:6066/Dashboard",
+        "http://localhost:6066/Projects",
+        "http://localhost:6066/PullRequests",
+        "http://localhost:6066/Architecture",
+        "http://localhost:6066/AnalysisQueue",
+        "http://localhost:6066/Metrics"
       ],
       "numberOfRuns": 3,
       "settings": {

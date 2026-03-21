@@ -2,13 +2,13 @@
 
 import { useCallback } from 'react';
 import ReactFlow, {
-  Node,
+  Node as FlowNode,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection,
+  Connection as FlowConnection,
   MiniMap,
   BackgroundVariant,
   NodeTypes,
@@ -103,12 +103,12 @@ export default function ArchitectureGraph({
   );
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: FlowConnection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: FlowNode) => {
       const originalNode = initialNodes.find((n) => n.id === node.id);
       if (originalNode && onNodeClick) {
         onNodeClick(originalNode);

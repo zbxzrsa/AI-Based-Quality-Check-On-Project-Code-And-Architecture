@@ -220,7 +220,9 @@ function ProjectsPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('name')
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(
+    () => searchParams?.get('github_connected') === 'true'
+  )
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedLanguage, setSelectedLanguage] = useState('all')
 
@@ -240,7 +242,6 @@ function ProjectsPageContent() {
         title: 'GitHub Connected',
         description: 'Your GitHub account has been connected successfully',
       })
-      setShowCreateModal(true)
     } else if (error) {
       console.error('[Projects Page] GitHub connection error:', error)
       console.error('[Projects Page] Error detail:', errorDetail || errorDescription)

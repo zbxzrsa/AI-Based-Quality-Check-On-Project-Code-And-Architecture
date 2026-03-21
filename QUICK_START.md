@@ -105,7 +105,7 @@ npm run dev
 
 #### 5. 访问应用
 
-- 前端: http://localhost:3000
+- 前端: http://localhost:6066
 - 后端 API: http://localhost:8000
 - API 文档: http://localhost:8000/docs
 
@@ -306,7 +306,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 # NextAuth 配置
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:6066
 NEXTAUTH_SECRET=your_nextauth_secret_min_32_chars
 
 # GitHub OAuth（可选）
@@ -494,16 +494,16 @@ npm run dev
 > next dev
 
    ▲ Next.js 14.x.x
-   - Local:        http://localhost:3000
+   - Local:        http://localhost:6066
    - Network:      http://192.168.x.x:3000
 
  ✓ Ready in 2.5s
 ```
 
 **访问:**
-- 应用: http://localhost:3000
-- 登录: http://localhost:3000/login
-- 注册: http://localhost:3000/register
+- 应用: http://localhost:6066
+- 登录: http://localhost:6066/login
+- 注册: http://localhost:6066/register
 
 ---
 
@@ -539,14 +539,14 @@ python scripts/create_admin_user.py \
 
 ### 登录步骤
 
-1. 访问 http://localhost:3000/login
+1. 访问 http://localhost:6066/login
 2. 输入 Email 和密码
 3. 点击 "Sign in" 按钮
 4. 登录成功后跳转到 Dashboard
 
 ### 注册新用户
 
-1. 访问 http://localhost:3000/register
+1. 访问 http://localhost:6066/register
 2. 填写信息：
    - Full Name（全名）
    - Email（邮箱）
@@ -573,8 +573,8 @@ python scripts/create_admin_user.py \
 2. 点击 "OAuth Apps" → "New OAuth App"
 3. 填写信息:
    - **Application name**: AI Code Review Platform
-   - **Homepage URL**: `http://localhost:3000`
-   - **Authorization callback URL**: `http://localhost:3000/api/github/callback`
+   - **Homepage URL**: `http://localhost:6066`
+   - **Authorization callback URL**: `http://localhost:6066/api/github/callback`
 4. 点击 "Register application"
 5. 记录 **Client ID** 和生成 **Client Secret**
 
@@ -609,7 +609,7 @@ npm run dev
 
 ### 步骤 5: 测试 GitHub 集成
 
-1. 访问 http://localhost:3000/projects
+1. 访问 http://localhost:6066/projects
 2. 点击 "Add Project"
 3. 点击 "Connect with GitHub"
 4. 应该跳转到 GitHub 授权页面
@@ -636,7 +636,7 @@ http://localhost:8000/health
 
 ```bash
 # 访问前端
-http://localhost:3000
+http://localhost:6066
 
 # 应该看到登录页面或 Dashboard
 ```
@@ -794,7 +794,7 @@ redis-cli ping
 
 **解决方案:**
 1. 检查 GitHub OAuth 应用的回调 URL
-2. 必须完全匹配: `http://localhost:3000/api/github/callback`
+2. 必须完全匹配: `http://localhost:6066/api/github/callback`
 3. 确保没有多余的斜杠或空格
 4. 重启前端服务器
 
@@ -952,7 +952,7 @@ docker-compose down -v
 
 | 服务 | 端口 | URL |
 |------|------|-----|
-| 前端 | 3000 | http://localhost:3000 |
+| 前端 | 6066 | http://localhost:6066 |
 | 后端 | 8000 | http://localhost:8000 |
 | PostgreSQL | 5432 | - |
 | Neo4j | 7474 | http://localhost:7474 |

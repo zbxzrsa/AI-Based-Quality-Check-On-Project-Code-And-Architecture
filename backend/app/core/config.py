@@ -112,10 +112,10 @@ class Settings(BaseSettings):
     # In production, restrict to specific approved domains only
     # Use CORS_ALLOWED_ORIGINS environment variable to override defaults
     ALLOWED_ORIGINS: list[str] = [
-        "http://localhost:3000",
+        "http://localhost:6066",
         "http://localhost:8000",
-        "http://frontend:3000",
-        "http://127.0.0.1:3000",
+        "http://frontend:6066",
+        "http://127.0.0.1:6066",
         "http://127.0.0.1:8000",
     ]
 
@@ -431,11 +431,11 @@ class Settings(BaseSettings):
                 "DEBUG": True,
                 "LOG_LEVEL": "DEBUG",
                 "ALLOWED_ORIGINS": [
-                    "http://localhost:3000",
+                    "http://localhost:6066",
                     "http://localhost:8000",
-                    "http://127.0.0.1:3000",
+                    "http://127.0.0.1:6066",
                     "http://127.0.0.1:8000",
-                    "http://frontend:3000",
+                    "http://frontend:6066",
                 ],
             },
             "staging": {

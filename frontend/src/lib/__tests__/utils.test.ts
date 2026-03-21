@@ -11,7 +11,8 @@ describe('cn (className merger)', () => {
   });
 
   it('should handle conditional classes', () => {
-    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz');
+    const conditionalClass: string | undefined = undefined;
+    expect(cn('foo', conditionalClass, 'baz')).toBe('foo baz');
   });
 
   it('should handle tailwind conflicts', () => {

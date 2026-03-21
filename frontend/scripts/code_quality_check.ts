@@ -1,13 +1,28 @@
+/* eslint-disable no-console */
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+
+type CommandResult = { stdout: string; stderr: string; code: number };
+
+type CommandError = {
+  stdout?: string;
+  stderr?: string;
+  status?: number;
+};
+
+type QualityReport = {
+  timestamp: string;
+  tools: Record<string, unknown>;
+};
 
 function runCommand(command: string, cwd: string): { stdout: string; stderr: string; code: number } {
   console.log(`Running: ${command}`);
   try {
     const stdout = execSync(command, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     return { stdout, stderr: '', code: 0 };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const commandError = error as CommandError;
     return { stdout: error.stdout || '', stderr: error.stderr || '', code: error.status || 1 };
   }
 }
@@ -16,7 +31,7 @@ function main() {
   const frontendDir = path.resolve(__dirname, '..');
   const reportPath = path.join(frontendDir, 'code_quality_report.json');
   
-  const report: any = {
+  const report: QualityReport = {
     timestamp: new Date().toISOString(),
     tools: {}
   };
@@ -26,7 +41,7 @@ function main() {
   const eslintRes = runCommand('npx eslint "src/**/*.{ts,tsx}" --format json', frontendDir);
   try {
     report.tools.eslint = JSON.parse(eslintRes.stdout);
-  } catch (e) {
+  } catch {
     report.tools.eslint = { error: 'Failed to parse ESLint JSON', raw: eslintRes.stdout, code: eslintRes.code };
   }
 

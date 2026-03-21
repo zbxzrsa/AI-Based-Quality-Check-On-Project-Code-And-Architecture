@@ -1,149 +1,140 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 
 /**
- * Build Configuration Verification Script
- * 
- * This script verifies that the build system is properly configured
- * according to the requirements:
- * - 7.4: Tree Shaking enabled
- * - 7.5: Code splitting for each page
- * - 11.1: Minification and compression
- * - 11.2: Content hash filenames for static assets
+ * Build configuration verification script.
+ *
+ * Verifies:
+ * - Tree shaking overrides are production-only
+ * - Code splitting is production-only
+ * - Minification is production-only
+ * - Static asset hashing and caching remain configured
  */
 
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔍 Verifying Build Configuration...\n');
+console.log('Verifying build configuration...\n');
 
 let hasErrors = false;
 
-// Check 1: Verify next.config.mjs exists and has required settings
-console.log('✓ Checking next.config.mjs...');
+console.log('Checking next.config.mjs...');
 const configPath = path.join(__dirname, '..', 'next.config.mjs');
 if (!fs.existsSync(configPath)) {
-  console.error('❌ next.config.mjs not found');
+  console.error('ERROR: next.config.mjs not found');
   hasErrors = true;
 } else {
   const configContent = fs.readFileSync(configPath, 'utf-8');
-  
-  // Check for Tree Shaking (需求 7.4)
-  if (configContent.includes('usedExports') && configContent.includes('sideEffects')) {
-    console.log('  ✓ Tree Shaking enabled (需求 7.4)');
+
+  if (
+    configContent.includes('const isProductionBuild = !dev;') &&
+    configContent.includes('config.optimization.usedExports = true;') &&
+    configContent.includes('config.optimization.sideEffects = false;')
+  ) {
+    console.log('  OK: production-only tree shaking overrides configured');
   } else {
-    console.error('  ❌ Tree Shaking not properly configured');
+    console.error('  ERROR: production-only tree shaking overrides not configured');
     hasErrors = true;
   }
-  
-  // Check for Code Splitting (需求 7.5)
-  if (configContent.includes('splitChunks')) {
-    console.log('  ✓ Code splitting configured (需求 7.5)');
+
+  if (
+    configContent.includes('if (isProductionBuild && !isServer) {') &&
+    configContent.includes('splitChunks')
+  ) {
+    console.log('  OK: production-only code splitting configured');
   } else {
-    console.error('  ❌ Code splitting not configured');
+    console.error('  ERROR: production-only code splitting not configured');
     hasErrors = true;
   }
-  
-  // Check for Minification (需求 11.1)
-  if (configContent.includes('minimize')) {
-    console.log('  ✓ Minification enabled (需求 11.1)');
+
+  if (
+    configContent.includes('if (isProductionBuild) {') &&
+    configContent.includes('config.optimization.minimize = true;')
+  ) {
+    console.log('  OK: production-only minification configured');
   } else {
-    console.error('  ❌ Minification not configured');
+    console.error('  ERROR: production-only minification not configured');
     hasErrors = true;
   }
-  
-  // Check for Content Hash (需求 11.2)
+
   if (configContent.includes('contenthash')) {
-    console.log('  ✓ Content hash filenames configured (需求 11.2)');
+    console.log('  OK: content-hash filenames configured');
   } else {
-    console.error('  ❌ Content hash filenames not configured');
+    console.error('  ERROR: content-hash filenames not configured');
     hasErrors = true;
   }
-  
-  // Check for Source Maps (需求 11.2)
-  if (configContent.includes('productionBrowserSourceMaps') || configContent.includes('source-map')) {
-    console.log('  ✓ Production source maps enabled (需求 11.2)');
+
+  if (
+    configContent.includes('productionBrowserSourceMaps') ||
+    configContent.includes("'source-map'")
+  ) {
+    console.log('  OK: production source maps configured');
   } else {
-    console.error('  ❌ Production source maps not configured');
+    console.error('  ERROR: production source maps not configured');
     hasErrors = true;
   }
-  
-  // Check for Cache Headers (需求 11.2)
+
   if (configContent.includes('Cache-Control')) {
-    console.log('  ✓ Cache headers configured (需求 11.2)');
+    console.log('  OK: cache headers configured');
   } else {
-    console.error('  ❌ Cache headers not configured');
+    console.error('  ERROR: cache headers not configured');
     hasErrors = true;
   }
-  
-  // Check for Image Optimization (需求 11.4)
+
   if (configContent.includes('formats') && configContent.includes('webp')) {
-    console.log('  ✓ WebP image format configured (需求 11.4)');
+    console.log('  OK: image optimization formats configured');
   } else {
-    console.error('  ❌ WebP image format not configured');
+    console.error('  ERROR: image optimization formats not configured');
     hasErrors = true;
   }
-  
-  // Check for Compression (需求 11.1)
+
   if (configContent.includes('compress: true')) {
-    console.log('  ✓ Gzip compression enabled (需求 11.1)');
+    console.log('  OK: gzip compression enabled');
   } else {
-    console.error('  ❌ Gzip compression not enabled');
+    console.error('  ERROR: gzip compression not enabled');
     hasErrors = true;
   }
 }
 
-// Check 2: Verify package.json has build scripts
-console.log('\n✓ Checking package.json build scripts...');
+console.log('\nChecking package.json build scripts...');
 const packagePath = path.join(__dirname, '..', 'package.json');
 if (!fs.existsSync(packagePath)) {
-  console.error('❌ package.json not found');
+  console.error('ERROR: package.json not found');
   hasErrors = true;
 } else {
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
-  
+
   if (packageJson.scripts.build) {
-    console.log('  ✓ Build script exists');
+    console.log('  OK: build script exists');
   } else {
-    console.error('  ❌ Build script missing');
+    console.error('  ERROR: build script missing');
     hasErrors = true;
   }
-  
+
   if (packageJson.scripts['build:production']) {
-    console.log('  ✓ Production build script exists');
+    console.log('  OK: production build script exists');
   } else {
-    console.error('  ❌ Production build script missing');
+    console.error('  ERROR: production build script missing');
     hasErrors = true;
   }
 }
 
-// Check 3: Verify documentation exists
-console.log('\n✓ Checking documentation...');
+console.log('\nChecking documentation...');
 const docPath = path.join(__dirname, '..', 'BUILD_OPTIMIZATION.md');
 if (fs.existsSync(docPath)) {
-  console.log('  ✓ BUILD_OPTIMIZATION.md exists');
+  console.log('  OK: BUILD_OPTIMIZATION.md exists');
 } else {
-  console.error('  ❌ BUILD_OPTIMIZATION.md missing');
+  console.error('  ERROR: BUILD_OPTIMIZATION.md missing');
   hasErrors = true;
 }
 
-// Summary
 console.log('\n' + '='.repeat(50));
 if (hasErrors) {
-  console.error('❌ Build configuration verification FAILED');
-  console.error('Please fix the errors above before proceeding.');
+  console.error('Build configuration verification failed');
   process.exit(1);
-} else {
-  console.log('✅ Build configuration verification PASSED');
-  console.log('\nAll required optimizations are properly configured:');
-  console.log('  • Tree Shaking (需求 7.4)');
-  console.log('  • Code Splitting (需求 7.5)');
-  console.log('  • Minification (需求 11.1)');
-  console.log('  • Gzip Compression (需求 11.1)');
-  console.log('  • Content Hash Filenames (需求 11.2)');
-  console.log('  • Production Source Maps (需求 11.2)');
-  console.log('  • Cache Headers (需求 11.2)');
-  console.log('  • WebP Image Optimization (需求 11.4)');
-  console.log('\nYou can now run:');
-  console.log('  npm run build:webpack    - Build with webpack');
-  console.log('  npm run build:production - Production build');
 }
+
+console.log('Build configuration verification passed');
+console.log('\nYou can now run:');
+console.log('  npm run build:webpack');
+console.log('  npm run build:production');

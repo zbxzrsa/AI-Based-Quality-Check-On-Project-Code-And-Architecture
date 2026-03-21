@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { fetchBackendWithFallback } from '@/lib/server/backend';
 
-// Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+async function parseBackendError(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
 
-export async function GET(request: NextRequest) {
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => ({ detail: 'Failed to fetch current user' }));
+  }
+
+  const text = await response.text().catch(() => '');
+  return { detail: text || 'Failed to fetch current user' };
+}
+
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -17,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Call backend to get current user
-    const response = await fetch(`${BACKEND_URL}/api/v1/auth/me`, {
+    const { response } = await fetchBackendWithFallback('/api/v1/auth/me', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -30,8 +39,8 @@ export async function GET(request: NextRequest) {
         cookieStore.delete('access_token');
         cookieStore.delete('refresh_token');
       }
-      
-      const error = await response.json();
+
+      const error = await parseBackendError(response);
       return NextResponse.json(error, { status: response.status });
     }
 
@@ -39,8 +48,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(userData);
   } catch (error) {
     console.error('Get current user error:', error);
+    const detail = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { detail: 'Internal server error' },
+      { detail },
       { status: 500 }
     );
   }

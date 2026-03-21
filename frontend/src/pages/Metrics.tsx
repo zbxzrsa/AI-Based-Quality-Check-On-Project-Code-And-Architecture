@@ -25,11 +25,18 @@ type TimeRange = 'day' | 'week' | 'month';
 /**
  * Metric data point interface
  */
-interface MetricDataPoint {
-  timestamp: Date;
-  value: number;
-  label?: string;
+interface MetricsDataPoint {
+  timestamp: string;
+  label: string;
+  performance: number;
+  errorRate: number;
+  responseTime: number;
 }
+
+type ExportableMetricKey = keyof Pick<MetricsDataPoint, 'performance' | 'errorRate' | 'responseTime'>;
+
+type MetricsExportRecord = Pick<MetricsDataPoint, 'timestamp' | 'label'> &
+  Partial<Record<ExportableMetricKey, number>>;
 
 /**
  * Metric definition interface
@@ -64,6 +71,12 @@ interface MetricsProps {
    */
   onTimeRangeChange?: (range: TimeRange) => void;
 }
+
+const MOCK_CURRENT_USER = {
+  id: 'user_1',
+  name: 'John Doe',
+  email: 'john@example.com'
+};
 
 /**
  * Metrics Page Component
@@ -115,8 +128,8 @@ const Metrics: React.FC<MetricsProps> = ({
   ];
 
   const [timeRange, setTimeRange] = useState<TimeRange>(initialTimeRange);
-  const { execute, loading, error } = useAsyncAction<any[]>();
-  const [metricsData, setMetricsData] = useState<any[]>([]);
+  const { execute, loading, error } = useAsyncAction<MetricsDataPoint[]>();
+  const [metricsData, setMetricsData] = useState<MetricsDataPoint[]>([]);
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
     metrics.map(m => m.id) // Initially all metrics are selected
   );
@@ -127,13 +140,6 @@ const Metrics: React.FC<MetricsProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [editingDashboard, setEditingDashboard] = useState<CustomDashboard | null>(null);
-
-  // Mock current user (in production, this would come from auth context)
-  const currentUser = {
-    id: 'user_1',
-    name: 'John Doe',
-    email: 'john@example.com'
-  };
 
   /**
    * Determine alert level based on metric value and thresholds
@@ -247,9 +253,9 @@ const Metrics: React.FC<MetricsProps> = ({
    * Generate mock data based on time range
    * In production, this would fetch from an API
    */
-  const generateMockData = (range: TimeRange): any[] => {
+  const generateMockData = (range: TimeRange): MetricsDataPoint[] => {
     const now = new Date();
-    const data: any[] = [];
+    const data: MetricsDataPoint[] = [];
     
     let points: number;
     let interval: number; // in hours
@@ -308,7 +314,7 @@ const Metrics: React.FC<MetricsProps> = ({
    */
   useEffect(() => {
     const loadDashboards = () => {
-      const userDashboards = DashboardService.getDashboards(currentUser.id);
+      const userDashboards = DashboardService.getDashboards(MOCK_CURRENT_USER.id);
       setDashboards(userDashboards);
     };
 
@@ -319,7 +325,7 @@ const Metrics: React.FC<MetricsProps> = ({
    * Handle dashboard creation
    */
   const handleCreateDashboard = (formData: DashboardFormData) => {
-    const newDashboard = DashboardService.saveDashboard(formData, currentUser);
+    const newDashboard = DashboardService.saveDashboard(formData, MOCK_CURRENT_USER);
     setDashboards([...dashboards, newDashboard]);
     setActiveDashboard(newDashboard);
   };
@@ -412,10 +418,11 @@ const Metrics: React.FC<MetricsProps> = ({
     });
 
     // Build CSV rows
-    const rows = metricsData.map(dataPoint => {
+    const rows = metricsData.map((dataPoint) => {
       const row = [dataPoint.timestamp, dataPoint.label];
-      metricIds.forEach(metricId => {
-        row.push(dataPoint[metricId]?.toFixed(2) || '0');
+      metricIds.forEach((metricId) => {
+        const value = dataPoint[metricId as ExportableMetricKey];
+        row.push(typeof value === 'number' ? value.toFixed(2) : '0');
       });
       return row;
     });
@@ -474,13 +481,13 @@ const Metrics: React.FC<MetricsProps> = ({
           unit: metric.unit
         } : null;
       }).filter(Boolean),
-      data: metricsData.map(dataPoint => {
-        const point: any = {
+      data: metricsData.map((dataPoint): MetricsExportRecord => {
+        const point: MetricsExportRecord = {
           timestamp: dataPoint.timestamp,
           label: dataPoint.label
         };
-        metricIds.forEach(metricId => {
-          point[metricId] = dataPoint[metricId];
+        metricIds.forEach((metricId) => {
+          point[metricId as ExportableMetricKey] = dataPoint[metricId as ExportableMetricKey];
         });
         return point;
       })

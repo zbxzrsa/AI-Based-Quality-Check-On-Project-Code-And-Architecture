@@ -19,7 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useToast } from '@/hooks/use-toast'
 import {
   GitBranch,
   Settings,
@@ -33,7 +32,15 @@ import {
   User,
   Trash2
 } from 'lucide-react'
-import { useProject, useProjectPullRequests, useDeleteProject, useProjectAnalytics, useProjectArchitectureAnalysis } from '@/hooks/useProjects'
+import {
+  useProject,
+  useProjectPullRequests,
+  useDeleteProject,
+  useProjectAnalytics,
+  useProjectArchitectureAnalysis,
+  type PullRequest,
+  type RecentReview,
+} from '@/hooks/useProjects'
 import { useApiCall } from '@/hooks/useApiCall'
 import HealthMetrics from '@/components/projects/HealthMetrics'
 
@@ -46,9 +53,9 @@ export default function ProjectDetailPage() {
   
   const { data: project, isLoading } = useProject(projectId)
   const { data: pullRequestsData = [] } = useProjectPullRequests(projectId)
-  const { data: analytics, isLoading: analyticsLoading } = useProjectAnalytics(projectId)
-  const { data: architectureAnalysis, isLoading: architectureLoading } = useProjectArchitectureAnalysis(projectId)
-  const pullRequests = Array.isArray(pullRequestsData) ? pullRequestsData : []
+  const { data: analytics } = useProjectAnalytics(projectId)
+  const { data: architectureAnalysis } = useProjectArchitectureAnalysis(projectId)
+  const pullRequests: PullRequest[] = Array.isArray(pullRequestsData) ? pullRequestsData as PullRequest[] : []
   const deleteProject = useDeleteProject()
 
   const handleDeleteProject = async () => {
@@ -68,11 +75,7 @@ export default function ProjectDetailPage() {
   const overallHealth = analytics?.metrics?.overall_health || null
 
   // get详细的analyzedata
-  const dependencyStats = analytics?.dependency_stats || { total: 0, circular: 0, outdated: 0, dependency_issues: 0 }
-  const performanceMetrics = analytics?.performance_metrics || { avg_build_time: "0m", avg_test_time: "0m", avg_analysis_time: "0m", pr_review_time_avg: "0h" }
-  const issueStats = analytics?.issue_stats || { critical: 0, high: 0, medium: 0, low: 0, security: 0, performance: 0, code_style: 0, best_practices: 0, total: 0 }
-  const trends = analytics?.trends || { code_quality_change: 0, test_coverage_change: 0, issues_change: 0 }
-  const recentAnalysisReviews = analytics?.recent_reviews || []
+  const recentAnalysisReviews: RecentReview[] = analytics?.recent_reviews ?? []
 
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600'
@@ -311,7 +314,7 @@ export default function ProjectDetailPage() {
                 <CardContent>
                   {recentAnalysisReviews.length > 0 ? (
                     <div className="space-y-4">
-                      {recentAnalysisReviews.slice(0, 3).map((review: any) => (
+                      {recentAnalysisReviews.slice(0, 3).map((review) => (
                         <div key={review.pr_id} className="flex items-start space-x-4">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <GitPullRequest className="h-5 w-5 text-primary" />
@@ -347,7 +350,7 @@ export default function ProjectDetailPage() {
               <CardContent>
                 <div className="space-y-4">
                   {pullRequests.length > 0 ? (
-                    pullRequests.slice(0, 5).map((pr: any) => (
+                    pullRequests.slice(0, 5).map((pr) => (
                       <div key={pr.id} className="flex items-start space-x-4">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <CheckCircle className="h-5 w-5 text-primary" />
@@ -380,7 +383,7 @@ export default function ProjectDetailPage() {
               <CardContent>
                 {pullRequests.length > 0 ? (
                   <div className="space-y-4">
-                    {pullRequests.map((pr: any) => (
+                    {pullRequests.map((pr) => (
                       <Card key={pr.id} className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

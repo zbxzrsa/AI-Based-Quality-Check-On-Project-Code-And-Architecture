@@ -17,14 +17,14 @@
 
 import React, { useCallback, useMemo, useState, useRef } from 'react';
 import ReactFlow, {
-  Node,
-  Edge,
+  Node as FlowNode,
+  Edge as FlowEdge,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection,
+  Connection as FlowConnection,
   MiniMap,
   BackgroundVariant,
   NodeTypes,
@@ -250,9 +250,9 @@ function convertToFlowElements(
   rootNode: ArchitectureNode,
   expandedNodes: Set<string> = new Set(),
   selectedNodeId: string | null = null
-): { nodes: Node[]; edges: Edge[] } {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
+): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const nodes: FlowNode[] = [];
+  const edges: FlowEdge[] = [];
   let nodeIndex = 0;
 
   // Calculate highlighted paths if a node is selected
@@ -512,13 +512,13 @@ function ArchitectureInner({
 
   // Handle new connections
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: FlowConnection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
   // Handle node clicks
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: FlowNode) => {
       // Find the original node data
       const findNode = (n: ArchitectureNode): ArchitectureNode | null => {
         if (n.id === node.id) return n;

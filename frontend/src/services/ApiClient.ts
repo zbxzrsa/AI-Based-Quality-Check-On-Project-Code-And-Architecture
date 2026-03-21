@@ -37,14 +37,14 @@ interface CacheEntry<T> {
 }
 
 interface PendingRequest {
-  promise: Promise<any>;
+  promise: Promise<unknown>;
   timestamp: number;
 }
 
 export class ApiClient {
   private axiosInstance: AxiosInstance;
   private config: ApiClientConfig;
-  private cache: Map<string, CacheEntry<any>>;
+  private cache: Map<string, CacheEntry<unknown>>;
   private pendingRequests: Map<string, PendingRequest>;
   private activeRequests: number;
   private requestQueue: Array<() => void>;
@@ -156,14 +156,14 @@ export class ApiClient {
   /**
    * POST request - no caching
    */
-  async post<T>(url: string, data: any, options: RequestOptions = {}): Promise<T> {
+  async post<T>(url: string, data: unknown, options: RequestOptions = {}): Promise<T> {
     return this.executeRequest<T>('POST', url, data, options);
   }
 
   /**
    * PUT request - no caching
    */
-  async put<T>(url: string, data: any, options: RequestOptions = {}): Promise<T> {
+  async put<T>(url: string, data: unknown, options: RequestOptions = {}): Promise<T> {
     return this.executeRequest<T>('PUT', url, data, options);
   }
 
@@ -180,7 +180,7 @@ export class ApiClient {
   private async executeRequest<T>(
     method: string,
     url: string,
-    data?: any,
+    data?: unknown,
     options: RequestOptions = {}
   ): Promise<T> {
     // Concurrency control - wait until available slot
@@ -300,7 +300,7 @@ export class ApiClient {
   /**
    * Generate cache key
    */
-  private generateCacheKey(method: string, url: string, params?: any): string {
+  private generateCacheKey(method: string, url: string, params?: unknown): string {
     const paramsStr = params ? JSON.stringify(params) : '';
     return `${method}:${url}:${paramsStr}`;
   }

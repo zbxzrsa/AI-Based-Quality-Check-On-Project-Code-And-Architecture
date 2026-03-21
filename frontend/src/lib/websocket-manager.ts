@@ -8,6 +8,7 @@
  * - Performance monitoring
  * - Error handling and recovery
  */
+/* eslint-disable no-console */
 
 import { io, Socket } from 'socket.io-client';
 import { EventEmitter } from 'events';
@@ -30,6 +31,8 @@ interface ConnectionMetrics {
   lastMessageTime?: number;
   latency: number;
 }
+
+type SocketEventPayload = Record<string, unknown> | string | number | boolean | null | undefined;
 
 export class WebSocketManager extends EventEmitter {
   private socket: Socket | null = null;
@@ -202,7 +205,7 @@ export class WebSocketManager extends EventEmitter {
     this.emit('disconnected', 'manual disconnect');
   }
 
-  send(event: string, data?: any): boolean {
+  send(event: string, data?: SocketEventPayload): boolean {
     if (!this.socket || this.connectionState !== 'connected') {
       console.warn('⚠️ Cannot send message: WebSocket not connected');
       return false;
@@ -231,23 +234,23 @@ export class WebSocketManager extends EventEmitter {
   }
 
   // Convenience methods for common events
-  onProjectUpdate(callback: (data: any) => void): void {
+  onProjectUpdate(callback: (data: SocketEventPayload) => void): void {
     this.on('project:updated', callback);
   }
 
-  onReviewUpdate(callback: (data: any) => void): void {
+  onReviewUpdate(callback: (data: SocketEventPayload) => void): void {
     this.on('review:updated', callback);
   }
 
-  onLibraryUpdate(callback: (data: any) => void): void {
+  onLibraryUpdate(callback: (data: SocketEventPayload) => void): void {
     this.on('library:updated', callback);
   }
 
-  onSystemAlert(callback: (data: any) => void): void {
+  onSystemAlert(callback: (data: SocketEventPayload) => void): void {
     this.on('system:alert', callback);
   }
 
-  onPerformanceUpdate(callback: (data: any) => void): void {
+  onPerformanceUpdate(callback: (data: SocketEventPayload) => void): void {
     this.on('performance:update', callback);
   }
 

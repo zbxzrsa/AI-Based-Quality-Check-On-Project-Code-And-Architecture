@@ -10,14 +10,18 @@
  */
 
 import React, { ReactElement } from 'react';
-import { render, RenderOptions, screen, waitFor } from '@testing-library/react';
+import { render, RenderOptions, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from 'next-themes';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
 import fc from 'fast-check';
+
+interface TestSession {
+  user: ReturnType<typeof mockGenerators.user>;
+  expires: string;
+}
 
 // Mock data generators
 export const mockGenerators = {
@@ -128,7 +132,7 @@ export const server = setupServer(...apiHandlers);
 
 // Custom render function with all providers
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  session?: any;
+  session?: TestSession;
   queryClient?: QueryClient;
   theme?: string;
 }
@@ -158,13 +162,12 @@ export function renderWithProviders(
   } = options;
 
   function Wrapper({ children }: { children: React.ReactNode }) {
+    void session;
     return (
       <QueryClientProvider client={queryClient}>
-        <SessionProvider session={session}>
-          <ThemeProvider attribute="class" defaultTheme={theme} enableSystem={false}>
-            {children}
-          </ThemeProvider>
-        </SessionProvider>
+        <ThemeProvider attribute="class" defaultTheme={theme} enableSystem={false}>
+          {children}
+        </ThemeProvider>
       </QueryClientProvider>
     );
   }
@@ -182,7 +185,7 @@ export const propertyTestHelpers = {
   /**
    * Generate arbitrary React props for component testing
    */
-  componentProps: <T extends Record<string, any>>(schema: {
+  componentProps: <T extends Record<string, unknown>>(schema: {
     [K in keyof T]: fc.Arbitrary<T[K]>;
   }) => fc.record(schema),
 
@@ -294,7 +297,7 @@ export const a11yHelpers = {
   /**
    * Check for keyboard navigation support
    */
-  expectKeyboardNavigable: async (container: HTMLElement, user: any) => {
+  expectKeyboardNavigable: async (container: HTMLElement, user: ReturnType<typeof userEvent.setup>) => {
     const focusableElements = container.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
@@ -338,7 +341,7 @@ export const apiTestHelpers = {
   /**
    * Verify API call was made
    */
-  expectApiCall: async (url: string, method: string = 'GET') => {
+  expectApiCall: async (url: string, _method: string = 'GET') => {
     await waitFor(() => {
       // This would need to be implemented based on your API mocking strategy
       // For example, using MSW request handlers or jest.fn() mocks

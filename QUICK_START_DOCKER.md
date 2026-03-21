@@ -71,7 +71,7 @@ python scripts/test_db_connections.py
 
 | 服务          | URL                   | 端口 | 说明            |
 | ------------- | --------------------- | ---- | --------------- |
-| 🔧 前端应用   | http://localhost:3000 | 3000 | Next.js前端界面 |
+| 🔧 前端应用   | http://localhost:6066 | 6066 | Next.js前端界面 |
 | 🌐 后端API    | http://localhost:8000 | 8000 | FastAPI后端服务 |
 | 📊 pgAdmin    | http://localhost:5050 | 5050 | 数据库管理界面  |
 | 🐘 PostgreSQL | localhost:5432        | 5432 | 主要关系数据库  |

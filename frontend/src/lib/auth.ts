@@ -13,7 +13,8 @@
 // ============================================================================
 
 export interface LoginCredentials {
-  username: string;
+  email?: string;
+  username?: string;
   password: string;
 }
 
@@ -21,6 +22,7 @@ export interface User {
   id: string;
   username: string;
   email?: string;
+  full_name?: string;
   name?: string;
   role?: string;
   is_active?: boolean;
@@ -36,7 +38,9 @@ export interface AuthResponse {
 
 export interface UserResponse {
   id: string;
+  email?: string;
   username: string;
+  full_name?: string;
   role?: string;
   is_active?: boolean;
   created_at?: string;
@@ -63,7 +67,7 @@ export function getBackendUrl(): string {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'http://localhost:8000';
   
   if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Using backend URL:', backendUrl);
+    console.warn('[Auth] Using backend URL:', backendUrl);
   }
   
   return backendUrl;
@@ -142,13 +146,15 @@ export function getUserDetailsUrl(): string {
  * Authenticate user with credentials
  */
 export async function authenticateUser(credentials: LoginCredentials): Promise<User> {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Authenticating user:', credentials.username);
-  }
+  const email = credentials.email ?? credentials.username ?? '';
+
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] Authenticating user:', email);
+    }
   
   // Validate credentials
-  if (!credentials.username || !credentials.password) {
-    throw createAuthError('validation', 'Username and password are required');
+  if (!email || !credentials.password) {
+    throw createAuthError('validation', 'Email and password are required');
   }
   
   try {
@@ -156,14 +162,14 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     const loginUrl = getLoginUrl();
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] Sending login request to:', loginUrl);
+      console.warn('[Auth] Sending login request to:', loginUrl);
     }
     
     const loginRes = await fetch(loginUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: credentials.username,
+        email,
         password: credentials.password,
       }),
     });
@@ -176,7 +182,7 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
       }
       
       if (loginRes.status === 401) {
-        throw createAuthError('credentials', error.detail || 'Invalid username or password', loginRes.status);
+        throw createAuthError('credentials', error.detail || 'Invalid email or password', loginRes.status);
       } else if (loginRes.status >= 500) {
         throw createAuthError('server', error.detail || 'Server error occurred', loginRes.status);
       } else {
@@ -191,7 +197,7 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] Login successful, fetching user details');
+      console.warn('[Auth] Login successful, fetching user details');
     }
     
     // Step 2: Get user details
@@ -212,15 +218,19 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     const userData: UserResponse = await meRes.json();
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] User details fetched successfully:', userData.username);
+      console.warn('[Auth] User details fetched successfully:', userData.username);
     }
     
+    const resolvedEmail = userData.email || email;
+    const resolvedName = userData.full_name || userData.username || resolvedEmail;
+
     // Combine auth data and user data
     return {
       id: userData.id,
-      username: userData.username,
-      email: userData.username, // Use username as email for compatibility
-      name: userData.username,
+      username: userData.username || resolvedEmail,
+      email: resolvedEmail,
+      full_name: userData.full_name,
+      name: resolvedName,
       role: userData.role,
       is_active: userData.is_active,
       accessToken: authData.access_token,
@@ -276,7 +286,7 @@ export function getUserFriendlyErrorMessage(error: AuthError): string {
     case 'network':
       return 'Unable to connect to the authentication server. Please check your connection and try again.';
     case 'credentials':
-      return 'Invalid username or password. Please try again.';
+      return 'Invalid email or password. Please try again.';
     case 'server':
       return 'The authentication server encountered an error. Please try again later.';
     case 'validation':
@@ -320,6 +330,14 @@ export function handleAuthError(error: unknown): AuthError {
 // ============================================================================
 
 /**
+ * Validate email format
+ */
+export function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
  * Validate username format
  */
 export function isValidUsername(username: string): boolean {
@@ -361,11 +379,12 @@ export function isValidPassword(password: string): { valid: boolean; errors: str
  */
 export function validateCredentials(credentials: LoginCredentials): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
+  const email = credentials.email ?? credentials.username ?? '';
   
-  if (!credentials.username) {
-    errors.push('Username is required');
-  } else if (!isValidUsername(credentials.username)) {
-    errors.push('Invalid username format (3-50 alphanumeric characters, underscores, or hyphens)');
+  if (!email) {
+    errors.push('Email is required');
+  } else if (!isValidEmail(email)) {
+    errors.push('Invalid email format');
   }
   
   if (!credentials.password) {

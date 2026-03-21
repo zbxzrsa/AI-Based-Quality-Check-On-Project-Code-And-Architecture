@@ -27,7 +27,9 @@ os.environ["POSTGRES_DB"] = "ai_code_review_test"
 os.environ["POSTGRES_HOST"] = "127.0.0.1"
 os.environ["POSTGRES_PORT"] = "5433"
 os.environ["POSTGRES_USER"] = "postgres"
-os.environ["POSTGRES_PASSWORD"] = "" # Use empty password for trust auth on port 5433
+# Keep a non-empty password so Settings validation passes even when the
+# local test database uses trust auth on port 5433.
+os.environ["POSTGRES_PASSWORD"] = "postgres123"
 
 from app.main import app
 from app.database.postgresql import get_db

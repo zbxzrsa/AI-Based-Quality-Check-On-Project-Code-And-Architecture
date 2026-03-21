@@ -1,3 +1,4 @@
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 /**
  * Page Load Performance Tests
  * 

@@ -108,12 +108,12 @@ class ServiceConfigGenerator:
             ServiceDefinition(
                 name="frontend",
                 service_type=ServiceType.FRONTEND,
-                required_keys={"NEXT_PUBLIC_API_URL", "NEXTAUTH_URL"},
-                optional_keys={"NEXTAUTH_SECRET", "NODE_ENV", "FRONTEND_PORT"},
+                required_keys={"NEXT_PUBLIC_API_URL"},
+                optional_keys={"NEXT_PUBLIC_API_BASE_URL", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "NODE_ENV", "FRONTEND_PORT"},
                 key_prefixes=["NEXT_", "NEXTAUTH_"],
                 config_file_path=Path("frontend/.env.local"),
                 dependencies=["backend"],
-                health_check_url="http://localhost:3000/api/health",
+                health_check_url="http://localhost:6066/api/health",
             )
         )
 
@@ -167,7 +167,7 @@ class ServiceConfigGenerator:
                 },
                 key_prefixes=["CORS_", "RATE_LIMIT_", "AUTH_", "CIRCUIT_BREAKER_"],
                 dependencies=["auth-service", "backend"],
-                health_check_url="http://localhost:3000/health",
+                health_check_url="http://localhost:6066/api/health",
             )
         )
 

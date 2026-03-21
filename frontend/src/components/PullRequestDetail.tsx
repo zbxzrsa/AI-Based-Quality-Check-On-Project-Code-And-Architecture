@@ -6,8 +6,7 @@
 
 import React, { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import type { PullRequest, User } from '../types/pullRequest';
-import type { Comment } from '../components/CodeDiff';
+import type { PullRequest } from '../types/pullRequest';
 import { ApprovalActions } from './ApprovalActions';
 
 const CodeDiff = dynamic(() => import('../components/CodeDiff').then(mod => ({ default: mod.default })), {
@@ -19,7 +18,7 @@ interface PullRequestDetailProps {
   pullRequest: PullRequest;
   onBack: () => void;
   onApprovalSubmit: (decision: 'approved' | 'rejected', comment?: string) => void;
-  onAddComment: (comment: Comment) => void;
+  onAddComment: (fileName: string, lineNumber: number, content: string, parentId?: string) => void;
 }
 
 export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
@@ -50,6 +49,44 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
       case 'closed': return '🔒';
       default: return '❓';
     }
+  };
+
+  const getCommentAuthorName = (author: unknown): string => {
+    if (typeof author === 'string') {
+      return author;
+    }
+
+    if (author && typeof author === 'object' && 'name' in author) {
+      const name = (author as { name?: unknown }).name;
+      if (typeof name === 'string' && name.trim().length > 0) {
+        return name;
+      }
+    }
+
+    return 'Unknown User';
+  };
+
+  const getCommentAuthorAvatar = (author: unknown): string => {
+    if (author && typeof author === 'object' && 'avatar' in author) {
+      const avatar = (author as { avatar?: unknown }).avatar;
+      if (typeof avatar === 'string' && avatar.trim().length > 0) {
+        return avatar;
+      }
+    }
+
+    return '/default-avatar.png';
+  };
+
+  const getCommentFilePath = (comment: { filePath?: unknown; fileName?: unknown }): string | null => {
+    if (typeof comment.filePath === 'string' && comment.filePath.trim().length > 0) {
+      return comment.filePath;
+    }
+
+    if (typeof comment.fileName === 'string' && comment.fileName.trim().length > 0) {
+      return comment.fileName;
+    }
+
+    return null;
   };
 
   const renderOverview = () => (
@@ -157,12 +194,12 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
             <div key={comment.id} style={styles.comment}>
               <div style={styles.commentHeader}>
                 <img
-                  src={comment.author.avatar || '/default-avatar.png'}
-                  alt={comment.author.name}
+                  src={getCommentAuthorAvatar(comment.author)}
+                  alt={getCommentAuthorName(comment.author)}
                   style={styles.commentAvatar}
                 />
                 <div style={styles.commentMeta}>
-                  <strong>{comment.author.name}</strong>
+                  <strong>{getCommentAuthorName(comment.author)}</strong>
                   <span style={styles.commentTime}>
                     {comment.createdAt.toLocaleDateString()}
                   </span>
@@ -171,9 +208,9 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
               <div style={styles.commentContent}>
                 {comment.content}
               </div>
-              {comment.filePath && (
+              {getCommentFilePath(comment) && (
                 <div style={styles.commentFile}>
-                  On file: <code>{comment.filePath}</code>
+                  On file: <code>{getCommentFilePath(comment)}</code>
                   {comment.lineNumber && ` at line ${comment.lineNumber}`}
                 </div>
               )}

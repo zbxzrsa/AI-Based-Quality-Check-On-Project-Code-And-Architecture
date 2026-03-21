@@ -194,12 +194,12 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
       NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
       NEXT_PUBLIC_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:6066
       NEXTAUTH_SECRET: ${SESSION_SECRET}
       # 启用快速刷新
       WATCHPACK_POLLING: 'true'
     ports:
-      - '3000:3000'
+      - '6066:6066'
     volumes:
       # 挂载源代码以支持热重载
       - ./frontend/src:/app/src

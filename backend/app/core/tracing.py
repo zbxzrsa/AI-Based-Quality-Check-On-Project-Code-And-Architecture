@@ -12,13 +12,23 @@ import logging
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+except ImportError as exc:
+    FastAPIInstrumentor = None
+    HTTPXClientInstrumentor = None
+    RedisInstrumentor = None
+    SQLAlchemyInstrumentor = None
+    _INSTRUMENTATION_IMPORT_ERROR = exc
+else:
+    _INSTRUMENTATION_IMPORT_ERROR = None
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +133,9 @@ class TracingConfig:
             app: FastAPI application instance
         """
         try:
+            if FastAPIInstrumentor is None:
+                logger.warning("FastAPI tracing instrumentation unavailable: %s", _INSTRUMENTATION_IMPORT_ERROR)
+                return
             FastAPIInstrumentor.instrument_app(app)
             logger.info("✅ FastAPI instrumented for tracing")
         except Exception as e:
@@ -131,6 +144,9 @@ class TracingConfig:
     def instrument_httpx(self) -> None:
         """Instrument HTTPX client for automatic tracing of HTTP requests"""
         try:
+            if HTTPXClientInstrumentor is None:
+                logger.warning("HTTPX tracing instrumentation unavailable: %s", _INSTRUMENTATION_IMPORT_ERROR)
+                return
             HTTPXClientInstrumentor().instrument()
             logger.info("✅ HTTPX instrumented for tracing")
         except Exception as e:
@@ -139,6 +155,9 @@ class TracingConfig:
     def instrument_redis(self) -> None:
         """Instrument Redis client for automatic tracing"""
         try:
+            if RedisInstrumentor is None:
+                logger.warning("Redis tracing instrumentation unavailable: %s", _INSTRUMENTATION_IMPORT_ERROR)
+                return
             RedisInstrumentor().instrument()
             logger.info("✅ Redis instrumented for tracing")
         except Exception as e:
@@ -152,6 +171,9 @@ class TracingConfig:
             engine: SQLAlchemy engine instance
         """
         try:
+            if SQLAlchemyInstrumentor is None:
+                logger.warning("SQLAlchemy tracing instrumentation unavailable: %s", _INSTRUMENTATION_IMPORT_ERROR)
+                return
             SQLAlchemyInstrumentor().instrument(engine=engine)
             logger.info("✅ SQLAlchemy instrumented for tracing")
         except Exception as e:

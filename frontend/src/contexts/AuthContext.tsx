@@ -43,40 +43,14 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MODIFY_REVIEW,
     Permission.MODIFY_CONFIG,
   ],
-  [Role.DEVELOPER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.CREATE_PROJECT,
-    Permission.MODIFY_PROJECT,
-    Permission.VIEW_REVIEWS,
-    Permission.CREATE_REVIEW,
-    Permission.MODIFY_REVIEW,
-  ],
-  [Role.REVIEWER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
-    Permission.CREATE_REVIEW,
-    Permission.MODIFY_REVIEW,
-  ],
-  [Role.COMPLIANCE_OFFICER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
-    Permission.MODIFY_CONFIG,
-  ],
-  [Role.MANAGER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_USERS,
-    Permission.VIEW_REVIEWS,
-  ],
-  [Role.PROGRAMMER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.CREATE_PROJECT,
-    Permission.MODIFY_PROJECT,
-    Permission.VIEW_REVIEWS,
-  ],
-  [Role.VISITOR]: [
+  [Role.USER]: [
     Permission.VIEW_PROJECTS,
     Permission.VIEW_REVIEWS,
   ],
+};
+
+const normalizeRole = (rawRole: unknown): Role => {
+  return rawRole === Role.ADMIN ? Role.ADMIN : Role.USER;
 };
 
 // Token refresh interval: 20 minutes (tokens expire in 24 hours, refresh well before)
@@ -93,8 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Update role and permissions when user changes
   useEffect(() => {
     if (user) {
-      setRole(user.role);
-      setPermissions(ROLE_PERMISSIONS[user.role] || []);
+      const normalizedRole = normalizeRole(user.role);
+      setRole(normalizedRole);
+      setPermissions(ROLE_PERMISSIONS[normalizedRole]);
     } else {
       setRole(null);
       setPermissions([]);
@@ -104,24 +79,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch current user from backend using httpOnly cookie
   const fetchCurrentUser = useCallback(async () => {
     try {
-      console.log('[AuthContext] Fetching current user from /api/auth/me');
-      
       const response = await fetch('/api/auth/me', {
         method: 'GET',
         credentials: 'include', // Include httpOnly cookies
       });
 
-      console.log('[AuthContext] /api/auth/me response:', response.status);
-
       if (response.ok) {
         const userData = await response.json();
-        console.log('[AuthContext] User data received:', userData);
-        setUser(userData);
+        setUser({
+          ...userData,
+          role: normalizeRole(userData?.role),
+        });
         return true;
       } else {
         // 401 is expected when not logged in, don't log as error
         if (response.status === 401) {
-          console.log('[AuthContext] No active session found');
+          console.warn('[AuthContext] No active session found');
         } else {
           const errorData = await response.text();
           console.error('[AuthContext] Failed to fetch user:', response.status, errorData);
@@ -195,8 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string, returnUrl?: string) => {
     setLoading(true);
     try {
-      console.log('[AuthContext] Starting login...', { email, returnUrl });
-      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -206,21 +177,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log('[AuthContext] Login response:', response.status);
-
       if (!response.ok) {
         const error = await response.json();
         console.error('[AuthContext] Login failed:', error);
         throw new Error(error.detail || error.message || 'Login failed');
       }
 
-      const loginData = await response.json();
-      console.log('[AuthContext] Login successful:', loginData);
+      await response.json();
 
       // Fetch user data after successful login
-      console.log('[AuthContext] Fetching current user...');
       const userFetched = await fetchCurrentUser();
-      console.log('[AuthContext] User fetched:', userFetched);
       
       if (!userFetched) {
         console.error('[AuthContext] Failed to fetch user data after login');
@@ -229,7 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Redirect to returnUrl if provided, otherwise to dashboard
       const redirectUrl = returnUrl || '/dashboard';
-      console.log('[AuthContext] Redirecting to:', redirectUrl);
       router.push(redirectUrl);
     } catch (error) {
       console.error('[AuthContext] Login error:', error);

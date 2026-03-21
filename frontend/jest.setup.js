@@ -5,6 +5,13 @@
 // Import jest-dom matchers
 import '@testing-library/jest-dom';
 
+// Provide Web Request/Response primitives for Next.js route tests under Jest.
+const { Request, Response, Headers } = globalThis;
+
+if (Request) global.Request = global.Request || Request;
+if (Response) global.Response = global.Response || Response;
+if (Headers) global.Headers = global.Headers || Headers;
+
 // Mock environment variables
 process.env.NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 process.env.NEXT_PUBLIC_APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || 'test';
@@ -17,22 +24,6 @@ const localStorageMock = {
   clear: jest.fn(),
 };
 global.localStorage = localStorageMock;
-
-// Mock window.location without causing navigation errors
-if (!window.location) {
-  Object.defineProperty(window, 'location', {
-    value: {
-      href: 'http://localhost:3000',
-      pathname: '/',
-      search: '',
-      hash: '',
-      reload: jest.fn(),
-      replace: jest.fn(),
-      assign: jest.fn(),
-    },
-    writable: true,
-  });
-}
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

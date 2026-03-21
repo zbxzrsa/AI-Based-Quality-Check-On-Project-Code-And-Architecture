@@ -61,7 +61,7 @@ describe('Authentication Service', () => {
     describe('validateEnvironmentConfig', () => {
       it('should return valid when all required env vars are set', () => {
         process.env.NEXTAUTH_SECRET = 'a'.repeat(32);
-        process.env.NEXTAUTH_URL = 'http://localhost:3000';
+        process.env.NEXTAUTH_URL = 'http://localhost:6066';
         
         const result = validateEnvironmentConfig();
         expect(result.valid).toBe(true);
@@ -69,7 +69,7 @@ describe('Authentication Service', () => {
       });
 
       it('should return error when NEXTAUTH_SECRET is missing', () => {
-        process.env.NEXTAUTH_URL = 'http://localhost:3000';
+        process.env.NEXTAUTH_URL = 'http://localhost:6066';
         
         const result = validateEnvironmentConfig();
         expect(result.valid).toBe(false);
@@ -78,7 +78,7 @@ describe('Authentication Service', () => {
 
       it('should return error when NEXTAUTH_SECRET is too short', () => {
         process.env.NEXTAUTH_SECRET = 'short';
-        process.env.NEXTAUTH_URL = 'http://localhost:3000';
+        process.env.NEXTAUTH_URL = 'http://localhost:6066';
         
         const result = validateEnvironmentConfig();
         expect(result.valid).toBe(false);
@@ -173,6 +173,7 @@ describe('Authentication Service', () => {
 
         expect(user).toEqual({
           id: '123',
+          username: 'test@example.com',
           email: 'test@example.com',
           name: 'Test User',
           full_name: 'Test User',

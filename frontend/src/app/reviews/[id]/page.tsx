@@ -304,7 +304,7 @@ export default function PullRequestReviewPage() {
   // Get unique categories from comments
   const availableCategories = useMemo(() => {
     return Array.from(new Set(mockComments.map((c) => c.category)));
-  }, []);
+  }, [mockComments]);
 
   // Mock compliance data
   const complianceData = {

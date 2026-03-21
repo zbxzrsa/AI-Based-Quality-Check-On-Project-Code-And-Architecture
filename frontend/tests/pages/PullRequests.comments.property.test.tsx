@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * PullRequests评论featurepropertytest
  * 
@@ -32,85 +33,87 @@ jest.mock('../../components/LoadingState', () => ({
 // Mock CodeDiff with comment functionality
 jest.mock('../../components/CodeDiff', () => {
   const React = require('react');
+  const MockCodeDiff = ({ files, comments, onAddComment, onDeleteComment }: any) => {
+    const [localComments, setLocalComments] = React.useState(comments || []);
+    
+    React.useEffect(() => {
+      setLocalComments(comments || []);
+    }, [comments]);
+
+    const handleAddComment = (fileName: string, lineNumber: number, content: string, parentId?: string) => {
+      if (onAddComment) {
+        onAddComment(fileName, lineNumber, content, parentId);
+      }
+    };
+
+    const handleDeleteComment = (commentId: string) => {
+      if (onDeleteComment) {
+        onDeleteComment(commentId);
+      }
+    };
+
+    const renderComment = (comment: any, depth: number = 0) => (
+      <div 
+        key={comment.id} 
+        data-testid={`comment-${comment.id}`}
+        style={{ marginLeft: `${depth * 20}px` }}
+      >
+        <div data-testid={`comment-author-${comment.id}`}>{comment.author}</div>
+        <div data-testid={`comment-content-${comment.id}`}>{comment.content}</div>
+        <div data-testid={`comment-line-${comment.id}`}>Line: {comment.lineNumber}</div>
+        <button 
+          data-testid={`reply-button-${comment.id}`}
+          onClick={() => handleAddComment(comment.fileName, comment.lineNumber, `Reply to ${comment.id}`, comment.id)}
+        >
+          Reply
+        </button>
+        <button 
+          data-testid={`delete-button-${comment.id}`}
+          onClick={() => handleDeleteComment(comment.id)}
+        >
+          Delete
+        </button>
+        {comment.replies && comment.replies.length > 0 && (
+          <div data-testid={`replies-${comment.id}`}>
+            {comment.replies.map((reply: any) => renderComment(reply, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div data-testid="code-diff">
+        <div data-testid="files-count">Files: {files.length}</div>
+        {files.map((file: any, index: number) => (
+          <div key={index} data-testid={`file-${index}`}>
+            <div data-testid={`file-path-${index}`}>{file.path}</div>
+            {file.chunks && file.chunks.map((chunk: any, chunkIndex: number) => (
+              <div key={chunkIndex} data-testid={`chunk-${index}-${chunkIndex}`}>
+                {chunk.lines && chunk.lines.map((line: any, lineIndex: number) => (
+                  <div key={lineIndex} data-testid={`line-${index}-${line.lineNumber || lineIndex}`}>
+                    <span>{line.content}</span>
+                    <button
+                      data-testid={`add-comment-${index}-${line.lineNumber || lineIndex}`}
+                      onClick={() => handleAddComment(file.path, line.lineNumber || lineIndex, `Comment on line ${line.lineNumber || lineIndex}`)}
+                    >
+                      Add Comment
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+        <div data-testid="comments-section">
+          {localComments.map((comment: any) => renderComment(comment))}
+        </div>
+      </div>
+    );
+  };
+
   return {
     __esModule: true,
-    default: ({ files, comments, onAddComment, onDeleteComment }: any) => {
-      const [localComments, setLocalComments] = React.useState(comments || []);
-      
-      React.useEffect(() => {
-        setLocalComments(comments || []);
-      }, [comments]);
-
-      const handleAddComment = (fileName: string, lineNumber: number, content: string, parentId?: string) => {
-        if (onAddComment) {
-          onAddComment(fileName, lineNumber, content, parentId);
-        }
-      };
-
-      const handleDeleteComment = (commentId: string) => {
-        if (onDeleteComment) {
-          onDeleteComment(commentId);
-        }
-      };
-
-      const renderComment = (comment: any, depth: number = 0) => (
-        <div 
-          key={comment.id} 
-          data-testid={`comment-${comment.id}`}
-          style={{ marginLeft: `${depth * 20}px` }}
-        >
-          <div data-testid={`comment-author-${comment.id}`}>{comment.author}</div>
-          <div data-testid={`comment-content-${comment.id}`}>{comment.content}</div>
-          <div data-testid={`comment-line-${comment.id}`}>Line: {comment.lineNumber}</div>
-          <button 
-            data-testid={`reply-button-${comment.id}`}
-            onClick={() => handleAddComment(comment.fileName, comment.lineNumber, `Reply to ${comment.id}`, comment.id)}
-          >
-            Reply
-          </button>
-          <button 
-            data-testid={`delete-button-${comment.id}`}
-            onClick={() => handleDeleteComment(comment.id)}
-          >
-            Delete
-          </button>
-          {comment.replies && comment.replies.length > 0 && (
-            <div data-testid={`replies-${comment.id}`}>
-              {comment.replies.map((reply: any) => renderComment(reply, depth + 1))}
-            </div>
-          )}
-        </div>
-      );
-
-      return (
-        <div data-testid="code-diff">
-          <div data-testid="files-count">Files: {files.length}</div>
-          {files.map((file: any, index: number) => (
-            <div key={index} data-testid={`file-${index}`}>
-              <div data-testid={`file-path-${index}`}>{file.path}</div>
-              {file.chunks && file.chunks.map((chunk: any, chunkIndex: number) => (
-                <div key={chunkIndex} data-testid={`chunk-${index}-${chunkIndex}`}>
-                  {chunk.lines && chunk.lines.map((line: any, lineIndex: number) => (
-                    <div key={lineIndex} data-testid={`line-${index}-${line.lineNumber || lineIndex}`}>
-                      <span>{line.content}</span>
-                      <button
-                        data-testid={`add-comment-${index}-${line.lineNumber || lineIndex}`}
-                        onClick={() => handleAddComment(file.path, line.lineNumber || lineIndex, `Comment on line ${line.lineNumber || lineIndex}`)}
-                      >
-                        Add Comment
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ))}
-          <div data-testid="comments-section">
-            {localComments.map((comment: any) => renderComment(comment))}
-          </div>
-        </div>
-      );
-    },
+    default: MockCodeDiff,
   };
 });
 

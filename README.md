@@ -64,7 +64,7 @@ cd AI-Based-Quality-Check-On-Project-Code-And-Architecture
 docker-compose up -d
 
 # 访问应用
-# 前端: http://localhost:3000
+# 前端: http://localhost:6066
 # 后端: http://localhost:8000
 # API文档: http://localhost:8000/docs
 ```
@@ -91,7 +91,7 @@ npm install
 npm run dev
 
 # 4. 访问
-# 前端: http://localhost:3000
+# 前端: http://localhost:6066
 # 后端: http://localhost:8000
 ```
 

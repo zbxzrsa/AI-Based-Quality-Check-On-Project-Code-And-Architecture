@@ -52,7 +52,12 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole, name="user_role"), nullable=False, default=UserRole.USER)
+    # Persist role enum values in lowercase for compatibility with existing PostgreSQL enum data.
+    role = Column(
+        SQLEnum(UserRole, name="user_role", values_callable=lambda enum_cls: [item.value.lower() for item in enum_cls]),
+        nullable=False,
+        default=UserRole.USER,
+    )
     full_name = Column(String(255))
     is_active = Column(Boolean, default=True)
     github_token = Column(String(500), nullable=True)
@@ -144,7 +149,7 @@ class AuditLog(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    action = Column(SQLEnum(AuditAction), nullable=False)
+    action = Column(SQLEnum(AuditAction, name="audit_action"), nullable=False)
     entity_type = Column(String(100), nullable=False)
     entity_id = Column(UUID(as_uuid=True), nullable=False)
     changes = Column(JSONB)

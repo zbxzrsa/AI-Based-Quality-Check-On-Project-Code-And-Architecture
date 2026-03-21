@@ -78,12 +78,35 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
   }, [selectedPR]);
 
   // Handle add comment
-  const handleAddComment = useCallback((comment: Comment) => {
+  const handleAddComment = useCallback(
+    (fileName: string, lineNumber: number, content: string, parentId?: string) => {
     if (!selectedPR) return;
+
+    const newComment: Comment = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      author: 'Current User',
+      content,
+      createdAt: new Date(),
+      lineNumber,
+      fileName,
+      parentId,
+    };
+
+    const comments = parentId
+      ? selectedPR.comments.map((existing) => {
+          if (existing.id !== parentId) {
+            return existing;
+          }
+          return {
+            ...existing,
+            replies: [...(existing.replies || []), newComment],
+          };
+        })
+      : [...selectedPR.comments, newComment];
 
     const updatedPR = {
       ...selectedPR,
-      comments: [...selectedPR.comments, comment],
+      comments,
       updatedAt: new Date(),
     };
 
@@ -94,7 +117,9 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
     
     // Update the selected PR
     setSelectedPR(updatedPR);
-  }, [selectedPR]);
+    },
+    [selectedPR]
+  );
 
   if (loading) {
     return <LoadingState message="Loading pull requests..." />;

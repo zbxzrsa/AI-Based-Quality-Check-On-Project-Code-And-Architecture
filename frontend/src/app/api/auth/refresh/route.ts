@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { fetchBackendWithFallback } from '@/lib/server/backend';
 
-// Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const refreshToken = cookieStore.get('refresh_token')?.value;
@@ -17,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend refresh endpoint
-    const response = await fetch(`${BACKEND_URL}/api/v1/auth/refresh`, {
+    const { response } = await fetchBackendWithFallback('/api/v1/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

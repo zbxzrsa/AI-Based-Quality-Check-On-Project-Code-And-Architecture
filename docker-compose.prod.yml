@@ -266,7 +266,7 @@ services:
       - ai_review_network
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:6066/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

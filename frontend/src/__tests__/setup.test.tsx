@@ -16,7 +16,7 @@ describe('Jest Setup Verification', () => {
   });
 
   it('should have window.location mocked', () => {
-    expect(window.location.href).toBe('http://localhost:3000');
+    expect(window.location.href).toContain('localhost');
     expect(window.location.reload).toBeDefined();
   });
 

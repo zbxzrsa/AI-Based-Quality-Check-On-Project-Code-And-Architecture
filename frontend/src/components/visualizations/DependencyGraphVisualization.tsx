@@ -37,17 +37,7 @@ import {
   Info,
   Lock
 } from 'lucide-react';
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  ConnectionMode,
-  MarkerType,
-  Panel,
-} from 'reactflow';
+import ForceGraph2D from 'react-force-graph-2d';
 import 'reactflow/dist/style.css';
 import { apiClientEnhanced as apiClient } from '@/lib/api-client';
 import { 
@@ -86,6 +76,10 @@ interface CircularDependency {
   nodes: string[];
   severity: 'low' | 'medium' | 'high';
   description: string;
+}
+
+interface AnalysisWebSocketMessage {
+  type?: 'analysis_progress' | 'analysis_complete' | string;
 }
 
 interface DependencyGraphVisualizationProps {
@@ -205,37 +199,32 @@ export default function DependencyGraphVisualization({
   }, [graphData]);
 
   // State
-  const [error, setError] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<string | null>(null);
   const [highlightCycles, setHighlightCycles] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  const [renderMode, setRenderMode] = useState<'full' | 'lod'>('full');
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   
   // Refs
-  const graphRef = useRef<any>(null);
+  const graphRef = useRef<{
+    zoom: (level: number, duration?: number) => void;
+    zoomToFit: (duration?: number) => void;
+  } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Set render mode based on graph size
-  useEffect(() => {
-    if (nodes.length > 1000) {
-      setRenderMode('lod');
-    } else {
-      setRenderMode('full');
-    }
-  }, [nodes.length]);
+  const renderMode: 'full' | 'lod' = nodes.length > 1000 ? 'lod' : 'full';
+  const error = runtimeError ?? queryError?.message ?? null;
 
-  // Handle query errors
-  useEffect(() => {
-    if (queryError) {
-      setError(queryError.message);
-    } else {
-      setError(null);
+  // Handle WebSocket messages for real-time updates
+  const handleWebSocketMessage = useCallback((data: AnalysisWebSocketMessage) => {
+    if (data.type === 'analysis_progress' || data.type === 'analysis_complete') {
+      // Refetch data when analysis updates
+      refetch();
     }
-  }, [queryError]);
+  }, [refetch]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -246,14 +235,13 @@ export default function DependencyGraphVisualization({
         const ws = new WebSocket(websocketUrl);
         
         ws.onopen = () => {
-          console.log('WebSocket connected');
           setIsConnected(true);
-          setError(null);
+          setRuntimeError(null);
         };
 
         ws.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
+            const data = JSON.parse(event.data) as AnalysisWebSocketMessage;
             handleWebSocketMessage(data);
           } catch (err) {
             console.error('Failed to parse WebSocket message:', err);
@@ -262,12 +250,11 @@ export default function DependencyGraphVisualization({
 
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
-          setError('WebSocket connection error');
+          setRuntimeError('WebSocket connection error');
           setIsConnected(false);
         };
 
         ws.onclose = () => {
-          console.log('WebSocket disconnected');
           setIsConnected(false);
           // Attempt to reconnect after 5 seconds
           setTimeout(connectWebSocket, 5000);
@@ -276,7 +263,7 @@ export default function DependencyGraphVisualization({
         wsRef.current = ws;
       } catch (err) {
         console.error('Failed to create WebSocket:', err);
-        setError('Failed to establish WebSocket connection');
+        setRuntimeError('Failed to establish WebSocket connection');
       }
     };
 
@@ -287,15 +274,7 @@ export default function DependencyGraphVisualization({
         wsRef.current.close();
       }
     };
-  }, [websocketUrl]);
-
-  // Handle WebSocket messages for real-time updates
-  const handleWebSocketMessage = useCallback((data: any) => {
-    if (data.type === 'analysis_progress' || data.type === 'analysis_complete') {
-      // Refetch data when analysis updates
-      refetch();
-    }
-  }, [refetch]);
+  }, [handleWebSocketMessage, websocketUrl]);
 
   // Filter nodes based on search
   const filteredData = useMemo(() => {
@@ -405,7 +384,7 @@ export default function DependencyGraphVisualization({
 
   // Retry handler
   const handleRetry = useCallback(() => {
-    setError(null);
+    setRuntimeError(null);
     refetch();
   }, [refetch]);
 
@@ -648,12 +627,12 @@ export default function DependencyGraphVisualization({
               <ForceGraph2D
                 ref={graphRef}
                 graphData={filteredData}
-                nodeLabel={(node: any) => `${node.name}${node.inCycle ? ' (In Cycle)' : ''}`}
+                nodeLabel={(node: GraphNode) => `${node.name}${node.inCycle ? ' (In Cycle)' : ''}`}
                 nodeColor={getNodeColor}
                 nodeRelSize={6}
-                nodeVal={(node: any) => node.size}
+                nodeVal={(node: GraphNode) => node.size}
                 linkColor={getLinkColor}
-                linkWidth={(link: any) => link.weight}
+                linkWidth={(link: GraphLink) => link.weight}
                 linkDirectionalArrowLength={3.5}
                 linkDirectionalArrowRelPos={1}
                 onNodeClick={handleNodeClick}
@@ -664,7 +643,7 @@ export default function DependencyGraphVisualization({
                 enablePanInteraction={true}
                 minZoom={0.1}
                 maxZoom={10}
-                onZoom={(zoom) => setZoomLevel(zoom.k)}
+                onZoom={(zoom: { k: number }) => setZoomLevel(zoom.k)}
               />
               
               {/* Zoom Controls Overlay */}
