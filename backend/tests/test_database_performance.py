@@ -21,6 +21,8 @@ from uuid import uuid4
 from sqlalchemy import text, select
 from app.database.postgresql import AsyncSessionLocal
 from app.models import User, Project, PullRequest, CodeReview, ReviewComment
+from app.utils.password import hash_password
+from backend.tests.utils.secure_test_data import get_test_password
 
 
 @pytest.fixture
@@ -31,7 +33,7 @@ async def test_data():
         user = User(
             id=uuid4(),
             email=f"perf_test_{uuid4()}@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("database_performance_hash_marker")),
             role="developer",
             full_name="Performance Test User"
         )

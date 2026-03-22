@@ -182,9 +182,8 @@ function ProjectActions({ projectId }: { projectId: string }) {
 
 ```typescript
 enum Role {
-  ADMIN = 'ADMIN',
-  PROGRAMMER = 'PROGRAMMER',
-  VISITOR = 'VISITOR',
+  ADMIN = 'admin',
+  USER = 'user',
 }
 ```
 
@@ -214,15 +213,7 @@ The system uses the following role-permission mapping:
 **ADMIN:**
 - All permissions (full access)
 
-**PROGRAMMER:**
-- VIEW_PROJECTS
-- CREATE_PROJECT
-- MODIFY_PROJECT
-- VIEW_REVIEWS
-- CREATE_REVIEW
-- MODIFY_REVIEW
-
-**VISITOR:**
+**USER:**
 - VIEW_PROJECTS (read-only)
 - VIEW_REVIEWS (read-only)
 
@@ -282,9 +273,9 @@ type AuthContextType = {
 
 4. **Combine role and permission checks:**
    ```tsx
-   // For fine-grained control
-   <RBACGuard 
-     requiredRole={Role.PROGRAMMER}
+  // For fine-grained control
+  <RBACGuard 
+     requiredRole={Role.ADMIN}
      requiredPermission={Permission.MODIFY_PROJECT}
    >
      <ProjectEditor />

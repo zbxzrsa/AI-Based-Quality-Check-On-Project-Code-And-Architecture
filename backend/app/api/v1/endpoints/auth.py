@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authentication endpoints
 """
 
@@ -12,33 +12,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def get_client_ip(request) -> str:
-    """安全获取客户端IP地址"""
+    """瀹夊叏鑾峰彇瀹㈡埛绔疘P鍦板潃"""
     if request.client and request.client.host:
-        # 验证IP地址格式
+        # 楠岃瘉IP鍦板潃鏍煎紡
         ip = request.client.host
-        if ip and ip != "0.0.0.0":
+        if ip:
             return ip
 
-    # 检查代理头部
+    # 妫€鏌ヤ唬鐞嗗ご閮?
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
-        # 取第一个IP地址
+        # 鍙栫涓€涓狪P鍦板潃
         ip = forwarded_for.split(",")[0].strip()
-        if ip and ip != "0.0.0.0":
+        if ip:
             return ip
 
-    # 检查真实IP头部
+    # 妫€鏌ョ湡瀹濱P澶撮儴
     real_ip = request.headers.get("X-Real-IP")
-    if real_ip and real_ip != "0.0.0.0":
+    if real_ip:
         return real_ip
 
-    return "unknown"  # 避免使用 0.0.0.0
+    return "unknown"
 
 
 from app.api.dependencies import get_current_user
 from app.core.audit_service import UnifiedAuditService as AuditService
 from app.database.postgresql import get_db
-from app.models import User
+from app.models import User, UserRole
 from app.schemas.auth import Message, PasswordChange, TokenRefresh, TokenResponse, UserLogin, UserRegister, UserResponse
 from app.services.account_lockout_service import AccountLockoutService
 from app.services.redis_cache_service import get_cache_service
@@ -152,6 +152,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         email=user_data.email,
         password_hash=password_hash,
         full_name=user_data.full_name,
+        role=UserRole.USER,
     )
 
     db.add(user)
@@ -462,3 +463,5 @@ async def change_password(
     logger.info(f"Password changed successfully for user: {current_user.email}")
 
     return Message(message="Password successfully changed")
+
+

@@ -1,19 +1,19 @@
 {
   "errors": [],
-  "generated_at": "2026-03-21T16:29:40Z",
+  "generated_at": "2026-03-22T03:38:28Z",
   "metrics": {
     "_totals": {
       "CONFIDENCE.HIGH": 28,
-      "CONFIDENCE.LOW": 2,
-      "CONFIDENCE.MEDIUM": 23,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 20,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
       "SEVERITY.LOW": 48,
-      "SEVERITY.MEDIUM": 5,
+      "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 61364,
+      "loc": 61494,
       "nosec": 0,
-      "skipped_tests": 0
+      "skipped_tests": 2
     },
     "backend/app\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
@@ -135,13 +135,13 @@
     "backend/app\\api\\v1\\endpoints\\auth.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
-      "CONFIDENCE.MEDIUM": 4,
+      "CONFIDENCE.MEDIUM": 1,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
       "SEVERITY.LOW": 1,
-      "SEVERITY.MEDIUM": 3,
+      "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 329,
+      "loc": 330,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -154,7 +154,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 372,
+      "loc": 384,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -193,7 +193,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 63,
+      "loc": 67,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -206,7 +206,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 743,
+      "loc": 738,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -323,7 +323,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 658,
+      "loc": 676,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -362,7 +362,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 262,
+      "loc": 283,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -622,7 +622,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 33,
+      "loc": 32,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -687,7 +687,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 222,
+      "loc": 234,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1116,7 +1116,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 155,
+      "loc": 149,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1350,7 +1350,7 @@
       "SEVERITY.LOW": 11,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 629,
+      "loc": 636,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -1512,16 +1512,16 @@
     },
     "backend/app\\database\\sql_injection_prevention.py": {
       "CONFIDENCE.HIGH": 0,
-      "CONFIDENCE.LOW": 2,
+      "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
       "SEVERITY.LOW": 0,
-      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
       "loc": 286,
       "nosec": 0,
-      "skipped_tests": 0
+      "skipped_tests": 2
     },
     "backend/app\\domain\\__init__.py": {
       "CONFIDENCE.HIGH": 0,
@@ -2078,7 +2078,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 309,
+      "loc": 324,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -2546,7 +2546,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 411,
+      "loc": 428,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3066,7 +3066,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 339,
+      "loc": 349,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3170,7 +3170,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 474,
+      "loc": 489,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3339,7 +3339,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 487,
+      "loc": 496,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3508,7 +3508,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 200,
+      "loc": 201,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -3613,67 +3613,7 @@
       "test_name": "hardcoded_password_funcarg"
     },
     {
-      "code": "18         ip = request.client.host\n19         if ip and ip != \"0.0.0.0\":\n20             return ip\n",
-      "col_offset": 24,
-      "end_col_offset": 33,
-      "filename": "backend/app\\api\\v1\\endpoints\\auth.py",
-      "issue_confidence": "MEDIUM",
-      "issue_cwe": {
-        "id": 605,
-        "link": "https://cwe.mitre.org/data/definitions/605.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible binding to all interfaces.",
-      "line_number": 19,
-      "line_range": [
-        19
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b104_hardcoded_bind_all_interfaces.html",
-      "test_id": "B104",
-      "test_name": "hardcoded_bind_all_interfaces"
-    },
-    {
-      "code": "26         ip = forwarded_for.split(\",\")[0].strip()\n27         if ip and ip != \"0.0.0.0\":\n28             return ip\n",
-      "col_offset": 24,
-      "end_col_offset": 33,
-      "filename": "backend/app\\api\\v1\\endpoints\\auth.py",
-      "issue_confidence": "MEDIUM",
-      "issue_cwe": {
-        "id": 605,
-        "link": "https://cwe.mitre.org/data/definitions/605.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible binding to all interfaces.",
-      "line_number": 27,
-      "line_range": [
-        27
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b104_hardcoded_bind_all_interfaces.html",
-      "test_id": "B104",
-      "test_name": "hardcoded_bind_all_interfaces"
-    },
-    {
-      "code": "31     real_ip = request.headers.get(\"X-Real-IP\")\n32     if real_ip and real_ip != \"0.0.0.0\":\n33         return real_ip\n",
-      "col_offset": 30,
-      "end_col_offset": 39,
-      "filename": "backend/app\\api\\v1\\endpoints\\auth.py",
-      "issue_confidence": "MEDIUM",
-      "issue_cwe": {
-        "id": 605,
-        "link": "https://cwe.mitre.org/data/definitions/605.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible binding to all interfaces.",
-      "line_number": 32,
-      "line_range": [
-        32
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b104_hardcoded_bind_all_interfaces.html",
-      "test_id": "B104",
-      "test_name": "hardcoded_bind_all_interfaces"
-    },
-    {
-      "code": "317     # Verify refresh token signature and type\n318     payload = verify_token(token_data.refresh_token, token_type=\"refresh\")\n319 \n",
+      "code": "318     # Verify refresh token signature and type\n319     payload = verify_token(token_data.refresh_token, token_type=\"refresh\")\n320 \n",
       "col_offset": 14,
       "end_col_offset": 74,
       "filename": "backend/app\\api\\v1\\endpoints\\auth.py",
@@ -3684,9 +3624,9 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Possible hardcoded password: 'refresh'",
-      "line_number": 318,
+      "line_number": 319,
       "line_range": [
-        318
+        319
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b106_hardcoded_password_funcarg.html",
       "test_id": "B106",
@@ -4160,7 +4100,7 @@
       "test_name": "blacklist"
     },
     {
-      "code": "217             logger.info(\"Applying pending migrations\")\n218             result = subprocess.run(\n219                 [sys.executable, \"-m\", \"alembic\", \"upgrade\", \"head\"],\n220                 cwd=str(self.alembic_ini_path.parent.parent),\n221                 capture_output=True,\n222                 text=True,\n223                 timeout=300,\n224             )\n225 \n",
+      "code": "225             logger.info(\"Applying pending migrations\")\n226             result = subprocess.run(\n227                 [sys.executable, \"-m\", \"alembic\", \"upgrade\", \"head\"],\n228                 cwd=str(self.alembic_ini_path.parent.parent),\n229                 capture_output=True,\n230                 text=True,\n231                 timeout=300,\n232             )\n233 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4171,22 +4111,22 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 218,
+      "line_number": 226,
       "line_range": [
-        218,
-        219,
-        220,
-        221,
-        222,
-        223,
-        224
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "585             # Run alembic downgrade\n586             result = subprocess.run(\n587                 [sys.executable, \"-m\", \"alembic\", \"downgrade\", revision],\n588                 cwd=str(self.alembic_ini_path.parent.parent),\n589                 capture_output=True,\n590                 text=True,\n591                 timeout=300,\n592             )\n593 \n",
+      "code": "593             # Run alembic downgrade\n594             result = subprocess.run(\n595                 [sys.executable, \"-m\", \"alembic\", \"downgrade\", revision],\n596                 cwd=str(self.alembic_ini_path.parent.parent),\n597                 capture_output=True,\n598                 text=True,\n599                 timeout=300,\n600             )\n601 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4197,22 +4137,22 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 586,
+      "line_number": 594,
       "line_range": [
-        586,
-        587,
-        588,
-        589,
-        590,
-        591,
-        592
+        594,
+        595,
+        596,
+        597,
+        598,
+        599,
+        600
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "627 \n628             result = subprocess.run(\n629                 [\n630                     \"pg_dump\",\n631                     \"-h\",\n632                     settings.POSTGRES_HOST,\n633                     \"-p\",\n634                     str(settings.POSTGRES_PORT),\n635                     \"-U\",\n636                     settings.POSTGRES_USER,\n637                     \"-d\",\n638                     settings.POSTGRES_DB,\n639                     \"-F\",\n640                     \"c\",  # Custom format (compressed)\n641                     \"-f\",\n642                     str(backup_path),\n643                 ],\n644                 env=env,\n645                 capture_output=True,\n646                 text=True,\n647                 timeout=600,\n648             )\n649 \n",
+      "code": "635 \n636             result = subprocess.run(\n637                 [\n638                     \"pg_dump\",\n639                     \"-h\",\n640                     settings.POSTGRES_HOST,\n641                     \"-p\",\n642                     str(settings.POSTGRES_PORT),\n643                     \"-U\",\n644                     settings.POSTGRES_USER,\n645                     \"-d\",\n646                     settings.POSTGRES_DB,\n647                     \"-F\",\n648                     \"c\",  # Custom format (compressed)\n649                     \"-f\",\n650                     str(backup_path),\n651                 ],\n652                 env=env,\n653                 capture_output=True,\n654                 text=True,\n655                 timeout=600,\n656             )\n657 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4223,16 +4163,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 628,
+      "line_number": 636,
       "line_range": [
-        628,
-        629,
-        630,
-        631,
-        632,
-        633,
-        634,
-        635,
         636,
         637,
         638,
@@ -4245,14 +4177,22 @@
         645,
         646,
         647,
-        648
+        648,
+        649,
+        650,
+        651,
+        652,
+        653,
+        654,
+        655,
+        656
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "627 \n628             result = subprocess.run(\n629                 [\n630                     \"pg_dump\",\n631                     \"-h\",\n632                     settings.POSTGRES_HOST,\n633                     \"-p\",\n634                     str(settings.POSTGRES_PORT),\n635                     \"-U\",\n636                     settings.POSTGRES_USER,\n637                     \"-d\",\n638                     settings.POSTGRES_DB,\n639                     \"-F\",\n640                     \"c\",  # Custom format (compressed)\n641                     \"-f\",\n642                     str(backup_path),\n643                 ],\n644                 env=env,\n645                 capture_output=True,\n646                 text=True,\n647                 timeout=600,\n648             )\n649 \n",
+      "code": "635 \n636             result = subprocess.run(\n637                 [\n638                     \"pg_dump\",\n639                     \"-h\",\n640                     settings.POSTGRES_HOST,\n641                     \"-p\",\n642                     str(settings.POSTGRES_PORT),\n643                     \"-U\",\n644                     settings.POSTGRES_USER,\n645                     \"-d\",\n646                     settings.POSTGRES_DB,\n647                     \"-F\",\n648                     \"c\",  # Custom format (compressed)\n649                     \"-f\",\n650                     str(backup_path),\n651                 ],\n652                 env=env,\n653                 capture_output=True,\n654                 text=True,\n655                 timeout=600,\n656             )\n657 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4263,16 +4203,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 628,
+      "line_number": 636,
       "line_range": [
-        628,
-        629,
-        630,
-        631,
-        632,
-        633,
-        634,
-        635,
         636,
         637,
         638,
@@ -4285,14 +4217,22 @@
         645,
         646,
         647,
-        648
+        648,
+        649,
+        650,
+        651,
+        652,
+        653,
+        654,
+        655,
+        656
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "720             # Connect to postgres database to drop/create target database\n721             drop_result = subprocess.run(\n722                 [\n723                     \"psql\",\n724                     \"-h\",\n725                     settings.POSTGRES_HOST,\n726                     \"-p\",\n727                     str(settings.POSTGRES_PORT),\n728                     \"-U\",\n729                     settings.POSTGRES_USER,\n730                     \"-d\",\n731                     \"postgres\",\n732                     \"-c\",\n733                     f'DROP DATABASE IF EXISTS \"{settings.POSTGRES_DB}\";',\n734                 ],\n735                 env=env,\n736                 capture_output=True,\n737                 text=True,\n738                 timeout=60,\n739             )\n740 \n",
+      "code": "728             # Connect to postgres database to drop/create target database\n729             drop_result = subprocess.run(\n730                 [\n731                     \"psql\",\n732                     \"-h\",\n733                     settings.POSTGRES_HOST,\n734                     \"-p\",\n735                     str(settings.POSTGRES_PORT),\n736                     \"-U\",\n737                     settings.POSTGRES_USER,\n738                     \"-d\",\n739                     \"postgres\",\n740                     \"-c\",\n741                     f'DROP DATABASE IF EXISTS \"{settings.POSTGRES_DB}\";',\n742                 ],\n743                 env=env,\n744                 capture_output=True,\n745                 text=True,\n746                 timeout=60,\n747             )\n748 \n",
       "col_offset": 26,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4303,16 +4243,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 721,
+      "line_number": 729,
       "line_range": [
-        721,
-        722,
-        723,
-        724,
-        725,
-        726,
-        727,
-        728,
         729,
         730,
         731,
@@ -4323,14 +4255,22 @@
         736,
         737,
         738,
-        739
+        739,
+        740,
+        741,
+        742,
+        743,
+        744,
+        745,
+        746,
+        747
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "720             # Connect to postgres database to drop/create target database\n721             drop_result = subprocess.run(\n722                 [\n723                     \"psql\",\n724                     \"-h\",\n725                     settings.POSTGRES_HOST,\n726                     \"-p\",\n727                     str(settings.POSTGRES_PORT),\n728                     \"-U\",\n729                     settings.POSTGRES_USER,\n730                     \"-d\",\n731                     \"postgres\",\n732                     \"-c\",\n733                     f'DROP DATABASE IF EXISTS \"{settings.POSTGRES_DB}\";',\n734                 ],\n735                 env=env,\n736                 capture_output=True,\n737                 text=True,\n738                 timeout=60,\n739             )\n740 \n",
+      "code": "728             # Connect to postgres database to drop/create target database\n729             drop_result = subprocess.run(\n730                 [\n731                     \"psql\",\n732                     \"-h\",\n733                     settings.POSTGRES_HOST,\n734                     \"-p\",\n735                     str(settings.POSTGRES_PORT),\n736                     \"-U\",\n737                     settings.POSTGRES_USER,\n738                     \"-d\",\n739                     \"postgres\",\n740                     \"-c\",\n741                     f'DROP DATABASE IF EXISTS \"{settings.POSTGRES_DB}\";',\n742                 ],\n743                 env=env,\n744                 capture_output=True,\n745                 text=True,\n746                 timeout=60,\n747             )\n748 \n",
       "col_offset": 26,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4341,16 +4281,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 721,
+      "line_number": 729,
       "line_range": [
-        721,
-        722,
-        723,
-        724,
-        725,
-        726,
-        727,
-        728,
         729,
         730,
         731,
@@ -4361,14 +4293,22 @@
         736,
         737,
         738,
-        739
+        739,
+        740,
+        741,
+        742,
+        743,
+        744,
+        745,
+        746,
+        747
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "744 \n745             create_result = subprocess.run(\n746                 [\n747                     \"psql\",\n748                     \"-h\",\n749                     settings.POSTGRES_HOST,\n750                     \"-p\",\n751                     str(settings.POSTGRES_PORT),\n752                     \"-U\",\n753                     settings.POSTGRES_USER,\n754                     \"-d\",\n755                     \"postgres\",\n756                     \"-c\",\n757                     f'CREATE DATABASE \"{settings.POSTGRES_DB}\";',\n758                 ],\n759                 env=env,\n760                 capture_output=True,\n761                 text=True,\n762                 timeout=60,\n763             )\n764 \n",
+      "code": "752 \n753             create_result = subprocess.run(\n754                 [\n755                     \"psql\",\n756                     \"-h\",\n757                     settings.POSTGRES_HOST,\n758                     \"-p\",\n759                     str(settings.POSTGRES_PORT),\n760                     \"-U\",\n761                     settings.POSTGRES_USER,\n762                     \"-d\",\n763                     \"postgres\",\n764                     \"-c\",\n765                     f'CREATE DATABASE \"{settings.POSTGRES_DB}\";',\n766                 ],\n767                 env=env,\n768                 capture_output=True,\n769                 text=True,\n770                 timeout=60,\n771             )\n772 \n",
       "col_offset": 28,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4379,16 +4319,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 745,
+      "line_number": 753,
       "line_range": [
-        745,
-        746,
-        747,
-        748,
-        749,
-        750,
-        751,
-        752,
         753,
         754,
         755,
@@ -4399,14 +4331,22 @@
         760,
         761,
         762,
-        763
+        763,
+        764,
+        765,
+        766,
+        767,
+        768,
+        769,
+        770,
+        771
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "744 \n745             create_result = subprocess.run(\n746                 [\n747                     \"psql\",\n748                     \"-h\",\n749                     settings.POSTGRES_HOST,\n750                     \"-p\",\n751                     str(settings.POSTGRES_PORT),\n752                     \"-U\",\n753                     settings.POSTGRES_USER,\n754                     \"-d\",\n755                     \"postgres\",\n756                     \"-c\",\n757                     f'CREATE DATABASE \"{settings.POSTGRES_DB}\";',\n758                 ],\n759                 env=env,\n760                 capture_output=True,\n761                 text=True,\n762                 timeout=60,\n763             )\n764 \n",
+      "code": "752 \n753             create_result = subprocess.run(\n754                 [\n755                     \"psql\",\n756                     \"-h\",\n757                     settings.POSTGRES_HOST,\n758                     \"-p\",\n759                     str(settings.POSTGRES_PORT),\n760                     \"-U\",\n761                     settings.POSTGRES_USER,\n762                     \"-d\",\n763                     \"postgres\",\n764                     \"-c\",\n765                     f'CREATE DATABASE \"{settings.POSTGRES_DB}\";',\n766                 ],\n767                 env=env,\n768                 capture_output=True,\n769                 text=True,\n770                 timeout=60,\n771             )\n772 \n",
       "col_offset": 28,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4417,16 +4357,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 745,
+      "line_number": 753,
       "line_range": [
-        745,
-        746,
-        747,
-        748,
-        749,
-        750,
-        751,
-        752,
         753,
         754,
         755,
@@ -4437,14 +4369,22 @@
         760,
         761,
         762,
-        763
+        763,
+        764,
+        765,
+        766,
+        767,
+        768,
+        769,
+        770,
+        771
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "769             # Restore the backup\n770             result = subprocess.run(\n771                 [\n772                     \"pg_restore\",\n773                     \"-h\",\n774                     settings.POSTGRES_HOST,\n775                     \"-p\",\n776                     str(settings.POSTGRES_PORT),\n777                     \"-U\",\n778                     settings.POSTGRES_USER,\n779                     \"-d\",\n780                     settings.POSTGRES_DB,\n781                     \"-F\",\n782                     \"c\",  # Custom format\n783                     str(backup_path),\n784                 ],\n785                 env=env,\n786                 capture_output=True,\n787                 text=True,\n788                 timeout=600,\n789             )\n790 \n",
+      "code": "777             # Restore the backup\n778             result = subprocess.run(\n779                 [\n780                     \"pg_restore\",\n781                     \"-h\",\n782                     settings.POSTGRES_HOST,\n783                     \"-p\",\n784                     str(settings.POSTGRES_PORT),\n785                     \"-U\",\n786                     settings.POSTGRES_USER,\n787                     \"-d\",\n788                     settings.POSTGRES_DB,\n789                     \"-F\",\n790                     \"c\",  # Custom format\n791                     str(backup_path),\n792                 ],\n793                 env=env,\n794                 capture_output=True,\n795                 text=True,\n796                 timeout=600,\n797             )\n798 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4455,16 +4395,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 770,
+      "line_number": 778,
       "line_range": [
-        770,
-        771,
-        772,
-        773,
-        774,
-        775,
-        776,
-        777,
         778,
         779,
         780,
@@ -4476,14 +4408,22 @@
         786,
         787,
         788,
-        789
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "769             # Restore the backup\n770             result = subprocess.run(\n771                 [\n772                     \"pg_restore\",\n773                     \"-h\",\n774                     settings.POSTGRES_HOST,\n775                     \"-p\",\n776                     str(settings.POSTGRES_PORT),\n777                     \"-U\",\n778                     settings.POSTGRES_USER,\n779                     \"-d\",\n780                     settings.POSTGRES_DB,\n781                     \"-F\",\n782                     \"c\",  # Custom format\n783                     str(backup_path),\n784                 ],\n785                 env=env,\n786                 capture_output=True,\n787                 text=True,\n788                 timeout=600,\n789             )\n790 \n",
+      "code": "777             # Restore the backup\n778             result = subprocess.run(\n779                 [\n780                     \"pg_restore\",\n781                     \"-h\",\n782                     settings.POSTGRES_HOST,\n783                     \"-p\",\n784                     str(settings.POSTGRES_PORT),\n785                     \"-U\",\n786                     settings.POSTGRES_USER,\n787                     \"-d\",\n788                     settings.POSTGRES_DB,\n789                     \"-F\",\n790                     \"c\",  # Custom format\n791                     str(backup_path),\n792                 ],\n793                 env=env,\n794                 capture_output=True,\n795                 text=True,\n796                 timeout=600,\n797             )\n798 \n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "backend/app\\database\\migration_manager.py",
@@ -4494,16 +4434,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 770,
+      "line_number": 778,
       "line_range": [
-        770,
-        771,
-        772,
-        773,
-        774,
-        775,
-        776,
-        777,
         778,
         779,
         780,
@@ -4515,7 +4447,15 @@
         786,
         787,
         788,
-        789
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
@@ -4580,46 +4520,6 @@
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b101_assert_used.html",
       "test_id": "B101",
       "test_name": "assert_used"
-    },
-    {
-      "code": "280 \n281         query = f\"SELECT {select_clause} FROM {self.table_name}\"\n282         parameters = {}\n",
-      "col_offset": 18,
-      "end_col_offset": 25,
-      "filename": "backend/app\\database\\sql_injection_prevention.py",
-      "issue_confidence": "LOW",
-      "issue_cwe": {
-        "id": 89,
-        "link": "https://cwe.mitre.org/data/definitions/89.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible SQL injection vector through string-based query construction.",
-      "line_number": 281,
-      "line_range": [
-        281
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b608_hardcoded_sql_expressions.html",
-      "test_id": "B608",
-      "test_name": "hardcoded_sql_expressions"
-    },
-    {
-      "code": "312         \"\"\"\n313         query = f\"SELECT COUNT(*) FROM {self.table_name}\"\n314         parameters = {}\n",
-      "col_offset": 18,
-      "end_col_offset": 39,
-      "filename": "backend/app\\database\\sql_injection_prevention.py",
-      "issue_confidence": "LOW",
-      "issue_cwe": {
-        "id": 89,
-        "link": "https://cwe.mitre.org/data/definitions/89.html"
-      },
-      "issue_severity": "MEDIUM",
-      "issue_text": "Possible SQL injection vector through string-based query construction.",
-      "line_number": 313,
-      "line_range": [
-        313
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b608_hardcoded_sql_expressions.html",
-      "test_id": "B608",
-      "test_name": "hardcoded_sql_expressions"
     },
     {
       "code": "33     AUTH_LOGOUT = \"auth.logout\"\n34     AUTH_TOKEN_REFRESH = \"auth.token.refresh\"\n35     AUTH_PASSWORD_CHANGE = \"auth.password.change\"\n",
@@ -4773,7 +4673,7 @@
       "test_name": "try_except_pass"
     },
     {
-      "code": "603         # Add jitter (\u00b120%)\n604         jitter = random.uniform(0.8, 1.2)\n605         delay = int(delay * jitter)\n",
+      "code": "614         # Add jitter (\u00b120%)\n615         jitter = random.uniform(0.8, 1.2)\n616         delay = int(delay * jitter)\n",
       "col_offset": 17,
       "end_col_offset": 41,
       "filename": "backend/app\\tasks\\task_monitoring.py",
@@ -4784,16 +4684,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
-      "line_number": 604,
+      "line_number": 615,
       "line_range": [
-        604
+        615
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/blacklists/blacklist_calls.html#b311-random",
       "test_id": "B311",
       "test_name": "blacklist"
     },
     {
-      "code": "144 \n145 def verify_token(token: str, token_type: str = \"access\") -> dict[str, Any] | None:\n146     \"\"\"\n147     Verify token signature, expiration, and type\n148 \n149     This function provides comprehensive token validation including:\n150     - Signature verification using HS256 algorithm\n151     - Expiration time checking\n152     - Token type validation to prevent token confusion attacks\n153 \n154     Token type validation ensures that access tokens cannot be used as refresh\n155     tokens and vice versa, preventing token confusion attacks where an attacker\n156     might try to use a short-lived access token in place of a long-lived refresh\n157     token or vice versa.\n158 \n159     Args:\n160         token: JWT token string to verify\n161         token_type: Expected token type (\"access\" or \"refresh\")\n162 \n163     Returns:\n164         Decoded payload if valid and type matches, None otherwise\n165 \n166     Security Notes:\n167         - Returns None for any validation failure (signature, expiration, or type)\n168         - Token type mismatch is treated as a security violation\n169         - All tokens must include a \"type\" field in their payload\n170     \"\"\"\n171     payload = decode_token(token)\n172 \n173     if payload is None:\n174         return None\n175 \n176     # Validate token type matches expected type\n177     # This prevents token confusion attacks\n178     if payload.get(\"type\") != token_type:\n179         return None\n180 \n181     return payload\n182 \n",
+      "code": "145 \n146 def verify_token(token: str, token_type: str = \"access\") -> dict[str, Any] | None:\n147     \"\"\"\n148     Verify token signature, expiration, and type\n149 \n150     This function provides comprehensive token validation including:\n151     - Signature verification using HS256 algorithm\n152     - Expiration time checking\n153     - Token type validation to prevent token confusion attacks\n154 \n155     Token type validation ensures that access tokens cannot be used as refresh\n156     tokens and vice versa, preventing token confusion attacks where an attacker\n157     might try to use a short-lived access token in place of a long-lived refresh\n158     token or vice versa.\n159 \n160     Args:\n161         token: JWT token string to verify\n162         token_type: Expected token type (\"access\" or \"refresh\")\n163 \n164     Returns:\n165         Decoded payload if valid and type matches, None otherwise\n166 \n167     Security Notes:\n168         - Returns None for any validation failure (signature, expiration, or type)\n169         - Token type mismatch is treated as a security violation\n170         - All tokens must include a \"type\" field in their payload\n171     \"\"\"\n172     payload = decode_token(token)\n173 \n174     if payload is None:\n175         return None\n176 \n177     # Validate token type matches expected type\n178     # This prevents token confusion attacks\n179     if payload.get(\"type\") != token_type:\n180         return None\n181 \n182     return payload\n183 \n",
       "col_offset": 0,
       "end_col_offset": 18,
       "filename": "backend/app\\utils\\jwt.py",
@@ -4804,9 +4704,8 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Possible hardcoded password: 'access'",
-      "line_number": 145,
+      "line_number": 146,
       "line_range": [
-        145,
         146,
         147,
         148,
@@ -4842,7 +4741,8 @@
         178,
         179,
         180,
-        181
+        181,
+        182
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.2/plugins/b107_hardcoded_password_default.html",
       "test_id": "B107",

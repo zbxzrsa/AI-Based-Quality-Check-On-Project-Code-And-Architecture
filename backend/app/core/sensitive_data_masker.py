@@ -66,16 +66,10 @@ class SensitiveDataMasker:
             ),
             # 数据库连接字符串掩码
             MaskingRule(
-                pattern=r"postgresql://([^:]+):([^@]+)@([^/]+)/(.+)",
-                replacement=r"postgresql://***USER***:***MASKED***@\3/\4",
+                pattern=r"([a-zA-Z][a-zA-Z0-9+.\-]*://)([^:@/\s]+):([^@/\s]+)@([^/\s]+)(/[^\s]*)?",
+                replacement=r"\1***USER***:***MASKED***@\4\5",
                 data_type=SensitiveDataType.DATABASE_URL,
-                description="PostgreSQL connection string",
-            ),
-            MaskingRule(
-                pattern=r"mysql://([^:]+):([^@]+)@([^/]+)/(.+)",
-                replacement=r"mysql://***USER***:***MASKED***@\3/\4",
-                data_type=SensitiveDataType.DATABASE_URL,
-                description="MySQL connection string",
+                description="Database connection string with inline credentials",
             ),
             MaskingRule(
                 pattern=r"redis://([^:]*):([^@]+)@([^/]+)",

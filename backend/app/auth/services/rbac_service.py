@@ -15,27 +15,18 @@ logger = logging.getLogger(__name__)
 class RBACService:
     """Service for handling role-based access control operations."""
 
-    _LEGACY_ROLE_MAP = {
-        "MANAGER": Role.USER,
-        "REVIEWER": Role.USER,
-        "PROGRAMMER": Role.USER,
-        "DEVELOPER": Role.USER,
-        "COMPLIANCE_OFFICER": Role.USER,
-        "VISITOR": Role.USER,
-    }
-
     @staticmethod
     def normalize_role(role: str | Role) -> Role | None:
-        """Normalize role input to effective ADMIN/USER roles with legacy compatibility."""
+        """Normalize role input to the supported ADMIN/USER set."""
         if isinstance(role, Role):
-            return Role.ADMIN if role == Role.ADMIN else Role.USER
+            return role
         if not role:
             return None
 
         normalized = role.strip().upper()
         if normalized in ("ADMIN", "USER"):
             return Role(normalized)
-        return RBACService._LEGACY_ROLE_MAP.get(normalized)
+        return None
 
     @staticmethod
     async def has_permission(db: AsyncSession, user_id: str, permission: Permission) -> bool:
@@ -74,9 +65,15 @@ class RBACService:
                 logger.warning(f"User {user_uuid} is not active")
                 return False
 
-            # Get permissions for user's role
-            role_permissions = RBACService.get_role_permissions(user.role)
-            logger.info(f"User {user_uuid} has role {user.role} with permissions: {role_permissions}")
+            effective_role = RBACService.normalize_role(user.role)
+            if effective_role is None:
+                logger.warning(f"User {user_uuid} has unsupported role {user.role}")
+                return False
+
+            role_permissions = RBACService.get_role_permissions(effective_role)
+            logger.info(
+                f"User {user_uuid} has stored role {user.role} and effective role {effective_role} with permissions: {role_permissions}"
+            )
 
             # Check if permission is in the role's permissions
             has_perm = permission in role_permissions
@@ -88,7 +85,7 @@ class RBACService:
             return False
 
     @staticmethod
-    def get_role_permissions(role: Role) -> list[Permission]:
+    def get_role_permissions(role: Role | str) -> list[Permission]:
         """
         Get all permissions for a specific role.
 
@@ -98,7 +95,10 @@ class RBACService:
         Returns:
             List of permissions for the role
         """
-        return ROLE_PERMISSIONS.get(role, [])
+        effective_role = RBACService.normalize_role(role)
+        if effective_role is None:
+            return []
+        return ROLE_PERMISSIONS.get(effective_role, [])
 
     @staticmethod
     async def can_access_project(db: DBSession, user_id: str, project_id: str, permission: Permission) -> bool:
@@ -128,8 +128,12 @@ class RBACService:
             if not user or not user.is_active:
                 return False
 
+            effective_role = RBACService.normalize_role(user.role)
+            if effective_role is None:
+                return False
+
             # Admin bypass: Admins can access all projects
-            if user.role == Role.ADMIN:
+            if effective_role == Role.ADMIN:
                 return True
 
             # Get project from database

@@ -16,6 +16,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log_input(value: object, max_length: int = 120) -> str:
+    """Mask control chars and truncate user-controlled data for logs."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 class ClientErrorReport(BaseModel):
     """Client error report model"""
 
@@ -47,32 +55,30 @@ async def report_client_error(error_report: ClientErrorReport, request: Request)
         # Extract client information
         client_ip = request.client.host if request.client else "unknown"
 
-        # Create structured log entry
+        # Create structured log entry with sanitized values only
         log_data = {
             "event": "client_error",
-            "error_type": error_report.type,
-            "message": error_report.message,
+            "error_type": _sanitize_log_input(error_report.type, max_length=64),
+            "message": _sanitize_log_input(error_report.message),
             "status_code": error_report.statusCode,
-            "timestamp": error_report.timestamp,
-            "client_url": error_report.url,
-            "user_agent": error_report.userAgent,
-            "client_ip": client_ip,
-            "details": error_report.details,
+            "timestamp": _sanitize_log_input(error_report.timestamp, max_length=64),
+            "client_url": _sanitize_log_input(error_report.url),
+            "user_agent": _sanitize_log_input(error_report.userAgent),
+            "client_ip": _sanitize_log_input(client_ip, max_length=64),
+            "has_details": bool(error_report.details),
             "server_timestamp": datetime.utcnow().isoformat(),
         }
 
         # Log the error
-        logger.error(
-            f"Client error reported: {error_report.type} - {error_report.message}", extra={"structured_data": log_data}
-        )
+        logger.error("Client error reported", extra={"structured_data": log_data})
 
         # Generate error ID for tracking
         error_id = f"client-{datetime.utcnow().timestamp()}"
 
         return {"status": "success", "message": "Error report received", "error_id": error_id}
 
-    except Exception as e:
-        logger.error(f"Failed to process client error report: {str(e)}")
+    except Exception:
+        logger.error("Failed to process client error report")
         raise HTTPException(status_code=500, detail="Failed to process error report")
 
 

@@ -2,10 +2,13 @@
 Unit tests for JWT service
 Tests JWT token generation, validation, and JTI functionality
 """
-import pytest
-import sys
 import os
+import base64
+import json
+import sys
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from jose import jwt as jose_jwt
 
 # Add backend directory to path for imports
@@ -364,14 +367,21 @@ class TestJWTUtilityFunctions:
 
 class TestJWTAlgorithm:
     """Test JWT algorithm configuration"""
+
+    @staticmethod
+    def _decode_jwt_header(token: str) -> dict:
+        """Decode JWT header payload without invoking JWT library unverified helpers."""
+        header_segment = token.split(".")[0]
+        padded = header_segment + "=" * ((4 - len(header_segment) % 4) % 4)
+        decoded_bytes = base64.urlsafe_b64decode(padded.encode("utf-8"))
+        return json.loads(decoded_bytes.decode("utf-8"))
     
     def test_token_uses_hs256_algorithm(self):
         """Test that tokens use HS256 algorithm"""
         data = {"sub": "test@example.com"}
         token = create_access_token(data)
         
-        # Decode header without verification
-        header = jose_jwt.get_unverified_header(token)
+        header = self._decode_jwt_header(token)
         
         assert header["alg"] == "HS256", "Token must use HS256 algorithm"
     

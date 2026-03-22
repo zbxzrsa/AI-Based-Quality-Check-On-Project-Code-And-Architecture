@@ -82,6 +82,14 @@ class MigrationManager:
         return bool(re.fullmatch(r"\d{8}_\d{6}", backup_id))
 
     @staticmethod
+    def _sanitize_log_input(value: object, max_length: int = 80) -> str:
+        """Sanitize potentially user-controlled values for logs."""
+        sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+        if len(sanitized) > max_length:
+            return sanitized[:max_length] + "...[truncated]"
+        return sanitized
+
+    @staticmethod
     def _is_valid_db_identifier(identifier: str) -> bool:
         """Allow only safe PostgreSQL identifier characters."""
         return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}", identifier))
@@ -687,7 +695,7 @@ class MigrationManager:
         """
         try:
             if not self._is_valid_backup_id(backup_id):
-                logger.error(f"Invalid backup ID format: {backup_id}")
+                logger.error("Invalid backup ID format", extra={"backup_id": self._sanitize_log_input(backup_id)})
                 return False
 
             if not self._is_valid_db_identifier(settings.POSTGRES_DB):
@@ -701,13 +709,13 @@ class MigrationManager:
                 logger.error(f"Backup file not found: {backup_path}")
                 return False
 
-            logger.info(f"Restoring database from backup: {backup_id}")
+            logger.info("Restoring database from backup", extra={"backup_id": self._sanitize_log_input(backup_id)})
 
             # Load metadata
             if metadata_path.exists():
                 with open(metadata_path) as f:
                     metadata = json.load(f)
-                logger.info(f"Backup metadata: {metadata}")
+                logger.info("Backup metadata loaded", extra={"backup_id": self._sanitize_log_input(backup_id)})
 
             # Use pg_restore to restore backup
             env = os.environ.copy()

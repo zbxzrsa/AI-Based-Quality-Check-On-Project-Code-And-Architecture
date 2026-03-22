@@ -27,9 +27,10 @@ class TestAuthenticationEndpoints:
         **Validates: Requirements 5.4, 13.7**
         """
         # Step 1: Register
+        register_password = get_test_password("api_integration_register")
         register_data = {
             "email": "integration@test.com",
-            "password": "SecurePass123!",
+            "password": register_password,
             "full_name": "Integration Test User"
         }
         
@@ -192,7 +193,7 @@ class TestErrorHandling:
         # Invalid email format
         register_data = {
             "email": "invalid-email",
-            "password": "SecurePass123!"
+            "password": get_test_password("api_integration_invalid_email")
         }
         
         response = await client.post("/api/v1/auth/register", json=register_data)

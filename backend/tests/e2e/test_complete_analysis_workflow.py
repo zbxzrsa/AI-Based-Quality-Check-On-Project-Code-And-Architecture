@@ -35,6 +35,8 @@ from app.models import (
 from app.database.postgresql import AsyncSessionLocal
 from app.services.graph_builder.service import GraphBuilderService
 from app.services.architecture_analyzer.analyzer import ArchitectureAnalyzer
+from app.utils.password import hash_password
+from backend.tests.utils.secure_test_data import get_test_jwt_secret, get_test_password
 from sqlalchemy import select
 
 
@@ -75,7 +77,7 @@ class TestCompleteAnalysisWorkflow:
                 test_user = User(
                     email="e2e-test@example.com",
                     username="e2e_tester",
-                    password_hash="$2b$12$test_hash",  # Dummy hash
+                    password_hash=hash_password(get_test_password("e2e_analysis_user")),
                     role=UserRole.USER,
                     is_active=True
                 )
@@ -86,7 +88,7 @@ class TestCompleteAnalysisWorkflow:
         user_id = test_user.id
         
         # Mock authentication
-        mock_token = "test_jwt_token_e2e"
+        mock_token = get_test_jwt_secret()[:24]
         
         # Step 2: Create project via API
         project_data = {

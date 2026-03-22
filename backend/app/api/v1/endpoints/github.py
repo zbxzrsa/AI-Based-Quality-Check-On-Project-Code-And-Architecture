@@ -594,12 +594,6 @@ async def sync_project(
     project = await _get_project_by_id_or_404(project_id, db)
     github_client = _get_user_github_client(current_user)
 
-    if not current_user.github_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="GitHub account not connected. Please connect your GitHub account first.",
-        )
-
     if not project.github_repo_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

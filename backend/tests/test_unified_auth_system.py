@@ -10,9 +10,12 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.utils.jwt import create_access_token, verify_token
 from app.core.config import settings
+from backend.tests.utils.secure_test_data import get_test_password
 
 
 client = TestClient(app)
+INVALID_LOGIN_PASSWORD = get_test_password("unified_auth_invalid_login")
+VALID_LOGIN_PASSWORD = get_test_password("unified_auth_valid_login")
 
 
 class TestUnifiedAuthSystem:
@@ -37,7 +40,7 @@ class TestUnifiedAuthSystem:
         # Test login endpoint
         response = client.post("/api/v1/auth/login", json={
             "email": "test@example.com",
-            "password": "invalid"
+            "password": INVALID_LOGIN_PASSWORD
         })
         # Should return 401 for invalid credentials, not 404
         assert response.status_code in [401, 422]  # 422 for validation errors
@@ -45,7 +48,7 @@ class TestUnifiedAuthSystem:
         # Test that RBAC auth endpoints are not available
         response = client.post("/api/v1/rbac/auth/login", json={
             "username": "test@example.com",
-            "password": "invalid"
+            "password": INVALID_LOGIN_PASSWORD
         })
         # Should return 404 since endpoint was removed
         assert response.status_code == 404
@@ -75,7 +78,7 @@ class TestUnifiedAuthSystem:
                     
                     response = client.post("/api/v1/auth/login", json={
                         "email": "test@example.com",
-                        "password": "validpassword"
+                        "password": VALID_LOGIN_PASSWORD
                     })
                     
                     if response.status_code == 200:
@@ -152,7 +155,7 @@ class TestUnifiedAuthSystem:
         # (This tests the endpoint the frontend actually calls)
         response = client.post("/api/v1/auth/login", json={
             "email": "test@example.com",
-            "password": "invalid"
+            "password": INVALID_LOGIN_PASSWORD
         })
         
         # Should get a proper auth error, not a 404
@@ -161,7 +164,7 @@ class TestUnifiedAuthSystem:
         # Test that old RBAC endpoint returns 404
         response = client.post("/api/v1/rbac/auth/login", json={
             "username": "test@example.com",
-            "password": "invalid"
+            "password": INVALID_LOGIN_PASSWORD
         })
         
         assert response.status_code == 404

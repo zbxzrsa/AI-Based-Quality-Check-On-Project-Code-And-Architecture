@@ -43,7 +43,7 @@ describe('PermissionCheck', () => {
   it('renders fallback when permission requirement is not met', () => {
     mockUseRole.mockReturnValue({
       hasRole: () => false,
-      currentRole: Role.VISITOR,
+      currentRole: Role.USER,
       loading: false,
     });
 
@@ -88,8 +88,8 @@ describe('PermissionCheck', () => {
 
   it('renders fallback when role requirement is not met', () => {
     mockUseRole.mockReturnValue({
-      hasRole: (role: Role) => role === Role.PROGRAMMER,
-      currentRole: Role.PROGRAMMER,
+      hasRole: (role: Role) => role === Role.USER,
+      currentRole: Role.USER,
       loading: false,
     });
 
@@ -155,8 +155,8 @@ describe('PermissionCheck', () => {
 
   it('hides UI elements without required permissions (Property 21)', () => {
     mockUseRole.mockReturnValue({
-      hasRole: (role: Role) => role === Role.VISITOR,
-      currentRole: Role.VISITOR,
+      hasRole: (role: Role) => role === Role.USER,
+      currentRole: Role.USER,
       loading: false,
     });
 

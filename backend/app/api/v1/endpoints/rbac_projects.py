@@ -29,6 +29,14 @@ router = APIRouter()
 _log_audit_action = AuditService.log_action
 
 
+def _sanitize_log_input(value: object, max_length: int = 80) -> str:
+    """Sanitize user-controlled log values."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 def _request_ip(request: Request) -> str:
     """Extract client IP from request safely."""
     return request.client.host if request.client else "unknown"
@@ -474,26 +482,38 @@ async def delete_project(
     logger = logging.getLogger(__name__)
 
     try:
-        logger.info(f"Delete project request for project_id={project_id}, user_id={current_user.user_id}")
+        logger.info(
+            "Delete project request received",
+            extra={
+                "project_id": _sanitize_log_input(project_id),
+                "user_id": _sanitize_log_input(current_user.user_id),
+            },
+        )
 
         result = await db.execute(select(Project).filter(Project.id == project_id))
         project = result.scalar_one_or_none()
 
         if not project:
-            logger.warning(f"Project {project_id} not found")
+            logger.warning("Project not found during delete", extra={"project_id": _sanitize_log_input(project_id)})
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
         project_name = project.name
-        logger.info(f"Deleting project {project_name} (id={project_id})")
+        logger.info(
+            "Deleting project",
+            extra={"project_id": _sanitize_log_input(project_id), "project_name": _sanitize_log_input(project_name)},
+        )
 
         # Delete all access grants first
         await db.execute(delete(ProjectAccess).filter(ProjectAccess.project_id == project_id))
-        logger.info(f"Deleted access grants for project {project_id}")
+        logger.info("Deleted project access grants", extra={"project_id": _sanitize_log_input(project_id)})
 
         # Delete project
         await db.delete(project)
         await db.commit()
-        logger.info(f"Project {project_name} deleted successfully")
+        logger.info(
+            "Project deleted successfully",
+            extra={"project_id": _sanitize_log_input(project_id), "project_name": _sanitize_log_input(project_name)},
+        )
 
         # Log action
         try:
@@ -516,10 +536,10 @@ async def delete_project(
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error deleting project {project_id}: {type(e).__name__}: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error("Error deleting project", extra={"project_id": _sanitize_log_input(project_id)}, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete project: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete project"
         )
 
 

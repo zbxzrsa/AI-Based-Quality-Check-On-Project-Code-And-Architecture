@@ -25,6 +25,14 @@ from app.celery_config import celery_app
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log_input(value: object, max_length: int = 80) -> str:
+    """Sanitize user-controlled data before logging."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 # ========================================
 # TASK STATUS ENUMS
 # ========================================
@@ -386,7 +394,10 @@ def revoke_task(task_id: str, terminate: bool = False) -> dict[str, Any]:
     result = AsyncResult(task_id, app=celery_app)
     result.revoke(terminate=terminate)
 
-    logger.info(f"Task {task_id} revoked (terminate={terminate})", extra={"task_id": task_id, "terminate": terminate})
+    logger.info(
+        "Task revoked",
+        extra={"task_id": _sanitize_log_input(task_id), "terminate": terminate},
+    )
 
     return {"task_id": task_id, "revoked": True, "terminated": terminate, "message": "Task revoked successfully"}
 

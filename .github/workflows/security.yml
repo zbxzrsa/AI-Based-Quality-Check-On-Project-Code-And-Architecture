@@ -192,9 +192,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
-      
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+          # Python/JavaScript are interpreted languages; avoid flaky autobuild.
+          build-mode: none
       
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

@@ -27,6 +27,8 @@ from app.models import (
     Session, TokenBlacklist, ReviewResult, UserRole
 )
 from app.models.code_review import PRStatus as CodeReviewPRStatus
+from app.utils.password import hash_password
+from backend.tests.utils.secure_test_data import get_test_jwt_secret, get_test_password
 
 
 # ========================================
@@ -117,7 +119,7 @@ class TestReferentialIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email=email,
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=role,
             is_active=True
         )
@@ -170,7 +172,7 @@ class TestReferentialIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email="cascade@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -331,7 +333,7 @@ class TestReferentialIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email="access@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -373,7 +375,7 @@ class TestReferentialIntegrityProperties:
         session = Session(
             id=uuid.uuid4(),
             user_id=invalid_user_id,
-            token_jti="test_jti",
+            token_jti=get_test_jwt_secret()[:16],
             expires_at=datetime.utcnow() + timedelta(days=1),
             is_active=True
         )
@@ -432,7 +434,7 @@ class TestConstraintValidationProperties:
         user1 = User(
             id=uuid.uuid4(),
             email=email,
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -443,7 +445,7 @@ class TestConstraintValidationProperties:
         user2 = User(
             id=uuid.uuid4(),
             email=email,
-            password_hash="test_hash2",
+            password_hash=hash_password(get_test_password("model_prop_hash_2")),
             role=UserRole.USER,
             is_active=True
         )
@@ -540,7 +542,7 @@ class TestConstraintValidationProperties:
         
         This ensures no duplicate JWT IDs in the system.
         """
-        token_jti = "unique_jti_12345"
+        token_jti = get_test_jwt_secret()[:24]
         
         # Create first session
         session1 = Session(
@@ -579,7 +581,7 @@ class TestConstraintValidationProperties:
         
         This ensures no duplicate blacklisted tokens.
         """
-        token = "blacklisted_token_12345"
+        token = get_test_jwt_secret()[:24]
         
         # Create first blacklist entry
         blacklist1 = TokenBlacklist(
@@ -678,7 +680,7 @@ class TestConstraintValidationProperties:
         user = User(
             id=uuid.uuid4(),
             email=email,
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -701,7 +703,7 @@ class TestConstraintValidationProperties:
         user = User(
             id=uuid.uuid4(),
             email=None,  # NULL email
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -885,7 +887,7 @@ class TestDataIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email="orphan@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -981,7 +983,7 @@ class TestDataIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email="timestamp@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=UserRole.USER,
             is_active=True
         )
@@ -1053,7 +1055,7 @@ class TestDataIntegrityProperties:
         user = User(
             id=uuid.uuid4(),
             email=f"enum_{uuid.uuid4()}@example.com",
-            password_hash="test_hash",
+            password_hash=hash_password(get_test_password("model_prop_hash_1")),
             role=role,
             is_active=True
         )
@@ -1069,3 +1071,4 @@ class TestDataIntegrityProperties:
         # Cleanup
         await db_session.delete(user)
         await db_session.commit()
+

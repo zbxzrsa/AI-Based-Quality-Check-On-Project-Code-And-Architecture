@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 # Windows socket issues with ProactorEventLoop in tests
 if sys.platform == 'win32':
@@ -29,11 +30,18 @@ os.environ["POSTGRES_PORT"] = "5433"
 os.environ["POSTGRES_USER"] = "postgres"
 # Keep a non-empty password so Settings validation passes even when the
 # local test database uses trust auth on port 5433.
-os.environ["POSTGRES_PASSWORD"] = "postgres123"
+os.environ["POSTGRES_PASSWORD"] = os.getenv("TEST_POSTGRES_PASSWORD", "PgTestAuth!234")
 
 from app.main import app
 from app.database.postgresql import get_db
 from app.core.config import settings
+
+# Ensure both `app.*` and `backend.*` imports resolve in tests.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = PROJECT_ROOT / "backend"
+for path in (str(PROJECT_ROOT), str(BACKEND_ROOT)):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 # Import common fixtures to make them available to all tests
 

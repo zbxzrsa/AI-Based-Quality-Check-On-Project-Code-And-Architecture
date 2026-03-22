@@ -10,6 +10,8 @@ from unittest.mock import AsyncMock, Mock
 
 from app.database.postgresql import AsyncSessionLocal, engine
 from app.models import Base, User, UserRole, Project
+from app.utils.password import hash_password
+from backend.tests.utils.secure_test_data import get_test_password
 
 
 @pytest.fixture(scope="session")
@@ -52,7 +54,7 @@ async def test_user(test_db) -> User:
     user = User(
         email="test@example.com",
         username="testuser",
-        password_hash="$2b$12$test_hash",
+        password_hash=hash_password(get_test_password("e2e_test_user")),
         role=UserRole.USER,
         is_active=True
     )

@@ -21,9 +21,9 @@ from backend.tests.utils.secure_test_data import get_test_password, get_test_jwt
 # Constants for testing to avoid hard-coded credentials in literal strings
 TEST_PASSWORD = get_test_password("test_password_123")
 TEST_API_KEY = get_test_api_key("openai")
-TEST_TOKEN = "test_token_1234567890"
+TEST_TOKEN = get_test_jwt_secret()[:20]
 TEST_JWT_SECRET = get_test_jwt_secret()
-TEST_WEBHOOK_SECRET = "whsec_test_webhook_secret_12345"
+TEST_WEBHOOK_SECRET = get_test_api_key("webhook")
 
 
 class TestSensitiveDataMasking:

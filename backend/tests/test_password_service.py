@@ -205,7 +205,7 @@ class TestPasswordStrengthValidation:
         special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
         
         for char in special_chars:
-            password = f"TestPass123{char}"
+            password = get_test_password(f"special_char_{ord(char)}") + char
             is_valid, message = validate_password_strength(password)
             assert is_valid is True, \
                 f"Password with special character '{char}' should be valid"

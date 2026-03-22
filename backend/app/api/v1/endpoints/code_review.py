@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 API_VERSION = "1.0.0"
 
 
+def _safe_log_value(value: object, max_length: int = 64) -> str:
+    """Sanitize arbitrary values before logging."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 def is_valid_uuid(uuid_string: str) -> bool:
     """Verify UUID format."""
     uuid_pattern = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
@@ -405,10 +413,13 @@ async def get_code_review(
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to get code review {review_id}: {str(e)}")
+    except Exception:
+        logger.error(
+            "Failed to get code review",
+            extra={"review_id": _safe_log_value(review_id), "operation": "get_code_review"},
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get code review: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get code review"
         )
 
 
@@ -488,8 +499,11 @@ async def get_review_comments(
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to get comments for review {review_id}: {str(e)}")
+    except Exception:
+        logger.error(
+            "Failed to get comments for review",
+            extra={"review_id": _safe_log_value(review_id), "operation": "get_review_comments"},
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get review comments: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get review comments"
         )

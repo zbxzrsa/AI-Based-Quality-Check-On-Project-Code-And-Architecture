@@ -321,11 +321,11 @@ async def search_libraries(
         registry_type = _parse_registry_type(registry)
         if registry and registry_type is None:
             logger.warning(
-                f"Invalid registry type: {registry}",
+                f"Invalid registry type: {_sanitize_log_input(registry)}",
                 extra={
                     "user_id": str(current_user.id),
                     "operation": "search_libraries_endpoint",
-                    "invalid_registry": registry,
+                    "invalid_registry": _sanitize_log_input(registry),
                 },
             )
             return JSONResponse(

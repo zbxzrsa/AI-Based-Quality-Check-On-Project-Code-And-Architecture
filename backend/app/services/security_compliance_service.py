@@ -247,7 +247,13 @@ class SecurityComplianceService:
                     },
                 )
 
-            logger.info(f"Successfully saved {len(vulnerabilities)} vulnerabilities for project {project_id}")
+            logger.info(
+                "Successfully saved vulnerabilities",
+                extra={
+                    "project_id": _sanitize_log_input(project_id),
+                    "vulnerability_count": len(vulnerabilities),
+                },
+            )
             return True
 
         except Exception as e:
@@ -406,8 +412,12 @@ class SecurityComplianceService:
             raise Exception("Failed to generate compliance report")
 
         logger.info(
-            f"Successfully processed audit for project {project_id}: "
-            f"score={report.compliance_score}, vulnerabilities={report.vulnerability_count}"
+            "Successfully processed audit",
+            extra={
+                "project_id": _sanitize_log_input(project_id),
+                "score": report.compliance_score,
+                "vulnerabilities": report.vulnerability_count,
+            },
         )
 
         return report

@@ -92,7 +92,7 @@ export default function AdminPage() {
 - Authenticated non-admin users → Redirected to `/unauthorized` (403)
 - Admin users → See admin panel
 
-### Example 4: Programmer-Only Features
+### Example 4: Admin-Only Code Review Operations
 
 ```tsx
 // app/code-review/page.tsx
@@ -103,10 +103,10 @@ import { Role } from '@/types/rbac';
 
 export default function CodeReviewPage() {
   return (
-    <RouteGuard requiredRole={Role.PROGRAMMER}>
+    <RouteGuard requiredRole={Role.ADMIN}>
       <div>
         <h1>Code Review</h1>
-        <p>Review and analyze code</p>
+        <p>Manage privileged code review operations</p>
       </div>
     </RouteGuard>
   );
@@ -320,17 +320,10 @@ export default function DashboardPage() {
           </section>
         )}
         
-        {role === Role.PROGRAMMER && (
+        {role === Role.USER && (
           <section>
-            <h2>Developer Dashboard</h2>
+            <h2>User Dashboard</h2>
             <p>Your projects and reviews</p>
-          </section>
-        )}
-        
-        {role === Role.VISITOR && (
-          <section>
-            <h2>Visitor Dashboard</h2>
-            <p>View-only access to projects</p>
           </section>
         )}
       </div>
@@ -489,13 +482,13 @@ describe('Protected Dashboard Page', () => {
         id: '1',
         email: 'test@example.com',
         name: 'Test User',
-        role: Role.PROGRAMMER,
+        role: Role.USER,
         is_active: true,
       },
       loading: false,
       isAuthenticated: true,
       permissions: [],
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       login: jest.fn(),
       register: jest.fn(),
       logout: jest.fn(),

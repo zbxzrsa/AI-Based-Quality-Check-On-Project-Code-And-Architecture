@@ -22,6 +22,14 @@ from .exceptions import CacheException
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log_input(value: object, max_length: int = 80) -> str:
+    """Sanitize user-controlled values for safe logging."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 class CacheKeyPrefix(str, Enum):
     """Standard cache key prefixes"""
 
@@ -518,13 +526,22 @@ class CacheManager:
 
             if keys:
                 deleted = await self.client.delete(*keys)
-                logger.info(f"Cache delete_pattern: deleted {deleted} keys matching {pattern}")
+                logger.info(
+                    "Cache delete_pattern completed",
+                    extra={
+                        "deleted_count": deleted,
+                        "pattern": _sanitize_log_input(pattern),
+                    },
+                )
                 return deleted
 
             return 0
 
         except Exception as e:
-            logger.error(f"Cache delete_pattern failed for pattern {pattern}: {e}")
+            logger.error(
+                "Cache delete_pattern failed",
+                extra={"pattern": _sanitize_log_input(pattern)},
+            )
             raise CacheException(
                 f"Failed to delete cache pattern: {str(e)}",
                 operation="delete_pattern",

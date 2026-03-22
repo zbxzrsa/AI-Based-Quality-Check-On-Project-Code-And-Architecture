@@ -30,7 +30,7 @@ describe('PermissionCheck Property Tests', () => {
   it('Property 21: UI elements are hidden when user lacks required permission', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.constantFrom(Role.PROGRAMMER, Role.VISITOR),
+        fc.constantFrom(Role.USER),
         fc.constantFrom(
           Permission.DELETE_PROJECT,
           Permission.DELETE_USER,
@@ -42,15 +42,7 @@ describe('PermissionCheck Property Tests', () => {
           // Define permissions for each role
           const rolePermissions: Record<Role, Permission[]> = {
             [Role.ADMIN]: Object.values(Permission),
-            [Role.PROGRAMMER]: [
-              Permission.VIEW_PROJECTS,
-              Permission.CREATE_PROJECT,
-              Permission.MODIFY_PROJECT,
-              Permission.VIEW_REVIEWS,
-              Permission.CREATE_REVIEW,
-              Permission.MODIFY_REVIEW,
-            ],
-            [Role.VISITOR]: [
+            [Role.USER]: [
               Permission.VIEW_PROJECTS,
               Permission.VIEW_REVIEWS,
             ],
@@ -132,25 +124,25 @@ describe('PermissionCheck Property Tests', () => {
   });
 
   /**
-   * Additional property: Visitor users can only see read-only UI elements
+   * Additional property: Standard users can only see read-only UI elements
    */
-  it('Property: Visitor users can only see view-related UI elements', async () => {
+  it('Property: Users can only see view-related UI elements', async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.constantFrom(...Object.values(Permission)),
         async (permission) => {
-          const visitorPermissions = [Permission.VIEW_PROJECTS, Permission.VIEW_REVIEWS];
-          const shouldBeVisible = visitorPermissions.includes(permission);
+          const userPermissions = [Permission.VIEW_PROJECTS, Permission.VIEW_REVIEWS];
+          const shouldBeVisible = userPermissions.includes(permission);
 
-          // Setup: Visitor user with limited permissions
+          // Setup: Standard user with limited permissions
           mockUseRole.mockReturnValue({
-            hasRole: (role: Role) => role === Role.VISITOR,
-            currentRole: Role.VISITOR,
+            hasRole: (role: Role) => role === Role.USER,
+            currentRole: Role.USER,
             loading: false,
           });
 
           mockUsePermission.mockReturnValue({
-            hasPermission: (perm: Permission) => visitorPermissions.includes(perm),
+            hasPermission: (perm: Permission) => userPermissions.includes(perm),
             loading: false,
           });
 
@@ -161,7 +153,7 @@ describe('PermissionCheck Property Tests', () => {
             </PermissionCheck>
           );
 
-          // Verify: Element visibility matches visitor permissions
+          // Verify: Element visibility matches user permissions
           const button = container.querySelector('[data-testid="action-button"]');
           
           if (shouldBeVisible) {
@@ -181,7 +173,7 @@ describe('PermissionCheck Property Tests', () => {
   it('Property: Fallback content is rendered when user lacks permission', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.constantFrom(Role.VISITOR, Role.PROGRAMMER),
+        fc.constantFrom(Role.USER),
         fc.constantFrom(
           Permission.DELETE_USER,
           Permission.MODIFY_CONFIG,
@@ -192,15 +184,7 @@ describe('PermissionCheck Property Tests', () => {
           // Define permissions for each role
           const rolePermissions: Record<Role, Permission[]> = {
             [Role.ADMIN]: Object.values(Permission),
-            [Role.PROGRAMMER]: [
-              Permission.VIEW_PROJECTS,
-              Permission.CREATE_PROJECT,
-              Permission.MODIFY_PROJECT,
-              Permission.VIEW_REVIEWS,
-              Permission.CREATE_REVIEW,
-              Permission.MODIFY_REVIEW,
-            ],
-            [Role.VISITOR]: [
+            [Role.USER]: [
               Permission.VIEW_PROJECTS,
               Permission.VIEW_REVIEWS,
             ],

@@ -38,7 +38,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       name: 'Test User',
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       is_active: true,
     };
 
@@ -56,7 +56,7 @@ describe('AuthContext', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.role).toBe(Role.PROGRAMMER);
+      expect(result.current.role).toBe(Role.USER);
     });
 
     expect(result.current.user).toEqual(mockUser);
@@ -68,7 +68,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       name: 'Test User',
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       is_active: true,
     };
 
@@ -142,7 +142,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       name: 'Test User',
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       is_active: true,
     };
 
@@ -179,7 +179,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       name: 'Test User',
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       is_active: true,
     };
 
@@ -220,7 +220,7 @@ describe('AuthContext', () => {
       id: '1',
       email: 'test@example.com',
       name: 'Test User',
-      role: Role.PROGRAMMER,
+      role: Role.USER,
       is_active: true,
     };
 

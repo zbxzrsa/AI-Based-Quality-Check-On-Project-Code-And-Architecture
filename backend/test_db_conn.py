@@ -3,21 +3,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 import asyncio
+import os
 
 import asyncpg
 
 
 async def test_conn():
-    url = "postgresql://postgres@127.0.0.1:5433/postgres"
-    logger.info("Testing raw asyncpg connection to {url}")
+    db_password = os.getenv("POSTGRES_PASSWORD")
+    if not db_password:
+        raise RuntimeError("POSTGRES_PASSWORD is required for test_db_conn")
+    url = f"postgresql://postgres:{db_password}@127.0.0.1:5433/postgres"
+    logger.info("Testing raw asyncpg connection")
     try:
         conn = await asyncpg.connect(url)
         logger.info("Connected!")
-        await conn.fetchval("SELECT 1")
-        logger.info("Result: {val}")
+        val = await conn.fetchval("SELECT 1")
+        logger.info("Connection test result: %s", val)
         await conn.close()
     except Exception:
-        logger.info("Error: {e}")
+        logger.exception("Database connection test failed")
 
 
 if __name__ == "__main__":

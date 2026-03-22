@@ -7,6 +7,7 @@ Tests error classification, masking, statistics, and reporting.
 import pytest
 from datetime import datetime, timezone
 
+from backend.tests.utils.secure_test_data import get_test_api_key, get_test_jwt_secret, get_test_password
 from app.core.error_reporting import (
     DatabaseErrorCategory,
     DatabaseErrorInfo,
@@ -163,28 +164,32 @@ class TestMasking:
 
     def test_mask_password(self):
         """Test masking passwords"""
-        text = "password=secret123 and other text"
+        test_password = get_test_password("error_reporting_mask")
+        text = f"password={test_password} and other text"
         masked = mask_sensitive_data(text)
-        assert "secret123" not in masked
+        assert test_password not in masked
         assert "***" in masked
 
     def test_mask_api_key(self):
         """Test masking API keys"""
-        text = "api_key=sk-1234567890abcdef"
+        test_api_key = get_test_api_key("error_reporting")
+        text = f"api_key={test_api_key}"
         masked = mask_sensitive_data(text)
-        assert "sk-1234567890abcdef" not in masked
+        assert test_api_key not in masked
 
     def test_mask_token(self):
         """Test masking tokens"""
-        text = "token=bearer_abc123xyz"
+        test_token = get_test_jwt_secret()[:20]
+        text = f"token={test_token}"
         masked = mask_sensitive_data(text)
-        assert "bearer_abc123xyz" not in masked
+        assert test_token not in masked
 
     def test_mask_database_url(self):
         """Test masking database URLs"""
-        text = "postgresql://user:password123@localhost:5432/db"
+        test_password = get_test_password("error_reporting_db_url")
+        text = f"postgresql://user:{test_password}@localhost:5432/db"
         masked = mask_sensitive_data(text)
-        assert "password123" not in masked
+        assert test_password not in masked
         assert "***" in masked
 
     def test_no_masking_needed(self):

@@ -241,7 +241,7 @@ describe('RouteGuard', () => {
 
   it('renders content for authenticated users', () => {
     const mockAuthContext = {
-      user: { id: '1', email: 'test@example.com', role: Role.PROGRAMMER },
+      user: { id: '1', email: 'test@example.com', role: Role.USER },
       loading: false,
       isAuthenticated: true,
       permissions: [],
@@ -260,7 +260,7 @@ describe('RouteGuard', () => {
 
   it('redirects users without required role to unauthorized', () => {
     const mockAuthContext = {
-      user: { id: '1', email: 'test@example.com', role: Role.VISITOR },
+      user: { id: '1', email: 'test@example.com', role: Role.USER },
       loading: false,
       isAuthenticated: true,
       permissions: [],

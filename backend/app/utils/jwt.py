@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
 
 from app.database.redis_db import get_redis
 
@@ -136,9 +137,9 @@ def decode_token(token: str) -> dict[str, Any] | None:
 
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         return None
-    except jwt.InvalidTokenError:
+    except JWTError:
         return None
 
 

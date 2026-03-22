@@ -198,7 +198,7 @@ class TestPasswordValidationMessages:
         special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
         
         for char in special_chars:
-            password = f"VALID_PASS_123_{char}"
+            password = get_test_password(f"auth_endpoints_special_{ord(char)}") + char
             # Should not raise ValidationError
             user_data = UserRegister(
                 email="test@example.com",

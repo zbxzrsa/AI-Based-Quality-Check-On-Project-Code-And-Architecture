@@ -29,11 +29,4 @@ ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
         Permission.EXPORT_REPORT,
     ],
     Role.USER: _USER_PERMISSIONS,
-    # Legacy role compatibility (old data/clients)
-    Role.PROGRAMMER: _USER_PERMISSIONS,
-    Role.REVIEWER: _USER_PERMISSIONS,
-    Role.MANAGER: _USER_PERMISSIONS,
-    Role.DEVELOPER: _USER_PERMISSIONS,
-    Role.COMPLIANCE_OFFICER: _USER_PERMISSIONS,
-    Role.VISITOR: _USER_PERMISSIONS,
 }

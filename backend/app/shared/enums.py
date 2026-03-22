@@ -6,16 +6,10 @@ from enum import Enum
 
 
 class Role(str, Enum):
-    """System roles (admin/user + legacy aliases for compatibility)."""
+    """System roles supported by the application."""
 
     ADMIN = "ADMIN"
     USER = "USER"
-    PROGRAMMER = "PROGRAMMER"
-    REVIEWER = "REVIEWER"
-    MANAGER = "MANAGER"
-    DEVELOPER = "DEVELOPER"
-    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"
-    VISITOR = "VISITOR"
 
 
 class Permission(str, Enum):

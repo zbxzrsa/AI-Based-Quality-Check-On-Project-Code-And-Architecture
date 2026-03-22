@@ -13,6 +13,7 @@ from datetime import timedelta
 from app.models import User
 from app.utils.password import hash_password
 from app.utils.jwt import create_access_token, create_refresh_token
+from backend.tests.utils.secure_test_data import get_test_password
 
 
 class TestCompleteAuthenticationFlow:
@@ -26,9 +27,10 @@ class TestCompleteAuthenticationFlow:
         **Validates: Requirements 13.6**
         """
         # Step 1: Register
+        register_password = get_test_password("auth_integration_register")
         register_data = {
             "email": "complete@test.com",
-            "password": "SecurePass123!",
+            "password": register_password,
             "full_name": "Complete Flow Test"
         }
         
@@ -40,7 +42,7 @@ class TestCompleteAuthenticationFlow:
         # Step 2: Login
         login_data = {
             "email": "complete@test.com",
-            "password": "SecurePass123!"
+            "password": register_password
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -66,7 +68,7 @@ class TestCompleteAuthenticationFlow:
         # Create user
         user = User(
             email="invalid@test.com",
-            password_hash=hash_password("CorrectPass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_correct")),
             full_name="Invalid Test"
         )
         db_session.add(user)
@@ -75,7 +77,7 @@ class TestCompleteAuthenticationFlow:
         # Try login with wrong password
         login_data = {
             "email": "invalid@test.com",
-            "password": "WrongPass123!"
+            "password": get_test_password("auth_integration_wrong")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -93,7 +95,7 @@ class TestCompleteAuthenticationFlow:
         """
         login_data = {
             "email": "nonexistent@test.com",
-            "password": "SomePass123!"
+            "password": get_test_password("auth_integration_nonexistent")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -137,7 +139,7 @@ class TestTokenRefreshFlow:
         # Create user
         user = User(
             email="refresh@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_refresh")),
             full_name="Refresh Test"
         )
         db_session.add(user)
@@ -147,7 +149,7 @@ class TestTokenRefreshFlow:
         # Login to get initial tokens
         login_data = {
             "email": "refresh@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_refresh")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -192,7 +194,7 @@ class TestTokenRefreshFlow:
         # Create user
         user = User(
             email="expired@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_expired")),
             full_name="Expired Test"
         )
         db_session.add(user)
@@ -220,7 +222,7 @@ class TestTokenRefreshFlow:
         # Create user
         user = User(
             email="wrongtype@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Wrong Type Test"
         )
         db_session.add(user)
@@ -249,7 +251,7 @@ class TestTokenRefreshFlow:
         # Create user
         user = User(
             email="multiple@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Multiple Test"
         )
         db_session.add(user)
@@ -258,7 +260,7 @@ class TestTokenRefreshFlow:
         # Login
         login_data = {
             "email": "multiple@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -290,7 +292,7 @@ class TestTokenRevocation:
         # Create user
         user = User(
             email="logout@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Logout Test"
         )
         db_session.add(user)
@@ -299,7 +301,7 @@ class TestTokenRevocation:
         # Login
         login_data = {
             "email": "logout@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -327,7 +329,7 @@ class TestTokenRevocation:
         # Create user
         user = User(
             email="revoked@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Revoked Test"
         )
         db_session.add(user)
@@ -336,7 +338,7 @@ class TestTokenRevocation:
         # Login
         login_data = {
             "email": "revoked@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -414,7 +416,7 @@ class TestPasswordManagement:
         # Create user
         user = User(
             email="wrongpw@test.com",
-            password_hash=hash_password("CorrectPass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_correct")),
             full_name="Wrong Password Test"
         )
         db_session.add(user)
@@ -423,7 +425,7 @@ class TestPasswordManagement:
         # Login
         login_data = {
             "email": "wrongpw@test.com",
-            "password": "CorrectPass123!"
+            "password": get_test_password("auth_integration_correct")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -432,7 +434,7 @@ class TestPasswordManagement:
         
         # Try to change password with wrong current password
         password_data = {
-            "current_password": "WrongPass123!",
+            "current_password": get_test_password("auth_integration_wrong"),
             "new_password": "NewPass456!"
         }
         
@@ -527,7 +529,7 @@ class TestRateLimiting:
         # Create user
         user = User(
             email="ratelimit@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Rate Limit Test"
         )
         db_session.add(user)
@@ -535,7 +537,7 @@ class TestRateLimiting:
         
         login_data = {
             "email": "ratelimit@test.com",
-            "password": "WrongPass123!"
+            "password": get_test_password("auth_integration_wrong")
         }
         
         # Make multiple failed login attempts
@@ -567,7 +569,7 @@ class TestSessionManagement:
         # Create user
         user = User(
             email="session@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Session Test"
         )
         db_session.add(user)
@@ -576,7 +578,7 @@ class TestSessionManagement:
         # Login
         login_data = {
             "email": "session@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -595,7 +597,7 @@ class TestSessionManagement:
         # Create user
         user = User(
             email="concurrent@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Concurrent Test"
         )
         db_session.add(user)
@@ -603,7 +605,7 @@ class TestSessionManagement:
         
         login_data = {
             "email": "concurrent@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         # Login twice (simulating different devices)
@@ -639,7 +641,7 @@ class TestInactiveUserHandling:
         # Create inactive user
         user = User(
             email="inactive@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Inactive Test",
             is_active=False
         )
@@ -649,7 +651,7 @@ class TestInactiveUserHandling:
         # Try to login
         login_data = {
             "email": "inactive@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -667,7 +669,7 @@ class TestInactiveUserHandling:
         # Create active user
         user = User(
             email="deactivate@test.com",
-            password_hash=hash_password("SecurePass123!"),
+            password_hash=hash_password(get_test_password("auth_integration_secure")),
             full_name="Deactivate Test",
             is_active=True
         )
@@ -678,7 +680,7 @@ class TestInactiveUserHandling:
         # Login while active
         login_data = {
             "email": "deactivate@test.com",
-            "password": "SecurePass123!"
+            "password": get_test_password("auth_integration_secure")
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -692,3 +694,4 @@ class TestInactiveUserHandling:
         refresh_data = {"refresh_token": tokens["refresh_token"]}
         response = await client.post("/api/v1/auth/refresh", json=refresh_data)
         assert response.status_code == 401
+

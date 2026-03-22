@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class APIResponse(BaseModel):
@@ -25,7 +25,7 @@ class APIResponse(BaseModel):
     data: Any | None = None
     errors: list[dict[str, Any]] | None = None
     meta: dict[str, Any] | None = None
-    timestamp: datetime = datetime.utcnow()
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}

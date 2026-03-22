@@ -59,7 +59,7 @@ The context manages authentication state across the entire application:
 type AuthContextType = {
   user: User | null;              // Current authenticated user
   loading: boolean;               // Loading state during auth operations
-  role: Role | null;              // User's role (ADMIN, PROGRAMMER, VISITOR)
+  role: Role | null;              // User's role (ADMIN, USER)
   permissions: Permission[];      // User's permissions based on role
   login: (email, password) => Promise<void>;
   register: (email, password, name) => Promise<void>;

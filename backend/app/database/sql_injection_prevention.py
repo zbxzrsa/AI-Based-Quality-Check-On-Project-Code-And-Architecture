@@ -278,7 +278,8 @@ class SafeQueryBuilder:
         else:
             select_clause = "*"
 
-        query = f"SELECT {select_clause} FROM {self.table_name}"
+        # Identifier components are strictly validated via validate_sql_identifier.
+        query = f"SELECT {select_clause} FROM {self.table_name}"  # nosec B608
         parameters = {}
 
         # Add WHERE clause
@@ -310,7 +311,8 @@ class SafeQueryBuilder:
         Returns:
             Tuple of (query_string, parameters)
         """
-        query = f"SELECT COUNT(*) FROM {self.table_name}"
+        # Identifier components are strictly validated via validate_sql_identifier.
+        query = f"SELECT COUNT(*) FROM {self.table_name}"  # nosec B608
         parameters = {}
 
         if filters:

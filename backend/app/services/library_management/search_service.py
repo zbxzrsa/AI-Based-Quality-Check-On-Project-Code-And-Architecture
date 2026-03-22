@@ -19,6 +19,14 @@ from app.schemas.library import LibrarySearchResult
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log_input(value: object, max_length: int = 100) -> str:
+    """Sanitize user-controlled data before logging."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 class SearchError(Exception):
     """Base exception for search errors"""
 
@@ -453,7 +461,15 @@ class SearchService:
             RegistryType.NPM
         """
         try:
-            logger.info(f"Searching libraries: query='{query}', registry={registry_type}, limit={limit}")
+            logger.info(
+                "Searching libraries",
+                extra={
+                    "query": _sanitize_log_input(query),
+                    "query_length": len(query) if query else 0,
+                    "registry": str(registry_type) if registry_type else "all",
+                    "limit": limit,
+                },
+            )
 
             # Validate query
             if not query or not query.strip():
@@ -513,7 +529,10 @@ class SearchService:
             # Limit final results
             final_results = all_results[:limit]
 
-            logger.info(f"Search completed: found {len(final_results)} results for '{query}'")
+            logger.info(
+                "Search completed",
+                extra={"result_count": len(final_results), "query_length": len(query)},
+            )
 
             return final_results
 

@@ -173,6 +173,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("Error during migration: %s", str(e), exc_info=True)
 
+    # Normalize any legacy user roles so the application only persists admin/user going forward.
+    if postgres_available and not testing:
+        try:
+            from sqlalchemy import text
+
+            async for db in get_db():
+                result = await db.execute(
+                    text(
+                        """
+                        UPDATE users
+                        SET role = 'user'::user_role
+                        WHERE LOWER(role::text) NOT IN ('admin', 'user')
+                        """
+                    )
+                )
+                if result.rowcount:
+                    await db.commit()
+                    logger.info("Normalized %s legacy user role record(s) to USER", result.rowcount)
+                break
+        except Exception as e:
+            logger.warning("Could not normalize legacy user roles: %s", str(e))
+
     # Create default admin user in non-production when explicitly configured
     if postgres_available and not testing and settings.ENVIRONMENT != "production":
         try:

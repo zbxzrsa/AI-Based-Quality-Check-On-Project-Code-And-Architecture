@@ -21,6 +21,14 @@ router = APIRouter(
 )
 
 
+def _sanitize_log_input(value: object, max_length: int = 80) -> str:
+    """Sanitize user-controlled values before logging."""
+    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(sanitized) > max_length:
+        return sanitized[:max_length] + "...[truncated]"
+    return sanitized
+
+
 class AuditRequest(BaseModel):
     """Request model for processing npm audit JSON."""
 
@@ -58,7 +66,8 @@ async def process_audit_report(
         ComplianceReport with vulnerability analysis and compliance score
     """
     try:
-        logger.info(f"Processing audit for project {request.project_id}")
+        safe_project_id = _sanitize_log_input(request.project_id)
+        logger.info("Processing audit request", extra={"project_id": safe_project_id})
 
         # Process the audit report
         compliance_report = service.process_audit_report(request.project_id, request.audit_json)
@@ -71,14 +80,15 @@ async def process_audit_report(
             compliance_report.scan_tools_used.append(f"developer:{request.developer_id}")
 
         logger.info(
-            f"Successfully processed audit for project {request.project_id}: score={compliance_report.compliance_score}"
+            "Audit processed successfully",
+            extra={"project_id": safe_project_id, "compliance_score": compliance_report.compliance_score},
         )
 
         return compliance_report
 
-    except Exception as e:
-        logger.error(f"Error processing audit for project {request.project_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process audit report: {str(e)}")
+    except Exception:
+        logger.error("Error processing audit report", extra={"project_id": _sanitize_log_input(request.project_id)})
+        raise HTTPException(status_code=500, detail="Failed to process audit report")
 
 
 @router.get("/report/{project_id}", response_model=ComplianceReport)
@@ -101,14 +111,14 @@ async def get_compliance_report(
         if not report:
             raise HTTPException(status_code=404, detail=f"Compliance report not found for project {project_id}")
 
-        logger.info(f"Retrieved compliance report for project {project_id}")
+        logger.info("Retrieved compliance report", extra={"project_id": _sanitize_log_input(project_id)})
         return report
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error retrieving compliance report for project {project_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve compliance report: {str(e)}")
+    except Exception:
+        logger.error("Error retrieving compliance report", extra={"project_id": _sanitize_log_input(project_id)})
+        raise HTTPException(status_code=500, detail="Failed to retrieve compliance report")
 
 
 @router.get("/trends/{project_id}")
@@ -132,14 +142,17 @@ async def get_vulnerability_trends(
         if not trends:
             raise HTTPException(status_code=404, detail=f"No vulnerability trends found for project {project_id}")
 
-        logger.info(f"Retrieved vulnerability trends for project {project_id} ({days} days)")
+        logger.info(
+            "Retrieved vulnerability trends",
+            extra={"project_id": _sanitize_log_input(project_id), "days": days},
+        )
         return trends
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error retrieving vulnerability trends for project {project_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve vulnerability trends: {str(e)}")
+    except Exception:
+        logger.error("Error retrieving vulnerability trends", extra={"project_id": _sanitize_log_input(project_id)})
+        raise HTTPException(status_code=500, detail="Failed to retrieve vulnerability trends")
 
 
 @router.get("/summary", response_model=ComplianceSummary)
@@ -167,9 +180,9 @@ async def get_compliance_summary(service: SecurityComplianceService = Depends(ge
         logger.info("Retrieved compliance summary")
         return summary
 
-    except Exception as e:
-        logger.error(f"Error retrieving compliance summary: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve compliance summary: {str(e)}")
+    except Exception:
+        logger.error("Error retrieving compliance summary")
+        raise HTTPException(status_code=500, detail="Failed to retrieve compliance summary")
 
 
 @router.get("/projects")
@@ -191,9 +204,9 @@ async def list_projects_with_compliance(service: SecurityComplianceService = Dep
         logger.info("Retrieved list of projects with compliance scores")
         return projects
 
-    except Exception as e:
-        logger.error(f"Error retrieving projects list: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve projects list: {str(e)}")
+    except Exception:
+        logger.error("Error retrieving projects list")
+        raise HTTPException(status_code=500, detail="Failed to retrieve projects list")
 
 
 @router.delete("/project/{project_id}")
@@ -213,12 +226,12 @@ async def delete_project_compliance_data(
     try:
         # This would need to be implemented in the service
         # For now, return a placeholder implementation
-        logger.info(f"Deleted compliance data for project {project_id}")
+        logger.info("Deleted compliance data", extra={"project_id": _sanitize_log_input(project_id)})
         return {"message": f"Compliance data deleted for project {project_id}"}
 
-    except Exception as e:
-        logger.error(f"Error deleting compliance data for project {project_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete compliance data: {str(e)}")
+    except Exception:
+        logger.error("Error deleting compliance data", extra={"project_id": _sanitize_log_input(project_id)})
+        raise HTTPException(status_code=500, detail="Failed to delete compliance data")
 
 
 @router.post("/bulk-process")
@@ -259,7 +272,14 @@ async def bulk_process_audit_reports(
                 results.append({"project_id": request.project_id, "status": "error", "error": str(e)})
                 error_count += 1
 
-        logger.info(f"Bulk processed {len(requests)} audit reports: {success_count} successful, {error_count} failed")
+        logger.info(
+            "Bulk processed audit reports",
+            extra={
+                "total_processed": len(requests),
+                "success_count": success_count,
+                "error_count": error_count,
+            },
+        )
 
         return {
             "total_processed": len(requests),
@@ -268,9 +288,9 @@ async def bulk_process_audit_reports(
             "results": results,
         }
 
-    except Exception as e:
-        logger.error(f"Error in bulk processing: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process bulk audit reports: {str(e)}")
+    except Exception:
+        logger.error("Error in bulk audit processing")
+        raise HTTPException(status_code=500, detail="Failed to process bulk audit reports")
 
 
 # Example usage endpoints for testing
@@ -315,13 +335,16 @@ async def example_process_audit(
         # Process with example project
         compliance_report = service.process_audit_report("example-project", example_audit_json)
 
-        logger.info(f"Example audit processed: score={compliance_report.compliance_score}")
+        logger.info(
+            "Example audit processed",
+            extra={"compliance_score": compliance_report.compliance_score},
+        )
 
         return {"message": "Example audit processed successfully", "report": compliance_report}
 
-    except Exception as e:
-        logger.error(f"Error in example processing: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process example audit: {str(e)}")
+    except Exception:
+        logger.error("Error in example audit processing")
+        raise HTTPException(status_code=500, detail="Failed to process example audit")
 
 
 @router.get("/health")

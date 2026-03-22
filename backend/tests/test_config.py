@@ -382,10 +382,10 @@ class TestSettingsDatabaseValidation:
             "NEO4J_PASSWORD": TEST_PASSWORD,
             "REDIS_HOST": "localhost",
             "REDIS_PORT": "6379",
-            "REDIS_PASSWORD": "redis_pass",
+            "REDIS_PASSWORD": get_test_password("test_redis_password"),
         }, clear=True):
             settings = Settings()
-            expected = "redis://:redis_pass@localhost:6379/0"
+            expected = f"redis://:{get_test_password('test_redis_password')}@localhost:6379/0"
             assert settings.redis_url == expected
 
 

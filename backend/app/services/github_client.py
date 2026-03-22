@@ -47,7 +47,9 @@ class GitHubAPIClient:
             access_token: GitHub personal access token or App token
         """
         self.token = access_token or settings.GITHUB_TOKEN
-        self.client = Github(self.token) if self.token else None
+        # Fall back to anonymous GitHub access so public repositories can still
+        # be synced and analyzed in local/dev environments without OAuth.
+        self.client = Github(self.token) if self.token else Github()
         self.http_client = httpx.AsyncClient()
 
         # Initialize circuit breaker for GitHub API
