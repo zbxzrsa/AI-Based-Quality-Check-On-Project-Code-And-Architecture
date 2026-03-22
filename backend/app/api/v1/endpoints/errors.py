@@ -6,7 +6,7 @@ Requirement 7.4: Client-side error reporting
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -66,14 +66,14 @@ async def report_client_error(error_report: ClientErrorReport, request: Request)
             "user_agent": _sanitize_log_input(error_report.userAgent),
             "client_ip": _sanitize_log_input(client_ip, max_length=64),
             "has_details": bool(error_report.details),
-            "server_timestamp": datetime.utcnow().isoformat(),
+            "server_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         # Log the error
         logger.error("Client error reported", extra={"structured_data": log_data})
 
         # Generate error ID for tracking
-        error_id = f"client-{datetime.utcnow().timestamp()}"
+        error_id = f"client-{datetime.now(timezone.utc).timestamp()}"
 
         return {"status": "success", "message": "Error report received", "error_id": error_id}
 

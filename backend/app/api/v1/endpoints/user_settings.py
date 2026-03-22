@@ -4,7 +4,7 @@ userset API endpoint
 管理user的item人set，包括 API keyconfig
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -133,7 +133,7 @@ async def update_user_api_settings(
 
     # update metadata
     metadata["api_settings"] = api_settings
-    metadata["updated_at"] = datetime.utcnow().isoformat()
+    metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # save到database
     await db.execute(update(User).where(User.id == current_user.user_id).values(metadata=metadata))
@@ -181,7 +181,7 @@ async def delete_user_api_key(
 
     # update metadata
     metadata["api_settings"] = api_settings
-    metadata["updated_at"] = datetime.utcnow().isoformat()
+    metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # save到database
     await db.execute(update(User).where(User.id == current_user.user_id).values(metadata=metadata))

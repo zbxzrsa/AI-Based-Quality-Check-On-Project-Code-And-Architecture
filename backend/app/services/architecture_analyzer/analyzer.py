@@ -5,6 +5,7 @@ Stub implementation for backward compatibility.
 This module will be fully implemented in future tasks.
 """
 
+import asyncio
 from typing import Any
 
 
@@ -31,6 +32,7 @@ class ArchitectureAnalyzer:
         Returns:
             Analysis results dictionary
         """
+        await asyncio.sleep(0)
         return {
             "project_id": project_id,
             "status": "not_implemented",
@@ -47,4 +49,5 @@ class ArchitectureAnalyzer:
         Returns:
             List of violations
         """
+        await asyncio.sleep(0)
         return []

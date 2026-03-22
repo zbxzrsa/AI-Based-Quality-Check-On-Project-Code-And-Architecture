@@ -15,6 +15,12 @@ from app.utils.password import hash_password
 from app.utils.jwt import create_access_token, create_refresh_token
 from backend.tests.utils.secure_test_data import get_test_password
 
+PASSWORD_CHANGE_OLD = get_test_password("auth_integration_password_change_old")
+PASSWORD_CHANGE_NEW = get_test_password("auth_integration_password_change_new")
+PASSWORD_CHANGE_STRONG = get_test_password("auth_integration_password_change_strong")
+PASSWORD_CHANGE_SAME = get_test_password("auth_integration_password_change_same")
+PASSWORD_CHANGE_WEAK = "weak"
+
 
 class TestCompleteAuthenticationFlow:
     """Integration tests for complete authentication workflows"""
@@ -370,7 +376,7 @@ class TestPasswordManagement:
         # Create user
         user = User(
             email="pwchange@test.com",
-            password_hash=hash_password("OldPass123!"),
+            password_hash=hash_password(PASSWORD_CHANGE_OLD),
             full_name="Password Change Test"
         )
         db_session.add(user)
@@ -379,7 +385,7 @@ class TestPasswordManagement:
         # Login with old password
         login_data = {
             "email": "pwchange@test.com",
-            "password": "OldPass123!"
+            "password": PASSWORD_CHANGE_OLD
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -389,20 +395,20 @@ class TestPasswordManagement:
         
         # Change password
         password_data = {
-            "current_password": "OldPass123!",
-            "new_password": "NewPass456!"
+            "current_password": PASSWORD_CHANGE_OLD,
+            "new_password": PASSWORD_CHANGE_NEW
         }
         
         response = await client.patch("/api/v1/auth/password", json=password_data, headers=headers)
         assert response.status_code == 200
         
         # Old password should not work
-        login_data["password"] = "OldPass123!"
+        login_data["password"] = PASSWORD_CHANGE_OLD
         response = await client.post("/api/v1/auth/login", json=login_data)
         assert response.status_code == 401
         
         # New password should work
-        login_data["password"] = "NewPass456!"
+        login_data["password"] = PASSWORD_CHANGE_NEW
         response = await client.post("/api/v1/auth/login", json=login_data)
         assert response.status_code == 200
     
@@ -435,7 +441,7 @@ class TestPasswordManagement:
         # Try to change password with wrong current password
         password_data = {
             "current_password": get_test_password("auth_integration_wrong"),
-            "new_password": "NewPass456!"
+            "new_password": PASSWORD_CHANGE_NEW
         }
         
         response = await client.patch("/api/v1/auth/password", json=password_data, headers=headers)
@@ -453,7 +459,7 @@ class TestPasswordManagement:
         # Create user
         user = User(
             email="weakpw@test.com",
-            password_hash=hash_password("StrongPass123!"),
+            password_hash=hash_password(PASSWORD_CHANGE_STRONG),
             full_name="Weak Password Test"
         )
         db_session.add(user)
@@ -462,7 +468,7 @@ class TestPasswordManagement:
         # Login
         login_data = {
             "email": "weakpw@test.com",
-            "password": "StrongPass123!"
+            "password": PASSWORD_CHANGE_STRONG
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -471,8 +477,8 @@ class TestPasswordManagement:
         
         # Try to change to weak password
         password_data = {
-            "current_password": "StrongPass123!",
-            "new_password": "weak"  # Too weak
+            "current_password": PASSWORD_CHANGE_STRONG,
+            "new_password": PASSWORD_CHANGE_WEAK  # Too weak
         }
         
         response = await client.patch("/api/v1/auth/password", json=password_data, headers=headers)
@@ -488,7 +494,7 @@ class TestPasswordManagement:
         # Create user
         user = User(
             email="samepw@test.com",
-            password_hash=hash_password("SamePass123!"),
+            password_hash=hash_password(PASSWORD_CHANGE_SAME),
             full_name="Same Password Test"
         )
         db_session.add(user)
@@ -497,7 +503,7 @@ class TestPasswordManagement:
         # Login
         login_data = {
             "email": "samepw@test.com",
-            "password": "SamePass123!"
+            "password": PASSWORD_CHANGE_SAME
         }
         
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -506,8 +512,8 @@ class TestPasswordManagement:
         
         # Try to change to same password
         password_data = {
-            "current_password": "SamePass123!",
-            "new_password": "SamePass123!"
+            "current_password": PASSWORD_CHANGE_SAME,
+            "new_password": PASSWORD_CHANGE_SAME
         }
         
         response = await client.patch("/api/v1/auth/password", json=password_data, headers=headers)

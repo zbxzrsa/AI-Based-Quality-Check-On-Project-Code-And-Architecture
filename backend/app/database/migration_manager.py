@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import asyncio
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -223,7 +224,8 @@ class MigrationManager:
 
             # Run alembic upgrade
             logger.info("Applying pending migrations")
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 [sys.executable, "-m", "alembic", "upgrade", "head"],
                 cwd=str(self.alembic_ini_path.parent.parent),
                 capture_output=True,
@@ -591,7 +593,8 @@ class MigrationManager:
             logger.info(f"Created backup {backup_id} before rollback")
 
             # Run alembic downgrade
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 [sys.executable, "-m", "alembic", "downgrade", revision],
                 cwd=str(self.alembic_ini_path.parent.parent),
                 capture_output=True,
@@ -633,7 +636,8 @@ class MigrationManager:
             env = os.environ.copy()
             env["PGPASSWORD"] = settings.POSTGRES_PASSWORD
 
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 [
                     "pg_dump",
                     "-h",
@@ -670,8 +674,7 @@ class MigrationManager:
             }
 
             metadata_path = self.backup_dir / f"postgres_backup_{backup_id}.json"
-            with open(metadata_path, "w") as f:
-                json.dump(metadata, f, indent=2)
+            await asyncio.to_thread(metadata_path.write_text, json.dumps(metadata, indent=2), encoding="utf-8")
 
             logger.info(f"Backup created successfully: {backup_id} ({metadata['size_bytes']} bytes)")
             return backup_id
@@ -713,8 +716,8 @@ class MigrationManager:
 
             # Load metadata
             if metadata_path.exists():
-                with open(metadata_path) as f:
-                    metadata = json.load(f)
+                metadata_raw = await asyncio.to_thread(metadata_path.read_text, encoding="utf-8")
+                metadata = json.loads(metadata_raw)
                 logger.info("Backup metadata loaded", extra={"backup_id": self._sanitize_log_input(backup_id)})
 
             # Use pg_restore to restore backup
@@ -726,7 +729,8 @@ class MigrationManager:
             logger.warning(f"Dropping and recreating database: {settings.POSTGRES_DB}")
 
             # Connect to postgres database to drop/create target database
-            drop_result = subprocess.run(
+            drop_result = await asyncio.to_thread(
+                subprocess.run,
                 [
                     "psql",
                     "-h",
@@ -750,7 +754,8 @@ class MigrationManager:
                 logger.error(f"Failed to drop database: {drop_result.stderr}")
                 return False
 
-            create_result = subprocess.run(
+            create_result = await asyncio.to_thread(
+                subprocess.run,
                 [
                     "psql",
                     "-h",
@@ -775,7 +780,8 @@ class MigrationManager:
                 return False
 
             # Restore the backup
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 [
                     "pg_restore",
                     "-h",

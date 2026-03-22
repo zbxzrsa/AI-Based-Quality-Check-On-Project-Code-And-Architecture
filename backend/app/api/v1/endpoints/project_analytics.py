@@ -5,7 +5,7 @@ provideproject的 AI reviewData、architectureanalyze、code质量指标等
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -32,7 +32,7 @@ router = APIRouter()
 
 
 def _utcnow_iso() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _default_project_analytics(project_id: str) -> dict[str, Any]:
@@ -87,13 +87,22 @@ async def _get_project_prs(
 
 def _parse_time_range(start_time: str | None, end_time: str | None) -> tuple[datetime, datetime]:
     try:
-        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else datetime.utcnow() - timedelta(days=7)
-        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else datetime.utcnow()
+        start_dt = (
+            datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            if start_time
+            else datetime.now(timezone.utc) - timedelta(days=7)
+        )
+        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else datetime.now(timezone.utc)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid datetime format: {str(e)}. Expected ISO 8601 format.",
         )
+
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=timezone.utc)
+    if end_dt.tzinfo is None:
+        end_dt = end_dt.replace(tzinfo=timezone.utc)
 
     if start_dt >= end_dt:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="start_time must be before end_time")

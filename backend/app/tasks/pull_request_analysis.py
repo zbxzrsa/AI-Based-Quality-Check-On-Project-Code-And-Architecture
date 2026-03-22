@@ -97,7 +97,7 @@ async def _parse_pr_files(pr_id: str, project_id: str, task) -> dict[str, Any]:
                 raise ValueError(f"Pull request {pr_id} not found")
 
             # Update status to analyzing
-            pr.status = PRStatus.analyzing
+            pr.status = PRStatus.ANALYZING
             await db.commit()
 
             task.update_progress(10, "Fetching project details", TaskProgressStage.PARSING_FILES)
@@ -211,7 +211,7 @@ async def _parse_pr_files(pr_id: str, project_id: str, task) -> dict[str, Any]:
 
             # Update PR status to pending (revert from analyzing)
             try:
-                pr.status = PRStatus.pending
+                pr.status = PRStatus.PENDING
                 await db.commit()
             except Exception as commit_error:
                 logger.warning(f"Failed to update PR status: {commit_error}")
@@ -590,7 +590,7 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
             db.add(review_result)
 
             # Update PR with results
-            pr.status = PRStatus.reviewed
+            pr.status = PRStatus.REVIEWED
             pr.risk_score = risk_score / 100.0
             pr.analyzed_at = datetime.now(timezone.utc)
 
@@ -616,7 +616,7 @@ async def _post_comments(analysis_result: dict[str, Any], task) -> dict[str, Any
 
             # Update PR status to pending (revert from analyzing)
             try:
-                pr.status = PRStatus.pending
+                pr.status = PRStatus.PENDING
                 await db.commit()
             except Exception as commit_error:
                 logger.warning(f"Failed to update PR status: {commit_error}")
@@ -728,7 +728,7 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
                 raise ValueError(f"Pull request {pr_id} not found")
 
             # Update status to analyzing
-            pr.status = PRStatus.analyzing
+            pr.status = PRStatus.ANALYZING
             await db.commit()
 
             # Fetch project
@@ -809,7 +809,7 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
             db.add(review_result)
 
             # Update PR with results
-            pr.status = PRStatus.reviewed
+            pr.status = PRStatus.REVIEWED
             pr.risk_score = review.risk_score / 100.0
             pr.analyzed_at = datetime.now(timezone.utc)
 
@@ -837,7 +837,7 @@ async def _analyze_pr(pr_id: str, project_id: str, task) -> dict[str, Any]:
 
             # Update PR status to pending (revert from analyzing)
             try:
-                pr.status = PRStatus.pending
+                pr.status = PRStatus.PENDING
                 await db.commit()
             except Exception as commit_error:
                 logger.warning(f"Failed to update PR status: {commit_error}")

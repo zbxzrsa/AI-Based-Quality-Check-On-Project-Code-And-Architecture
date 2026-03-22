@@ -28,6 +28,7 @@ def is_ci_environment() -> bool:
 
 # Global driver instance
 neo4j_driver: AsyncDriver | None = None
+_index_creation_task: asyncio.Task | None = None
 
 
 class Neo4jDB:
@@ -70,7 +71,7 @@ async def get_neo4j_driver() -> AsyncDriver:
 )
 async def init_neo4j():
     """Initialize Neo4j database connection with retry logic"""
-    global neo4j_driver
+    global neo4j_driver, _index_creation_task
 
     # If already initialized, verify connectivity
     if neo4j_driver is not None:
@@ -115,7 +116,7 @@ async def init_neo4j():
                     raise e
 
         # Create indexes in background (don't block startup)
-        asyncio.create_task(create_indexes())
+        _index_creation_task = asyncio.create_task(create_indexes(), name="neo4j_index_creation")
 
     except ServiceUnavailable as e:
         error_msg = f"Neo4j service unavailable: {e}"

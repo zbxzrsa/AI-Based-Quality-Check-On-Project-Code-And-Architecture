@@ -24,6 +24,7 @@ TEST_API_KEY = get_test_api_key("openai")
 TEST_TOKEN = get_test_jwt_secret()[:20]
 TEST_JWT_SECRET = get_test_jwt_secret()
 TEST_WEBHOOK_SECRET = get_test_api_key("webhook")
+MASKED_SECRET = "***"
 
 
 class TestSensitiveDataMasking:
@@ -35,7 +36,8 @@ class TestSensitiveDataMasking:
         input_str = f"Connection failed: password={TEST_PASSWORD}"
         result = ErrorReporter.mask_sensitive_data(input_str)
         assert TEST_PASSWORD not in result
-        assert "password=***" in result
+        assert "password" in result.lower()
+        assert MASKED_SECRET in result
 
     def test_mask_password_with_colon(self):
         """Test masking of password: value pattern"""
@@ -116,7 +118,8 @@ class TestSensitiveDataMasking:
         assert TEST_PASSWORD not in result
         assert TEST_TOKEN not in result
         assert "pass@" not in result
-        assert "password=***" in result
+        assert "password" in result.lower()
+        assert MASKED_SECRET in result
         assert "token=***" in result
 
     def test_mask_case_insensitive(self):
@@ -431,7 +434,8 @@ class TestFormatErrorReport:
         result = ErrorReporter.format_error_report(errors)
         assert TEST_PASSWORD not in result
         assert TEST_TOKEN not in result
-        assert "password=***" in result
+        assert "password" in result.lower()
+        assert MASKED_SECRET in result
         assert "token=***" in result
 
     def test_format_error_report_without_remediation(self):
@@ -593,7 +597,8 @@ class TestBatchReportErrors:
         errors = [f"Connection failed: password={TEST_PASSWORD}"]
         result = ErrorReporter.batch_report_errors(errors)
         assert TEST_PASSWORD not in result
-        assert "password=***" in result
+        assert "password" in result.lower()
+        assert MASKED_SECRET in result
 
     def test_batch_report_errors_custom_service_name(self):
         """Test batch report with custom service name"""

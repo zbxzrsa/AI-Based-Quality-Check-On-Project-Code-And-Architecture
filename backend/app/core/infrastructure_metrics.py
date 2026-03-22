@@ -13,7 +13,7 @@ Validates Requirements: 7.4, 7.10
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import psutil
 
@@ -228,7 +228,7 @@ class InfrastructureMetricsCollector:
 
             # Prepare metric data
             metric_data = []
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
 
             for metric_name, value in metrics.items():
                 metric_data.append(

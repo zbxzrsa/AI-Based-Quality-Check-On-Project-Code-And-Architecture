@@ -21,12 +21,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.postgresql import get_db
 from app.models import Project
 from app.models.code_review import PRStatus, PullRequest
+from app.services.encryption_service import decrypt_if_possible
 from app.services.redis_cache_service import get_cache_service
 from app.shared.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _mark_webhook_processed(cache: object, delivery_id: str) -> bool:
+    """
+    Compatibility wrapper for webhook replay protection.
+
+    Some code paths use the newer atomic `mark_webhook_processed`, while older
+    tests and mocks still expose `cache_exists` / `cache_set`.
+    """
+    if hasattr(cache, "mark_webhook_processed"):
+        return await cache.mark_webhook_processed(delivery_id)
+
+    if hasattr(cache, "cache_exists") and hasattr(cache, "cache_set"):
+        already_processed = await cache.cache_exists(f"webhook:{delivery_id}")
+        if already_processed:
+            return False
+
+        await cache.cache_set(f"webhook:{delivery_id}", "1", expiration=3600)
+        return True
+
+    return True
 
 
 def verify_webhook_signature(payload_body: bytes, signature_header: str, secret: str) -> bool:
@@ -58,7 +80,7 @@ def verify_webhook_signature(payload_body: bytes, signature_header: str, secret:
     return hmac.compare_digest(computed_signature, expected_signature)
 
 
-async def extract_pr_data(payload: dict[str, Any]) -> dict[str, Any]:
+def extract_pr_data(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Extract relevant PR data from webhook payload.
 
@@ -93,7 +115,7 @@ async def extract_pr_data(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def queue_analysis_task(pr_id: str, project_id: str, pr_data: dict[str, Any]) -> dict[str, Any]:
+def queue_analysis_task(pr_id: str, project_id: str, pr_data: dict[str, Any]) -> dict[str, Any]:
     """
     Queue PR analysis task in Celery with priority.
 
@@ -181,7 +203,7 @@ async def code_review_webhook(
         cache = await get_cache_service()
 
         # Atomically check and mark as processed
-        is_new = await cache.mark_webhook_processed(x_github_delivery)
+        is_new = await _mark_webhook_processed(cache, x_github_delivery)
         if not is_new:
             logger.warning(
                 f"Duplicate webhook delivery detected: {x_github_delivery}", extra={"delivery_id": x_github_delivery}
@@ -190,7 +212,7 @@ async def code_review_webhook(
 
     # Extract PR data
     try:
-        pr_data = await extract_pr_data(payload)
+        pr_data = extract_pr_data(payload)
     except ValidationException as e:
         logger.error(f"Failed to extract PR data: {e.message}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
@@ -219,11 +241,13 @@ async def code_review_webhook(
 
     # Verify webhook signature if secret is configured
     if project.github_webhook_secret:
+        webhook_secret = decrypt_if_possible(project.github_webhook_secret) or project.github_webhook_secret
+
         if not x_hub_signature_256:
             logger.error("Missing webhook signature")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
 
-        if not verify_webhook_signature(body, x_hub_signature_256, project.github_webhook_secret):
+        if not verify_webhook_signature(body, x_hub_signature_256, webhook_secret):
             logger.error("Invalid webhook signature", extra={"project_id": str(project.id)})
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
@@ -272,7 +296,7 @@ async def code_review_webhook(
         )
 
     # Queue analysis task
-    task_info = await queue_analysis_task(str(pr.id), str(project.id), pr_data)
+    task_info = queue_analysis_task(str(pr.id), str(project.id), pr_data)
 
     # Calculate processing time
     processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()

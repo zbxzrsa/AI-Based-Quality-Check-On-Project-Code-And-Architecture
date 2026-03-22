@@ -137,7 +137,7 @@ def create_error_response(
     )
 
 
-async def service_exception_handler(request: Request, exc: ServiceException) -> JSONResponse:
+def service_exception_handler(request: Request, exc: ServiceException) -> JSONResponse:
     """
     Handle custom service exceptions
 
@@ -232,7 +232,7 @@ async def service_exception_handler(request: Request, exc: ServiceException) -> 
     return response
 
 
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
     Handle FastAPI/Pydantic validation errors
 
@@ -279,7 +279,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle all unhandled exceptions
 

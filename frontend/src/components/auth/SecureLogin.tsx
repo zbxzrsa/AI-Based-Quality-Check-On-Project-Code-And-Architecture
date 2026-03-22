@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormData {
@@ -68,6 +68,7 @@ export default function SecureLogin() {
 
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -128,7 +129,8 @@ export default function SecureLogin() {
     setErrors({});
 
     try {
-      await login(formData.email, formData.password);
+      const returnUrl = searchParams?.get('returnUrl') || undefined;
+      await login(formData.email, formData.password, returnUrl);
       // Successful login - AuthContext will handle redirect
     } catch (error: unknown) {
       console.error('Login failed:', error);

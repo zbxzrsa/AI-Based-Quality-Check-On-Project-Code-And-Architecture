@@ -207,7 +207,7 @@ class ConnectionManager:
             logger.error(f"Failed to initialize Neo4j driver: {str(e)}")
             raise
 
-    async def _start_background_tasks(self) -> None:
+    def _start_background_tasks(self) -> None:
         """Start background tasks for pool monitoring and cleanup"""
         # Start pool health monitoring
         self._health_check_task = asyncio.create_task(self._pool_health_monitor(), name="pool_health_monitor")
@@ -235,7 +235,7 @@ class ConnectionManager:
 
             except asyncio.CancelledError:
                 logger.info("Pool health monitor task cancelled")
-                break
+                raise
             except Exception as e:
                 logger.error(f"Error in pool health monitor: {str(e)}")
                 # Continue monitoring despite errors
@@ -254,7 +254,7 @@ class ConnectionManager:
 
             except asyncio.CancelledError:
                 logger.info("Pool cleanup monitor task cancelled")
-                break
+                raise
             except Exception as e:
                 logger.error(f"Error in pool cleanup monitor: {str(e)}")
 
@@ -839,7 +839,7 @@ class ConnectionManager:
             logger.warning(f"Disconnected databases: {', '.join(disconnected)}")
 
         # Log pool statistics
-        await self._log_pool_statistics()
+        self._log_pool_statistics()
 
         return status_dict
 
@@ -926,14 +926,14 @@ class ConnectionManager:
                 try:
                     await self._health_check_task
                 except asyncio.CancelledError:
-                    pass
+                    logger.debug("Health check task cancelled during shutdown")
 
             if self._pool_cleanup_task:
                 self._pool_cleanup_task.cancel()
                 try:
                     await self._pool_cleanup_task
                 except asyncio.CancelledError:
-                    pass
+                    logger.debug("Pool cleanup task cancelled during shutdown")
 
             # Close PostgreSQL pool
             if self._postgresql_pool:
@@ -989,7 +989,7 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Error during cleanup: {str(e)}")
 
-    async def _log_pool_statistics(self) -> None:
+    def _log_pool_statistics(self) -> None:
         """Log current pool statistics for monitoring"""
         for service, stats in self.pool_stats.items():
             if stats.size > 0 or stats.failed_connections > 0:
@@ -1041,7 +1041,7 @@ class ConnectionManager:
         metrics["is_stale"] = time_since_update > timedelta(minutes=30)
 
         # Health assessment
-        metrics["health_score"] = await self._calculate_health_score(service, stats)
+        metrics["health_score"] = self._calculate_health_score(service, stats)
         metrics["needs_attention"] = metrics["health_score"] < 70
 
         # Service-specific metrics
@@ -1078,7 +1078,7 @@ class ConnectionManager:
 
         return metrics
 
-    async def _calculate_health_score(self, service: str, stats: PoolStats) -> int:
+    def _calculate_health_score(self, service: str, stats: PoolStats) -> int:
         """
         Calculate a health score (0-100) for a service pool.
 
@@ -1148,7 +1148,7 @@ class ConnectionManager:
         # Calculate overall health scores
         health_scores = []
         for service, stats in self.pool_stats.items():
-            score = await self._calculate_health_score(service, stats)
+            score = self._calculate_health_score(service, stats)
             health_scores.append(score)
             metrics[f"{service.lower()}_health_score"] = score
 

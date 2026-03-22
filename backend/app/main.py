@@ -476,19 +476,6 @@ if settings.is_tracing_enabled():
 # Compression middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# CORS middleware - must be last in middleware chain (Requirement 8.5)
-# Configure CORS to restrict allowed origins based on environment
-# In production, only allow requests from authorized domains
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
-    expose_headers=settings.CORS_EXPOSE_HEADERS,
-    max_age=settings.CORS_MAX_AGE,
-)
-
 # Security headers middleware (Requirement 8.5)
 # Add security response headers to protect against common vulnerabilities
 from app.middleware.security_headers import configure_security_headers
@@ -511,13 +498,23 @@ from app.middleware.prometheus_middleware import configure_prometheus_middleware
 
 configure_prometheus_middleware(app)
 
+# CORS middleware - must be last in middleware chain (Requirement 8.5)
+# Configure CORS to restrict allowed origins based on environment
+# In production, only allow requests from authorized domains
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
+    expose_headers=settings.CORS_EXPOSE_HEADERS,
+    max_age=settings.CORS_MAX_AGE,
+)
+
 # Initialize application info metric
 from app.core.prometheus_metrics import set_app_info
 
 set_app_info(version=settings.VERSION, environment=settings.ENVIRONMENT)
-
-# Compression middleware
-app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Request Logging Middleware
 app.middleware("http")(log_request)

@@ -115,8 +115,8 @@ class StartupValidator:
         logger.info("Starting startup validation...")
 
         # Run all validation checks
-        await self.validate_environment()
-        await self.validate_security()
+        self.validate_environment()
+        self.validate_security()
         await self.validate_databases()
         await self.validate_migrations()
         await self.validate_celery()
@@ -131,7 +131,7 @@ class StartupValidator:
 
         return self.result
 
-    async def validate_environment(self) -> list[ValidationError]:
+    def validate_environment(self) -> list[ValidationError]:
         """
         Validate all required environment variables are present and non-empty.
 
@@ -169,7 +169,7 @@ class StartupValidator:
 
         return errors
 
-    async def validate_security(self) -> list[ValidationError]:
+    def validate_security(self) -> list[ValidationError]:
         """
         Validate security settings.
 

@@ -295,7 +295,9 @@ class UnifiedAPIClient {
       localStorage.removeItem('auth_token');
       sessionStorage.removeItem('auth_token');
       logger.warn('Authentication expired, redirecting to login');
-      window.location.href = '/auth/signin';
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      const returnUrl = currentPath && currentPath !== '/login' ? `?returnUrl=${encodeURIComponent(currentPath)}` : '';
+      window.location.href = `/login${returnUrl}`;
     }
   }
 

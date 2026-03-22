@@ -56,7 +56,7 @@ def analyze_pull_request(self, pr_id: str, project_id: str):
                 if not pr:
                     raise ValueError(f"Pull request {pr_id} not found")
 
-                pr.status = PRStatus.analyzing
+                pr.status = PRStatus.ANALYZING
                 await db.commit()
 
                 # Get project
@@ -140,7 +140,7 @@ def analyze_pull_request(self, pr_id: str, project_id: str):
                 db.add(review_result)
 
                 # Update PR
-                pr.status = PRStatus.reviewed
+                pr.status = PRStatus.REVIEWED
                 pr.risk_score = review.risk_score / 100.0
                 pr.analyzed_at = datetime.now(timezone.utc)
 
@@ -164,7 +164,7 @@ def analyze_pull_request(self, pr_id: str, project_id: str):
 
             except Exception as e:
                 # Mark as failed
-                pr.status = PRStatus.pending
+                pr.status = PRStatus.PENDING
                 await db.commit()
 
                 # Retry

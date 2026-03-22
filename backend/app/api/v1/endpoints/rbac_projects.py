@@ -22,7 +22,7 @@ from app.auth import (
     require_project_access,
 )
 from app.database.postgresql import get_db
-from app.models import GitHubConnectionType, Project, ProjectAccess, SSHKey
+from app.models import GitHubConnectionType, Project, ProjectAccess, SSHKey, User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -270,12 +270,15 @@ async def create_project(
 
         # Auto-configure webhook if GitHub repository URL is provided
         webhook_created = False
-        if new_project.github_repo_url and current_user.github_token:
+        owner_result = await db.execute(select(User).filter(User.id == current_user.user_id))
+        owner = owner_result.scalar_one_or_none()
+
+        if new_project.github_repo_url and owner and owner.github_token:
             try:
                 import secrets
 
                 from app.core.config import settings
-                from app.services.github_client import get_github_client
+                from app.services.github_client import GitHubAPIClient
 
                 # Extract owner/repo from URL
                 repo_url = new_project.github_repo_url.rstrip("/")
@@ -288,11 +291,12 @@ async def create_project(
                     # Generate webhook secret
                     webhook_secret = secrets.token_hex(32)
 
-                    # Get GitHub client with user's token
-                    github_client = get_github_client()
+                    # Use the current user's OAuth token so private repositories
+                    # and repo-scoped webhook creation work reliably.
+                    github_client = GitHubAPIClient(owner.github_token)
 
                     # Construct webhook URL
-                    webhook_url = f"{settings.BACKEND_URL or 'http://localhost:8000'}/api/v1/webhooks/github"
+                    webhook_url = f"{settings.BACKEND_URL.rstrip('/')}/api/v1/code-review/webhook"
 
                     # Create webhook
                     await github_client.create_webhook(
@@ -352,7 +356,7 @@ async def create_project(
             from app.core.config import settings
 
             response_data["webhook_configured"] = True
-            response_data["webhook_url"] = f"{settings.BACKEND_URL or 'http://localhost:8000'}/api/v1/webhooks/github"
+            response_data["webhook_url"] = f"{settings.BACKEND_URL.rstrip('/')}/api/v1/code-review/webhook"
 
         return response_data
 

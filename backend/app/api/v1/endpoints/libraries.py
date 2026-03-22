@@ -92,7 +92,7 @@ def _installation_status_code(errors: list[str] | None) -> int:
 router = APIRouter()
 
 
-async def get_library_manager(db: AsyncSession = Depends(get_db)) -> LibraryManager:
+def get_library_manager(db: AsyncSession = Depends(get_db)) -> LibraryManager:
     """
     Dependency to get LibraryManager instance with database repository.
 

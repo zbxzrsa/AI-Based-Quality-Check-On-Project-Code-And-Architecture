@@ -95,7 +95,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     """Get current active user"""
     return current_user
 
@@ -251,7 +251,7 @@ class ServiceLocator:
             raise HTTPException(status_code=500, detail=f"Service {service_type.__name__} not configured")
 
 
-async def setup_container(container: DIContainer) -> None:
+def setup_container(container: DIContainer) -> None:
     """Setup and configure the DI container during startup"""
     from app.infrastructure.external import (
         GitHubService,

@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgresql import get_db
 from app.models import Project, PRStatus, PullRequest
+from app.services.encryption_service import decrypt_if_possible
 from app.services.redis_cache_service import get_cache_service
 from app.tasks.pull_request_analysis import analyze_pull_request_sync
 
@@ -84,7 +85,7 @@ async def check_replay_protection(delivery_id: str) -> bool:
     return await cache.mark_webhook_processed(delivery_id)
 
 
-async def extract_pr_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+def extract_pr_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Extract pull request metadata from webhook payload
 
@@ -233,7 +234,8 @@ async def github_webhook_handler(
         if not x_hub_signature_256:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
 
-        is_valid = verify_github_signature(body, x_hub_signature_256, project.github_webhook_secret)
+        webhook_secret = decrypt_if_possible(project.github_webhook_secret) or project.github_webhook_secret
+        is_valid = verify_github_signature(body, x_hub_signature_256, webhook_secret)
 
         if not is_valid:
             logger.warning(f"Invalid webhook signature for project {project.id}")
@@ -257,7 +259,7 @@ async def github_webhook_handler(
             return {"message": f"Action '{action}' not processed", "action": action}
 
         # Extract PR metadata
-        pr_metadata = await extract_pr_metadata(payload)
+        pr_metadata = extract_pr_metadata(payload)
 
         if not pr_metadata["number"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing PR number in payload")

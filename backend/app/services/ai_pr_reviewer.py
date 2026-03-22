@@ -9,6 +9,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -213,10 +214,10 @@ class AIPRReviewer:
 
         # Additional deductions based on diff complexity
         diff_lines = len(git_diff.split("\n"))
-        if diff_lines > 500:
-            base_score -= 10
-        elif diff_lines > 1000:
+        if diff_lines > 1000:
             base_score -= 20
+        elif diff_lines > 500:
+            base_score -= 10
 
         # Ensure score is within bounds
         return max(0, min(100, base_score))
@@ -412,8 +413,7 @@ index 0000000..abc1234
         logger.info(report)
 
         # Save report
-        with open("pr_review_report.md", "w") as f:
-            f.write(report)
+        await asyncio.to_thread(Path("pr_review_report.md").write_text, report, encoding="utf-8")
 
         logger.info("\\nReport saved to pr_review_report.md")
 

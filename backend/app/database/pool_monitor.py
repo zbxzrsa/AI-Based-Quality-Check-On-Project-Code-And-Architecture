@@ -37,6 +37,7 @@ class PoolMonitor:
         cleanup_task = asyncio.create_task(self._pool_cleanup_monitor())
         self._monitoring_tasks.append(cleanup_task)
 
+        await asyncio.sleep(0)
         logger.info("Background pool monitoring tasks started")
 
     async def stop_monitoring(self) -> None:
@@ -72,7 +73,7 @@ class PoolMonitor:
 
             except asyncio.CancelledError:
                 logger.info("Pool health monitor task cancelled")
-                break
+                raise
             except Exception as e:
                 logger.error(f"Error in pool health monitor: {str(e)}")
                 # Continue monitoring despite errors
@@ -91,7 +92,7 @@ class PoolMonitor:
 
             except asyncio.CancelledError:
                 logger.info("Pool cleanup monitor task cancelled")
-                break
+                raise
             except Exception as e:
                 logger.error(f"Error in pool cleanup monitor: {str(e)}")
 

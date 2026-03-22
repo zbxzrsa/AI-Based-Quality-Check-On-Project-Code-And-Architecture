@@ -351,3 +351,21 @@ def decrypt_sensitive_field(encrypted_value: str | None) -> str | None:
     Validates Requirement 8.4
     """
     return get_encryption_service().decrypt_field(encrypted_value)
+
+
+def decrypt_if_possible(value: str | None) -> str | None:
+    """
+    Best-effort decrypt helper.
+
+    Returns the decrypted value when the input is encrypted with the configured
+    encryption service; otherwise returns the original value unchanged. This is
+    useful for gradually migrating sensitive fields that may contain either
+    plaintext or encrypted values.
+    """
+    if value is None:
+        return None
+
+    try:
+        return get_encryption_service().decrypt(value)
+    except Exception:
+        return value

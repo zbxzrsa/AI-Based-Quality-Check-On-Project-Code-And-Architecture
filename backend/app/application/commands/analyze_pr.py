@@ -132,7 +132,7 @@ class AnalyzePRUseCase(Command):
         return "unknown"
 
 
-async def create_analyze_pr_use_case() -> AnalyzePRUseCase:
+def create_analyze_pr_use_case() -> AnalyzePRUseCase:
     """
     Factory function to create AnalyzePRUseCase with dependencies.
 

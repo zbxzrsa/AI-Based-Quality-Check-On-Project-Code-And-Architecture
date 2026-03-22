@@ -452,7 +452,8 @@ class ValidatingRepositoryState(RepositoryState):
 
             if validation_result.get("valid"):
                 # 验证成功，准备克隆
-                await asyncio.create_task(self._schedule_clone())
+                clone_task = asyncio.create_task(self._schedule_clone())
+                await clone_task
             else:
                 # 验证失败
                 await self.context.transition_to("failed", error=validation_result.get("error"))

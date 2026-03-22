@@ -362,8 +362,11 @@ def validate_sqlalchemy_query(query: ClauseElement) -> bool:
     # Compile the query to check for parameter binding
     compiled = query.compile(compile_kwargs={"literal_binds": False})
 
-    # Check if query has parameters (good - using parameterized queries)
-    bool(compiled.params)
+    # Query must have bound parameters to be considered safe.
+    has_params = bool(compiled.params)
+    if not has_params:
+        logger.warning("Query has no bound parameters")
+        return False
 
     # Check for string concatenation patterns (bad - potential SQL injection)
     query_str = str(compiled)

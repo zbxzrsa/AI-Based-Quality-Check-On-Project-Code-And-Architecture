@@ -172,6 +172,7 @@ class DatabaseFallbackManager:
 
         self._running = True
         self._health_check_task = asyncio.create_task(self._health_monitor_loop(), name="fallback_health_monitor")
+        await asyncio.sleep(0)
         logger.info("Started fallback health monitoring")
 
     async def stop_monitoring(self) -> None:
@@ -183,7 +184,7 @@ class DatabaseFallbackManager:
             try:
                 await self._health_check_task
             except asyncio.CancelledError:
-                pass
+                logger.debug("Fallback health monitoring task cancelled")
 
         logger.info("Stopped fallback health monitoring")
 
@@ -194,7 +195,7 @@ class DatabaseFallbackManager:
                 await self._check_all_services_health()
                 await asyncio.sleep(self.config.health_check_interval)
             except asyncio.CancelledError:
-                break
+                raise
             except Exception as e:
                 logger.error(f"Health monitor error: {e}")
                 await asyncio.sleep(5)  # Brief pause on error

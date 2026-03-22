@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer
 security = HTTPBearer()
 
 
-async def get_current_user(credentials: dict | None = Depends(security)):
+def get_current_user(credentials: dict | None = Depends(security)):
     """
     Get the current authenticated user from JWT token.
 

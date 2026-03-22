@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import { PageHeader } from '@/components/layout/page-header';
@@ -21,78 +21,76 @@ interface Review {
   securityScore: number;
   createdAt: string;
   updatedAt: string;
+  prNumber?: number;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: '1',
-    title: 'Add user authentication feature',
-    repository: 'frontend-app',
-    author: 'john.doe',
-    status: 'approved',
-    qualityScore: 92,
-    securityScore: 95,
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T14:20:00Z',
-  },
-  {
-    id: '2',
-    title: 'Fix database connection pooling',
-    repository: 'backend-api',
-    author: 'jane.smith',
-    status: 'in_progress',
-    qualityScore: 85,
-    securityScore: 88,
-    createdAt: '2024-01-16T09:15:00Z',
-    updatedAt: '2024-01-16T11:45:00Z',
-  },
-  {
-    id: '3',
-    title: 'Update dependencies to latest versions',
-    repository: 'frontend-app',
-    author: 'bob.wilson',
-    status: 'pending',
-    qualityScore: 78,
-    securityScore: 82,
-    createdAt: '2024-01-17T08:00:00Z',
-    updatedAt: '2024-01-17T08:00:00Z',
-  },
-];
-
 const statusConfig = {
-  pending: { label: 'Pending', icon: Clock, variant: 'secondary' as const, color: 'text-yellow-600' },
-  in_progress: { label: 'In Progress', icon: AlertCircle, variant: 'default' as const, color: 'text-blue-600' },
-  approved: { label: 'Approved', icon: CheckCircle2, variant: 'default' as const, color: 'text-green-600' },
-  rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' as const, color: 'text-red-600' },
+  pending: { label: 'Pending', icon: Clock, variant: 'secondary' as const },
+  in_progress: { label: 'In Progress', icon: AlertCircle, variant: 'default' as const },
+  approved: { label: 'Approved', icon: CheckCircle2, variant: 'default' as const },
+  rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' as const },
 };
 
 export default function ReviewsPage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [repositoryFilter, setRepositoryFilter] = useState<string>('all');
 
   useEffect(() => {
-    // Simulate API call
-    const timer = setTimeout(() => {
-      setReviews(mockReviews);
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    const loadReviews = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch('/api/reviews', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          const apiError = await response.json().catch(() => ({ detail: 'Failed to load pull requests' }));
+          throw new Error(apiError.detail || 'Failed to load pull requests');
+        }
+
+        const data = await response.json();
+        if (!cancelled) {
+          setReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : 'Failed to load pull requests');
+          setReviews([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadReviews();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Get unique repositories for filter
-  const repositories = Array.from(new Set(reviews.map(r => r.repository)));
+  const repositories = Array.from(new Set(reviews.map((review) => review.repository)));
 
-  const filteredReviews = reviews.filter(review => {
-    const matchesSearch = 
+  const filteredReviews = reviews.filter((review) => {
+    const matchesSearch =
       review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.repository.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.author.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || review.status === statusFilter;
     const matchesRepository = repositoryFilter === 'all' || review.repository === repositoryFilter;
+
     return matchesSearch && matchesStatus && matchesRepository;
   });
 
@@ -105,23 +103,19 @@ export default function ReviewsPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <PageHeader
-          title="Pull Requests"
-          description="Review and manage code reviews"
-        />
+        <PageHeader title="Pull Requests" description="Review and manage code reviews" />
 
-        {/* Search and Filters */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col gap-4 md:flex-row">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search by title, repository, or author..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(event) => setSearchQuery(event.target.value)}
                       className="pl-9"
                     />
                   </div>
@@ -144,8 +138,10 @@ export default function ReviewsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Repositories</SelectItem>
-                    {repositories.map(repo => (
-                      <SelectItem key={repo} value={repo}>{repo}</SelectItem>
+                    {repositories.map((repo) => (
+                      <SelectItem key={repo} value={repo}>
+                        {repo}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -159,23 +155,30 @@ export default function ReviewsPage() {
           </CardContent>
         </Card>
 
-        {/* Reviews List */}
         {isLoading ? (
           <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
+            {[...Array(3)].map((_, index) => (
+              <Card key={index}>
                 <CardHeader>
-                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="mb-2 h-6 w-3/4" />
                   <Skeleton className="h-4 w-full" />
                 </CardHeader>
               </Card>
             ))}
           </div>
+        ) : error ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
+              <h3 className="mb-2 text-lg font-semibold">Unable to load pull requests</h3>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </CardContent>
+          </Card>
         ) : filteredReviews.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <GitPullRequest className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No pull requests found</h3>
+              <GitPullRequest className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="mb-2 text-lg font-semibold">No pull requests found</h3>
               <p className="text-sm text-muted-foreground">
                 {searchQuery || statusFilter !== 'all' || repositoryFilter !== 'all'
                   ? 'Try adjusting your search or filters'
@@ -187,16 +190,17 @@ export default function ReviewsPage() {
           <div className="space-y-4">
             {filteredReviews.map((review) => {
               const StatusIcon = statusConfig[review.status].icon;
+
               return (
                 <Card
                   key={review.id}
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  className="cursor-pointer transition-shadow hover:shadow-lg"
                   onClick={() => router.push(`/reviews/${review.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="mb-2 flex items-center gap-2">
                           <GitPullRequest className="h-5 w-5 text-muted-foreground" />
                           <CardTitle className="text-lg">{review.title}</CardTitle>
                         </div>
@@ -204,7 +208,13 @@ export default function ReviewsPage() {
                           <div className="flex flex-wrap items-center gap-2 text-sm">
                             <span className="font-medium">{review.repository}</span>
                             <span>•</span>
-                            <span>by {review.author}</span>
+                            <span>{review.author}</span>
+                            {typeof review.prNumber === 'number' && (
+                              <>
+                                <span>•</span>
+                                <span>PR #{review.prNumber}</span>
+                              </>
+                            )}
                             <span>•</span>
                             <time dateTime={review.createdAt}>
                               {new Date(review.createdAt).toLocaleDateString()}
@@ -232,7 +242,7 @@ export default function ReviewsPage() {
                           {review.securityScore}%
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 ml-auto text-muted-foreground">
+                      <div className="ml-auto flex items-center gap-2 text-muted-foreground">
                         <Clock className="h-4 w-4" />
                         <span>Updated {new Date(review.updatedAt).toLocaleDateString()}</span>
                       </div>

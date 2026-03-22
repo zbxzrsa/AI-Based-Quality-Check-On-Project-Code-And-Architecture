@@ -2,7 +2,7 @@
 Unified API response models
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
@@ -15,7 +15,7 @@ class APIMetadata(BaseModel):
     API response metadata.
     """
 
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     request_id: str | None = Field(None, description="Unique request identifier")
     page: int | None = Field(None, description="Current page number (for paginated responses)")
     page_size: int | None = Field(None, description="Number of items per page")

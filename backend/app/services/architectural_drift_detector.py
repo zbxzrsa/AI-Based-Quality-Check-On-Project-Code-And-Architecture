@@ -92,10 +92,10 @@ class ArchitecturalDriftDetector:
 
             # Detect different types of violations
             violations = []
-            violations.extend(await self._detect_layer_violations(current_architecture, expected_architecture))
-            violations.extend(await self._detect_dependency_violations(current_architecture, expected_architecture))
-            violations.extend(await self._detect_pattern_violations(current_architecture, expected_architecture))
-            violations.extend(await self._detect_complexity_drift(current_architecture, expected_architecture))
+            violations.extend(self._detect_layer_violations(current_architecture, expected_architecture))
+            violations.extend(self._detect_dependency_violations(current_architecture, expected_architecture))
+            violations.extend(self._detect_pattern_violations(current_architecture, expected_architecture))
+            violations.extend(self._detect_complexity_drift(current_architecture, expected_architecture))
 
             # Calculate summary statistics
             severity_breakdown = self._calculate_severity_breakdown(violations)
@@ -164,7 +164,7 @@ class ArchitecturalDriftDetector:
             self.logger.error(f"Error retrieving current architecture: {str(e)}")
             return {"modules": [], "files": [], "classes": [], "methods": [], "dependencies": []}
 
-    async def _detect_layer_violations(self, current: dict[str, Any], expected: dict[str, Any]) -> list[DriftViolation]:
+    def _detect_layer_violations(self, current: dict[str, Any], expected: dict[str, Any]) -> list[DriftViolation]:
         """Detect violations of layer architecture constraints."""
         violations = []
 
@@ -242,7 +242,7 @@ class ArchitecturalDriftDetector:
 
         return violations
 
-    async def _detect_dependency_violations(
+    def _detect_dependency_violations(
         self, current: dict[str, Any], expected: dict[str, Any]
     ) -> list[DriftViolation]:
         """Detect violations of dependency constraints."""
@@ -383,14 +383,16 @@ class ArchitecturalDriftDetector:
 
         return violations
 
-    async def _detect_pattern_violations(
+    def _detect_pattern_violations(
         self, current: dict[str, Any], expected: dict[str, Any]
     ) -> list[DriftViolation]:
         """Detect violations of architectural patterns."""
         violations = []
 
         try:
-            expected.get("architectural_patterns", [])
+            architectural_patterns = expected.get("architectural_patterns", [])
+            if not architectural_patterns:
+                return violations
 
             # Check naming conventions
             violations.extend(self._check_naming_conventions(current, expected))
@@ -409,7 +411,7 @@ class ArchitecturalDriftDetector:
         naming_rules = expected.get("naming_conventions", {})
         modules = current.get("modules", [])
         classes = current.get("classes", [])
-        current.get("files", [])
+        files = current.get("files", [])
 
         # Check module naming
         module_pattern = naming_rules.get("module_pattern", "")
@@ -433,6 +435,8 @@ class ArchitecturalDriftDetector:
 
         # Check class naming
         class_pattern = naming_rules.get("class_pattern", "")
+        if not files and not modules and not classes:
+            return violations
         for cls in classes:
             class_name = cls.get("name", "")
             if class_pattern and not self._matches_pattern(class_name, class_pattern):
@@ -483,7 +487,7 @@ class ArchitecturalDriftDetector:
 
         return violations
 
-    async def _detect_complexity_drift(self, current: dict[str, Any], expected: dict[str, Any]) -> list[DriftViolation]:
+    def _detect_complexity_drift(self, current: dict[str, Any], expected: dict[str, Any]) -> list[DriftViolation]:
         """Detect complexity-related architectural drift."""
         violations = []
 

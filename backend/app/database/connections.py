@@ -118,6 +118,7 @@ class Neo4jConnection(DatabaseConnection[AsyncDriver]):
             "max_connection_lifetime": 300,
         }
         super().__init__(DatabaseType.NEO4J, config)
+        self._index_creation_task: asyncio.Task | None = None
 
     async def _create_client(self) -> AsyncDriver:
         """Create Neo4j driver"""
@@ -135,7 +136,7 @@ class Neo4jConnection(DatabaseConnection[AsyncDriver]):
         await asyncio.wait_for(driver.verify_connectivity(), timeout=10)
 
         # Create indexes in background
-        asyncio.create_task(self._create_indexes())
+        self._index_creation_task = asyncio.create_task(self._create_indexes(), name="neo4j_index_creation")
 
         return driver
 

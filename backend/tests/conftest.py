@@ -9,6 +9,7 @@ import pytest_asyncio
 import asyncio
 import json
 import os
+import secrets
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +31,7 @@ os.environ["POSTGRES_PORT"] = "5433"
 os.environ["POSTGRES_USER"] = "postgres"
 # Keep a non-empty password so Settings validation passes even when the
 # local test database uses trust auth on port 5433.
-os.environ["POSTGRES_PASSWORD"] = os.getenv("TEST_POSTGRES_PASSWORD", "PgTestAuth!234")
+os.environ["POSTGRES_PASSWORD"] = os.getenv("TEST_POSTGRES_PASSWORD") or f"pg_test_{secrets.token_urlsafe(12)}A1!"
 
 from app.main import app
 from app.database.postgresql import get_db

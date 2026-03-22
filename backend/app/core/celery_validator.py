@@ -142,9 +142,9 @@ class CeleryValidator:
 
             # Try to connect to the broker
             if settings.CELERY_BROKER_URL.startswith("redis://"):
-                return await self._verify_redis_broker()
+                return self._verify_redis_broker()
             elif settings.CELERY_BROKER_URL.startswith("amqp://"):
-                return await self._verify_amqp_broker()
+                return self._verify_amqp_broker()
             else:
                 logger.warning(f"Unknown broker type: {settings.CELERY_BROKER_URL}")
                 return False
@@ -168,9 +168,9 @@ class CeleryValidator:
 
             # Try to connect to the backend
             if settings.CELERY_RESULT_BACKEND.startswith("redis://"):
-                return await self._verify_redis_backend()
+                return self._verify_redis_backend()
             elif settings.CELERY_RESULT_BACKEND.startswith("db+"):
-                return await self._verify_db_backend()
+                return self._verify_db_backend()
             else:
                 logger.warning(f"Unknown backend type: {settings.CELERY_RESULT_BACKEND}")
                 return False
@@ -179,7 +179,7 @@ class CeleryValidator:
             logger.error(f"Backend verification failed: {e}")
             return False
 
-    async def _verify_redis_broker(self) -> bool:
+    def _verify_redis_broker(self) -> bool:
         """Verify Redis broker connectivity"""
         try:
             import redis
@@ -205,7 +205,7 @@ class CeleryValidator:
             logger.error(f"Celery Redis broker verification failed: {e}")
             return False
 
-    async def _verify_redis_backend(self) -> bool:
+    def _verify_redis_backend(self) -> bool:
         """Verify Redis result backend connectivity"""
         try:
             # Parse Redis URL
@@ -229,7 +229,7 @@ class CeleryValidator:
             logger.error(f"Celery Redis result backend verification failed: {e}")
             return False
 
-    async def _verify_amqp_broker(self) -> bool:
+    def _verify_amqp_broker(self) -> bool:
         """Verify AMQP broker connectivity"""
         try:
             import pika
@@ -248,7 +248,7 @@ class CeleryValidator:
             logger.error(f"Celery AMQP broker verification failed: {e}")
             return False
 
-    async def _verify_db_backend(self) -> bool:
+    def _verify_db_backend(self) -> bool:
         """Verify database result backend connectivity"""
         try:
             from sqlalchemy import create_engine, text

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = Field(default="development", description="Environment: development, staging, production")
+    BACKEND_URL: str = Field(default="http://localhost:8000", description="Public backend base URL")
 
     # ========================================
     # REQUIRED SECRETS (will raise error if missing or empty)

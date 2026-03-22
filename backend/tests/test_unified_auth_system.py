@@ -9,6 +9,7 @@ from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.utils.jwt import create_access_token, verify_token
+from app.utils.password import hash_password
 from app.core.config import settings
 from backend.tests.utils.secure_test_data import get_test_password
 
@@ -67,7 +68,7 @@ class TestUnifiedAuthSystem:
                     mock_user = User(
                         id="test-id",
                         email="test@example.com",
-                        password_hash="hashed",
+                        password_hash=hash_password(get_test_password("unified_auth_mock_user")),
                         role=Role.USER,
                         is_active=True
                     )

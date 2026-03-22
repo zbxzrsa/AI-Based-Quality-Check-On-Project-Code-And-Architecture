@@ -21,6 +21,7 @@ from app.schemas.code_review import ReviewSeverity
 from app.services.agentic_ai_service import create_agentic_ai_service
 from app.services.architecture_analyzer import ArchitectureAnalyzer
 from app.services.code_reviewer import CodeReviewer
+from app.services.encryption_service import decrypt_if_possible
 from app.services.github_client import GitHubAPIClient, get_github_client
 from app.services.redis_cache_service import get_cache_service
 from app.tasks.pull_request_analysis import analyze_pull_request_sync
@@ -374,8 +375,9 @@ async def github_webhook(
 
     # Verify webhook signature
     if project.github_webhook_secret:
+        webhook_secret = decrypt_if_possible(project.github_webhook_secret) or project.github_webhook_secret
         github_client = get_github_client()
-        if not github_client.verify_webhook_signature(body, x_hub_signature_256 or "", project.github_webhook_secret):
+        if not github_client.verify_webhook_signature(body, x_hub_signature_256 or "", webhook_secret):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
     # Handle different event types
@@ -439,7 +441,7 @@ async def handle_pull_request_event(payload: dict[str, Any], project: Project, d
             files_changed=pr_data.get("changed_files", 0),
             lines_added=pr_data.get("additions", 0),
             lines_deleted=pr_data.get("deletions", 0),
-            status=PRStatus.pending,
+            status=PRStatus.PENDING,
         )
 
         db.add(pr)
@@ -466,7 +468,7 @@ async def handle_pull_request_event(payload: dict[str, Any], project: Project, d
         existing_pr.files_changed = pr_data.get("changed_files", 0)
         existing_pr.lines_added = pr_data.get("additions", 0)
         existing_pr.lines_deleted = pr_data.get("deletions", 0)
-        existing_pr.status = PRStatus.pending
+        existing_pr.status = PRStatus.PENDING
 
         await db.commit()
 
@@ -486,9 +488,9 @@ async def handle_pull_request_event(payload: dict[str, Any], project: Project, d
     elif action == "closed":
         if existing_pr:
             if pr_data.get("merged"):
-                existing_pr.status = PRStatus.approved
+                existing_pr.status = PRStatus.APPROVED
             else:
-                existing_pr.status = PRStatus.rejected
+                existing_pr.status = PRStatus.REJECTED
 
             existing_pr.reviewed_at = datetime.now(timezone.utc)
             await db.commit()
@@ -678,8 +680,8 @@ async def list_project_pulls(
 
     if state != "all":
         status_map = {
-            "open": [PRStatus.pending, PRStatus.analyzing, PRStatus.reviewed],
-            "closed": [PRStatus.approved, PRStatus.rejected],
+            "open": [PRStatus.PENDING, PRStatus.ANALYZING, PRStatus.REVIEWED],
+            "closed": [PRStatus.APPROVED, PRStatus.REJECTED],
         }
         pr_stmt = pr_stmt.where(PullRequest.status.in_(status_map.get(state, [])))
 

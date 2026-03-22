@@ -6,7 +6,7 @@ Provides architecture analysis data for project branches.
 
 import base64
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -589,12 +589,12 @@ async def get_dependency_graph(
         edges=edges,
         metrics=metrics,
         circular_dependency_chains=circular_dependency_chains if circular_dependency_chains else None,
-        created_at=analysis.started_at.isoformat() if analysis.started_at else datetime.utcnow().isoformat(),
+        created_at=analysis.started_at.isoformat() if analysis.started_at else datetime.now(timezone.utc).isoformat(),
         updated_at=analysis.completed_at.isoformat()
         if analysis.completed_at
         else analysis.started_at.isoformat()
         if analysis.started_at
-        else datetime.utcnow().isoformat(),
+        else datetime.now(timezone.utc).isoformat(),
         api_version=API_VERSION,
     )
 
@@ -781,12 +781,12 @@ async def get_architecture_analysis(
         edges=edges,
         metrics=metrics,
         circular_dependency_chains=circular_dependency_chains if circular_dependency_chains else None,
-        created_at=analysis.started_at.isoformat() if analysis.started_at else datetime.utcnow().isoformat(),
+        created_at=analysis.started_at.isoformat() if analysis.started_at else datetime.now(timezone.utc).isoformat(),
         updated_at=analysis.completed_at.isoformat()
         if analysis.completed_at
         else analysis.started_at.isoformat()
         if analysis.started_at
-        else datetime.utcnow().isoformat(),
+        else datetime.now(timezone.utc).isoformat(),
         api_version=API_VERSION,
     )
 

@@ -15,7 +15,7 @@ Example:
 
 import logging
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any
 
@@ -83,7 +83,7 @@ def with_audit_log(action: str, resource_type: str | None = None) -> Callable:
                             "function": func.__name__,
                             "args_count": len(args),
                             "kwargs_keys": list(kwargs.keys()),
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                         },
                     )
 
@@ -136,7 +136,7 @@ def with_audit_log_sync(action: str, resource_type: str | None = None) -> Callab
                         resource_type=resource_type or func.__name__,
                         resource_id=str(getattr(result, "id", None)) if result else None,
                         ip_address=ip_address,
-                        details={"function": func.__name__, "timestamp": datetime.utcnow().isoformat()},
+                        details={"function": func.__name__, "timestamp": datetime.now(timezone.utc).isoformat()},
                     )
 
                     db.add(audit_entry)

@@ -124,7 +124,7 @@ class AnalyzeArchitectureUseCase(Command):
                 "owner": repo_info.get("owner", {}).get("login"),
                 "language": repo_info.get("language"),
                 "stars": repo_info.get("stargazers_count"),
-                "structure": await self._analyze_structure(repo_info),
+                "structure": self._analyze_structure(repo_info),
             }
 
             # Cache result
@@ -141,7 +141,7 @@ class AnalyzeArchitectureUseCase(Command):
             logger.error(f"Architecture analysis failed: {e}")
             return UseCaseResult.err(str(e))
 
-    async def _analyze_structure(self, repo_info: dict) -> dict:
+    def _analyze_structure(self, repo_info: dict) -> dict:
         """Analyze repository structure"""
         # Simplified - would analyze actual code structure
         return {
@@ -166,10 +166,10 @@ class DetectDriftUseCase(Command):
         """Execute drift detection"""
         try:
             # Get current architecture
-            current = await self._get_current_architecture(command.repo_url)
+            current = self._get_current_architecture(command.repo_url)
 
             # Get baseline
-            baseline = await self._get_baseline(command.baseline_id)
+            baseline = self._get_baseline(command.baseline_id)
 
             if not baseline:
                 return UseCaseResult.err("Baseline not found")
@@ -189,11 +189,11 @@ class DetectDriftUseCase(Command):
         except Exception as e:
             return UseCaseResult.err(str(e))
 
-    async def _get_current_architecture(self, repo_url: str) -> dict:
+    def _get_current_architecture(self, repo_url: str) -> dict:
         """Get current architecture"""
         return {}
 
-    async def _get_baseline(self, baseline_id: str) -> dict | None:
+    def _get_baseline(self, baseline_id: str) -> dict | None:
         """Get architecture baseline"""
         return None
 
