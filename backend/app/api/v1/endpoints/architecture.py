@@ -4,6 +4,7 @@ Architecture Visualization API Endpoint
 Provides architecture analysis data for project branches.
 """
 
+import base64
 import re
 from datetime import datetime
 from typing import Annotated, Any
@@ -26,6 +27,21 @@ router = APIRouter()
 
 # API version constant
 API_VERSION = "1.0.0"
+
+
+def _encode_branch_id(branch_name: str) -> str:
+    """Encode branch names into URL-safe identifiers."""
+    encoded = base64.urlsafe_b64encode(branch_name.encode("utf-8")).decode("ascii")
+    return encoded.rstrip("=")
+
+
+def _decode_branch_id(branch_id: str) -> str:
+    """Decode URL-safe branch identifiers back to branch names."""
+    padding = "=" * (-len(branch_id) % 4)
+    try:
+        return base64.urlsafe_b64decode(f"{branch_id}{padding}".encode("ascii")).decode("utf-8")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid branch identifier") from exc
 
 
 class BranchInfo(BaseModel):
@@ -176,7 +192,7 @@ async def get_project_branches(
 
         branches.append(
             BranchInfo(
-                id=branch_name.replace("/", "-"),
+                id=_encode_branch_id(branch_name),
                 name=branch_name,
                 last_commit=latest_pr.title or "No commit message",
                 last_commit_date=latest_pr.created_at.isoformat(),
@@ -203,8 +219,7 @@ async def get_branch_architecture(
 
     Includes nodes, edges, statistics, etc.
     """
-    # Convert branch_id back to branch name
-    branch_name = branch_id.replace("-", "/")
+    branch_name = _decode_branch_id(branch_id)
 
     # Get the latest PR for this branch
     pr_result = await db.execute(

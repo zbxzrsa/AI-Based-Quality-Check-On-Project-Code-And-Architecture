@@ -29,7 +29,7 @@ export function BackendStatusProvider({ children }: { children: React.ReactNode 
       
       setIsOnline(response.ok);
       setLastChecked(new Date());
-    } catch (error) {
+    } catch {
       setIsOnline(false);
       setLastChecked(new Date());
     } finally {

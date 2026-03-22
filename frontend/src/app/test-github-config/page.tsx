@@ -1,18 +1,39 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 export default function TestGitHubConfig() {
-  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
+  const [clientId, setClientId] = useState<string | null>(null)
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const response = await fetch('/api/github/config')
+        if (!response.ok) {
+          return
+        }
+
+        const data = await response.json()
+        setClientId(data.clientId || null)
+      } catch (error) {
+        console.error('[GitHub Config] Failed to load config:', error)
+      }
+    }
+
+    void loadConfig()
+  }, [])
 
   const testRedirect = () => {
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/github/callback`)
     const scope = 'repo,read:user'
-    const state = Math.random().toString(36).substring(7)
+    const state = crypto.randomUUID()
+
+    document.cookie = `github_oauth_state=${state}; path=/; max-age=600; samesite=lax`
     
     const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
     
-    console.log('Redirect URL:', url)
     alert(`Will redirect to: ${url}`)
     
     window.location.href = url
@@ -84,7 +105,7 @@ export default function TestGitHubConfig() {
           Please check:
           <ul className="list-disc ml-6 mt-2">
             <li>frontend/.env.local file exists</li>
-            <li>Contains: NEXT_PUBLIC_GITHUB_CLIENT_ID=Ov23liJ6a4mt3pLXL5gz</li>
+            <li>Contains: NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id</li>
             <li>Frontend server was restarted after adding the variable</li>
           </ul>
         </div>

@@ -40,6 +40,7 @@ interface GitHubRepo {
   description: string | null
   html_url: string
   private: boolean
+  language?: string | null
 }
 
 export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
@@ -50,6 +51,7 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
   const [repositories, setRepositories] = useState<GitHubRepo[]>([])
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
   const [loadingRepos, setLoadingRepos] = useState(false)
+  const [githubClientId, setGithubClientId] = useState<string | null>(null)
 
   const {
     register,
@@ -146,6 +148,29 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
     }
   }, [checkGitHubConnection, open])
 
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const loadGithubConfig = async () => {
+      try {
+        const response = await fetch('/api/github/config')
+        if (!response.ok) {
+          return
+        }
+
+        const data = await response.json()
+        setGithubClientId(data.clientId || null)
+      } catch (error) {
+        console.error('[GitHub] Failed to load OAuth config:', error)
+        setGithubClientId(null)
+      }
+    }
+
+    void loadGithubConfig()
+  }, [open])
+
   // Listen for GitHub connection success from URL params
   useEffect(() => {
     if (open) {
@@ -168,7 +193,7 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
 
   const connectGitHub = () => {
     // Redirect to GitHub OAuth
-    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
+    const clientId = githubClientId
 
     if (!clientId) {
       toast({
@@ -185,6 +210,7 @@ export function AddProjectModal({ open, onClose }: AddProjectModalProps) {
 
     // Store state in sessionStorage for verification
     sessionStorage.setItem('github_oauth_state', state)
+    document.cookie = `github_oauth_state=${state}; path=/; max-age=600; samesite=lax`
 
     const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
     window.location.href = oauthUrl

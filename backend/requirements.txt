@@ -223,6 +223,8 @@ prometheus-client==0.21.0
     # via
     #   -r requirements.in
     #   flower
+psutil==7.1.0
+    # via -r requirements.in
 prompt-toolkit==3.0.52
     # via click-repl
 protobuf==5.29.3

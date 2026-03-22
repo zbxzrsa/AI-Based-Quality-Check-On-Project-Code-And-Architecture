@@ -2,6 +2,7 @@
 GitHub webhook and integration endpoints
 """
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -13,21 +14,95 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import check_project_access, get_current_user
 from app.database.postgresql import get_db
-from app.models import ArchitectureAnalysis, CodeReview, Project, PRStatus, PullRequest, ReviewComment, User
+from app.models import ArchitectureAnalysis, CodeReview, PRStatus, Project, PullRequest, ReviewComment, ReviewResult, User
 from app.schemas.architecture import ArchitectureViolation
 from app.schemas.auth import Message
 from app.schemas.code_review import ReviewSeverity
 from app.services.agentic_ai_service import create_agentic_ai_service
 from app.services.architecture_analyzer import ArchitectureAnalyzer
 from app.services.code_reviewer import CodeReviewer
-from app.services.github_client import get_github_client
+from app.services.github_client import GitHubAPIClient, get_github_client
 from app.services.redis_cache_service import get_cache_service
+from app.tasks.pull_request_analysis import analyze_pull_request_sync
 from app.utils.diff_parser import DiffParser
 
 logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+def _extract_repo_full_name(repo_url: str | None) -> str:
+    """Extract owner/repository from a GitHub URL."""
+    if not repo_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project repository not configured")
+
+    normalized = repo_url.rstrip("/")
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+
+    parts = normalized.split("/")
+    if len(parts) < 2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub repository URL")
+
+    return f"{parts[-2]}/{parts[-1]}"
+
+
+def _get_user_github_client(current_user: User) -> GitHubAPIClient:
+    """Get a GitHub client using the current user's OAuth token when available."""
+    if current_user.github_token:
+        return GitHubAPIClient(current_user.github_token)
+    return get_github_client()
+
+
+def _map_github_pr_state(pr_data: dict[str, Any]) -> PRStatus:
+    """Map GitHub PR state into local PR status enum."""
+    if pr_data.get("merged"):
+        return PRStatus.MERGED
+
+    state = str(pr_data.get("state", "")).lower()
+    if state == "closed":
+        return PRStatus.REJECTED
+    if state == "open":
+        return PRStatus.PENDING
+    return PRStatus.PENDING
+
+
+def _build_fallback_comments_from_review_result(review_result: ReviewResult | None) -> list[dict[str, Any]]:
+    """Convert legacy ReviewResult.ai_suggestions JSON into review comments."""
+    if not review_result or not review_result.ai_suggestions:
+        return []
+
+    try:
+        issues = review_result.ai_suggestions
+        if isinstance(issues, str):
+            issues = json.loads(issues)
+    except (TypeError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(issues, list):
+        return []
+
+    comments: list[dict[str, Any]] = []
+    for issue in issues:
+        if not isinstance(issue, dict):
+            continue
+
+        comments.append(
+            {
+                "id": issue.get("id") or f"legacy-{len(comments) + 1}",
+                "file_path": issue.get("file", "unknown"),
+                "line_number": issue.get("line", 1),
+                "message": issue.get("description") or issue.get("title") or "AI review finding",
+                "severity": issue.get("severity", "info"),
+                "category": issue.get("type", "quality"),
+                "suggested_fix": issue.get("suggestion"),
+                "rule_id": issue.get("type"),
+                "rule_name": issue.get("title"),
+            }
+        )
+
+    return comments
 
 
 async def _get_project_by_id_or_404(project_id: str, db: AsyncSession) -> Project:
@@ -461,21 +536,22 @@ async def get_code_review(
     result = await db.execute(stmt)
     review = result.scalar_one_or_none()
 
+    fallback_review_result = None
     if not review:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No code review found for this PR")
+        review_result_stmt = select(ReviewResult).where(ReviewResult.pull_request_id == pr.id)
+        review_result_res = await db.execute(review_result_stmt)
+        fallback_review_result = review_result_res.scalar_one_or_none()
+
+        if not fallback_review_result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No code review found for this PR")
 
     # Get review comments
-    stmt = select(ReviewComment).where(ReviewComment.review_id == review.id)
-    result = await db.execute(stmt)
-    comments = result.scalars().all()
-
-    return {
-        "review_id": str(review.id),
-        "status": review.status,
-        "started_at": review.started_at,
-        "completed_at": review.completed_at,
-        "summary": review.summary,
-        "comments": [
+    comments_payload: list[dict[str, Any]]
+    if review:
+        stmt = select(ReviewComment).where(ReviewComment.review_id == review.id)
+        result = await db.execute(stmt)
+        comments = result.scalars().all()
+        comments_payload = [
             {
                 "id": str(comment.id),
                 "file_path": comment.file_path,
@@ -488,7 +564,20 @@ async def get_code_review(
                 "rule_name": comment.rule_name,
             }
             for comment in comments
-        ],
+        ]
+    else:
+        comments_payload = _build_fallback_comments_from_review_result(fallback_review_result)
+
+    return {
+        "review_id": str(review.id) if review else str(fallback_review_result.id),
+        "status": review.status.value if review and hasattr(review.status, "value") else "completed",
+        "started_at": review.started_at if review else pr.analyzed_at or pr.created_at,
+        "completed_at": review.completed_at if review else pr.analyzed_at,
+        "summary": review.summary if review else {
+            "total_issues": fallback_review_result.total_issues if fallback_review_result else len(comments_payload),
+            "severity_counts": {},
+        },
+        "comments": comments_payload,
     }
 
 
@@ -503,16 +592,76 @@ async def sync_project(
     Manually trigger project synchronization with GitHub
     """
     project = await _get_project_by_id_or_404(project_id, db)
+    github_client = _get_user_github_client(current_user)
+
+    if not current_user.github_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="GitHub account not connected. Please connect your GitHub account first.",
+        )
+
+    if not project.github_repo_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project is not linked to a GitHub repository.",
+        )
 
     # Get repository info from GitHub
-    github_client = get_github_client()
     repo_info = await github_client.get_repository(project.github_repo_url)
+    repo_full_name = _extract_repo_full_name(project.github_repo_url)
+    repository_prs = await github_client.list_repository_prs(repo_full_name, state="all", limit=50)
 
     # Update project info
     project.language = repo_info.get("language")
+    imported_count = 0
+    updated_count = 0
+
+    for pr_summary in repository_prs:
+        pr_details = await github_client.get_pull_request(repo_full_name, pr_summary["number"])
+
+        stmt = select(PullRequest).where(
+            PullRequest.project_id == project.id, PullRequest.github_pr_number == pr_details["number"]
+        )
+        result = await db.execute(stmt)
+        existing_pr = result.scalar_one_or_none()
+
+        status_value = _map_github_pr_state(pr_details)
+
+        if existing_pr is None:
+            existing_pr = PullRequest(
+                project_id=project.id,
+                author_id=current_user.id,
+                github_pr_number=pr_details["number"],
+                title=pr_details["title"],
+                description=pr_details.get("body"),
+                branch_name=pr_details.get("head", {}).get("ref"),
+                commit_sha=pr_details.get("head", {}).get("sha"),
+                files_changed=pr_details.get("changed_files", 0),
+                lines_added=pr_details.get("additions", 0),
+                lines_deleted=pr_details.get("deletions", 0),
+                status=status_value,
+            )
+            db.add(existing_pr)
+            imported_count += 1
+        else:
+            existing_pr.title = pr_details["title"]
+            existing_pr.description = pr_details.get("body")
+            existing_pr.branch_name = pr_details.get("head", {}).get("ref")
+            existing_pr.commit_sha = pr_details.get("head", {}).get("sha")
+            existing_pr.files_changed = pr_details.get("changed_files", 0)
+            existing_pr.lines_added = pr_details.get("additions", 0)
+            existing_pr.lines_deleted = pr_details.get("deletions", 0)
+            existing_pr.status = status_value
+            updated_count += 1
+
+        if pr_details.get("merged"):
+            existing_pr.merged_at = datetime.now(timezone.utc)
+        elif pr_details.get("state") == "closed":
+            existing_pr.closed_at = datetime.now(timezone.utc)
+
     await db.commit()
 
-    return Message(message="Project synchronized successfully")
+    return Message(message=f"Project synchronized successfully. Imported {imported_count} PRs and updated {updated_count}.")
 
 
 @router.get("/projects/{project_id}/pulls")
@@ -554,6 +703,13 @@ async def list_project_pulls(
                 "status": pr.status.value,
                 "risk_score": pr.risk_score,
                 "created_at": pr.created_at.isoformat(),
+                "description": pr.description,
+                "branch_name": pr.branch_name,
+                "commit_sha": pr.commit_sha,
+                "files_changed": pr.files_changed,
+                "lines_added": pr.lines_added,
+                "lines_deleted": pr.lines_deleted,
+                "analyzed_at": pr.analyzed_at.isoformat() if pr.analyzed_at else None,
             }
             for pr in prs
         ],
@@ -577,10 +733,10 @@ async def get_pr_files(pr_id: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project repository not configured")
 
     # Extract repo full name from URL
-    repo_full_name = "/".join(project.github_repo_url.rstrip("/").split("/")[-2:])
+    repo_full_name = _extract_repo_full_name(project.github_repo_url)
 
     # Get files from GitHub
-    github_client = get_github_client()
+    github_client = _get_user_github_client(current_user)
     files = await github_client.get_pr_files(repo_full_name, pr.github_pr_number)
 
     # Parse diffs
@@ -791,3 +947,17 @@ async def disconnect_github(current_user: User = Depends(get_current_user), db: 
     await db.commit()
 
     return {"message": "GitHub account disconnected successfully"}
+
+
+@router.post("/pr/{pr_id}/analyze")
+async def trigger_pull_request_analysis(
+    pr_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Queue AI analysis for a synchronized pull request."""
+    pr = await _get_pull_request_or_404(pr_id, db)
+    await _ensure_project_access(str(pr.project_id), current_user, db)
+
+    task_info = analyze_pull_request_sync(str(pr.id), str(pr.project_id))
+    return task_info

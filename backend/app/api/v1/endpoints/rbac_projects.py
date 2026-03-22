@@ -31,7 +31,7 @@ _log_audit_action = AuditService.log_action
 
 def _request_ip(request: Request) -> str:
     """Extract client IP from request safely."""
-    return request.client.host if request.client else "0.0.0.0"
+    return request.client.host if request.client else "unknown"
 
 
 def _to_project_response(project: Project) -> "ProjectResponse":

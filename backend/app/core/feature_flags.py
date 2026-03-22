@@ -316,7 +316,7 @@ class FeatureFlagManager:
 
         # Create consistent hash
         hash_input = f"{flag_name}:{user_id}".encode()
-        hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
+        hash_value = int(hashlib.sha256(hash_input).hexdigest(), 16)
         user_percentage = hash_value % 100
 
         return user_percentage < percentage

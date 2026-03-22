@@ -9,8 +9,6 @@ import {
   GitPullRequest,
   Network,
   Activity,
-  Settings,
-  Users,
   TrendingUp,
 } from 'lucide-react'
 

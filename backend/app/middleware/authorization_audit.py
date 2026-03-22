@@ -47,7 +47,7 @@ class AuthorizationAuditMiddleware(BaseHTTPMiddleware):
 
             if user:
                 # Get client information
-                ip_address = request.client.host if request.client else "0.0.0.0"
+                ip_address = request.client.host if request.client else "unknown"
                 user_agent = request.headers.get("User-Agent")
 
                 # Extract resource information from request

@@ -29,7 +29,6 @@ import {
   GitPullRequest,
   Activity,
   ArrowLeft,
-  User,
   Trash2
 } from 'lucide-react'
 import {
@@ -38,6 +37,8 @@ import {
   useDeleteProject,
   useProjectAnalytics,
   useProjectArchitectureAnalysis,
+  useAnalyzePullRequest,
+  useSyncProject,
   type PullRequest,
   type RecentReview,
 } from '@/hooks/useProjects'
@@ -57,6 +58,8 @@ export default function ProjectDetailPage() {
   const { data: architectureAnalysis } = useProjectArchitectureAnalysis(projectId)
   const pullRequests: PullRequest[] = Array.isArray(pullRequestsData) ? pullRequestsData as PullRequest[] : []
   const deleteProject = useDeleteProject()
+  const syncProject = useSyncProject()
+  const analyzePullRequest = useAnalyzePullRequest()
 
   const handleDeleteProject = async () => {
     await execute(
@@ -76,6 +79,9 @@ export default function ProjectDetailPage() {
 
   // get详细的analyzedata
   const recentAnalysisReviews: RecentReview[] = analytics?.recent_reviews ?? []
+  const analyzedPullRequests = pullRequests.filter((pr) => Boolean(pr.analyzed_at))
+  const analyzingPullRequests = pullRequests.filter((pr) => pr.status === 'analyzing')
+  const pendingPullRequests = pullRequests.filter((pr) => !pr.analyzed_at && pr.status !== 'analyzing')
 
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600'
@@ -116,6 +122,12 @@ export default function ProjectDetailPage() {
     )
   }
 
+  const syncStatus = !project.github_repo_url
+    ? { label: 'Repository Missing', description: 'Link a GitHub repository to enable sync and review.', variant: 'destructive' as const }
+    : pullRequests.length === 0
+      ? { label: 'Ready to Sync', description: 'Sync GitHub to import pull requests from this repository.', variant: 'warning' as const }
+      : { label: 'Synced', description: 'Pull requests are available for review and architecture analysis.', variant: 'success' as const }
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -131,6 +143,21 @@ export default function ProjectDetailPage() {
               <Button onClick={() => router.push(`/projects/${project.id}/settings`)}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
+              </Button>
+              <Button
+                variant="outline"
+                disabled={syncProject.isPending || !project.github_repo_url}
+                onClick={() =>
+                  void execute(
+                    () => syncProject.mutateAsync(projectId),
+                    {
+                      successMessage: `"${project.name}" synced with GitHub.`,
+                    }
+                  )
+                }
+              >
+                <GitBranch className={`mr-2 h-4 w-4 ${syncProject.isPending ? 'animate-pulse' : ''}`} />
+                {syncProject.isPending ? 'Syncing GitHub...' : 'Sync GitHub'}
               </Button>
               <Button 
                 variant="destructive" 
@@ -174,6 +201,17 @@ export default function ProjectDetailPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">GitHub Sync</CardTitle>
+              <GitBranch className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <Badge variant={syncStatus.variant}>{syncStatus.label}</Badge>
+              <p className="mt-2 text-xs text-muted-foreground">{syncStatus.description}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Health</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -200,13 +238,13 @@ export default function ProjectDetailPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pull Requests</CardTitle>
+              <CardTitle className="text-sm font-medium">PRs Analyzed</CardTitle>
               <GitPullRequest className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pullRequests.length}</div>
+              <div className="text-2xl font-bold">{analyzedPullRequests.length}/{pullRequests.length}</div>
               <p className="text-xs text-muted-foreground">
-                Total analyzed
+                {analyzingPullRequests.length > 0 ? `${analyzingPullRequests.length} currently analyzing` : 'Analysis coverage'}
               </p>
             </CardContent>
           </Card>
@@ -226,13 +264,13 @@ export default function ProjectDetailPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Owner</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Analysis Queue</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-sm font-medium truncate">{project.owner_id}</div>
+              <div className="text-2xl font-bold">{pendingPullRequests.length}</div>
               <p className="text-xs text-muted-foreground">
-                Project owner
+                Waiting to be analyzed
               </p>
             </CardContent>
           </Card>
@@ -392,11 +430,16 @@ export default function ProjectDetailPage() {
                               <h4 className="font-semibold">PR #{pr.github_pr_number}: {pr.title}</h4>
                               <Badge variant={
                                 pr.status === 'merged' ? 'success' : 
-                                pr.status === 'closed' ? 'destructive' : 
+                                pr.status === 'rejected' ? 'destructive' :
+                                pr.status === 'analyzing' ? 'warning' :
+                                pr.analyzed_at ? 'success' :
                                 'default'
                               }>
-                                {pr.status}
+                                {pr.status === 'analyzing' ? 'analyzing' : pr.analyzed_at ? 'analyzed' : pr.status}
                               </Badge>
+                              {!pr.analyzed_at && pr.status !== 'analyzing' && (
+                                <Badge variant="outline">pending analysis</Badge>
+                              )}
                             </div>
                             
                             {pr.description && (
@@ -445,6 +488,26 @@ export default function ProjectDetailPage() {
                             onClick={() => router.push(`/reviews/${pr.id}`)}
                           >
                             View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              void execute(
+                                () => analyzePullRequest.mutateAsync({ prId: pr.id, projectId }),
+                                {
+                                  successMessage: `PR #${pr.github_pr_number} queued for analysis.`,
+                                }
+                              )
+                            }
+                            disabled={analyzePullRequest.isPending || pr.status === 'analyzing'}
+                          >
+                            {pr.status === 'analyzing'
+                              ? 'Analyzing...'
+                              : analyzePullRequest.isPending
+                                ? 'Queueing...'
+                                : pr.analyzed_at
+                                  ? 'Re-analyze'
+                                  : 'Analyze Now'}
                           </Button>
                         </div>
                       </Card>

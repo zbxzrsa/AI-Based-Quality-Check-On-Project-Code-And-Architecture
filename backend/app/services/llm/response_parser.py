@@ -277,6 +277,135 @@ class ResponseParser:
 
         return findings
 
+    def parse_code_review_response(self, response: str) -> dict[str, Any]:
+        """
+        Parse a code review response into the PR workflow's expected structure.
+        """
+        if not response or not response.strip():
+            return {"issues": [], "summary": "No review feedback generated.", "risk_score": 0}
+
+        structured = self._parse_code_review_json(response)
+        if structured is not None:
+            return structured
+
+        parse_result = self.parse(response, file_path=self.default_file_path)
+        issues = [self._convert_comment_to_issue(comment) for comment in parse_result.comments]
+
+        return {
+            "issues": issues,
+            "summary": self._build_summary_from_issues(issues, parse_result.errors),
+            "risk_score": self._calculate_risk_score(issues),
+        }
+
+    def _parse_code_review_json(self, response: str) -> dict[str, Any] | None:
+        """Try to parse structured JSON emitted by the LLM."""
+        import json
+
+        try:
+            data = json.loads(response)
+        except json.JSONDecodeError:
+            return None
+
+        if not isinstance(data, dict):
+            return None
+
+        raw_issues = data.get("issues", [])
+        if not isinstance(raw_issues, list):
+            raw_issues = []
+
+        issues = []
+        for issue in raw_issues:
+            if not isinstance(issue, dict):
+                continue
+            issues.append(
+                {
+                    "severity": self._normalize_issue_severity(issue.get("severity")),
+                    "message": str(
+                        issue.get("message")
+                        or issue.get("description")
+                        or issue.get("title")
+                        or "AI review finding"
+                    ),
+                    "file": str(issue.get("file") or issue.get("file_path") or self.default_file_path),
+                    "line": self._normalize_issue_line(issue.get("line") or issue.get("line_number")),
+                    "type": str(issue.get("type") or issue.get("category") or "quality"),
+                    "title": str(issue.get("title") or issue.get("message") or "AI review finding"),
+                    "description": str(issue.get("description") or issue.get("message") or "AI review finding"),
+                    "suggestion": str(issue.get("suggestion") or issue.get("suggested_fix") or ""),
+                }
+            )
+
+        summary = data.get("summary")
+        if not isinstance(summary, str) or not summary.strip():
+            summary = self._build_summary_from_issues(issues, [])
+
+        risk_score = data.get("risk_score")
+        if not isinstance(risk_score, int):
+            risk_score = self._calculate_risk_score(issues)
+
+        return {
+            "issues": issues,
+            "summary": summary,
+            "risk_score": max(0, min(100, risk_score)),
+        }
+
+    def _convert_comment_to_issue(self, comment: ReviewComment) -> dict[str, Any]:
+        """Convert generic parser output into workflow issue payloads."""
+        return {
+            "severity": self._normalize_issue_severity(comment.severity.value),
+            "message": comment.issue,
+            "file": comment.file_path,
+            "line": self._normalize_issue_line(comment.line_start),
+            "type": comment.category or "quality",
+            "title": comment.issue,
+            "description": comment.rationale or comment.issue,
+            "suggestion": comment.suggestion,
+        }
+
+    def _normalize_issue_severity(self, severity: Any) -> str:
+        """Normalize severity labels into the workflow enum."""
+        value = str(severity or "medium").strip().lower()
+        mapping = {"error": "critical", "warning": "medium", "warn": "medium"}
+        normalized = mapping.get(value, value)
+        if normalized not in {"critical", "high", "medium", "low", "info"}:
+            return "medium"
+        return normalized
+
+    def _normalize_issue_line(self, line: Any) -> int:
+        """Return a safe GitHub comment line number."""
+        try:
+            value = int(line)
+        except (TypeError, ValueError):
+            return 1
+        return max(1, value)
+
+    def _calculate_risk_score(self, issues: list[dict[str, Any]]) -> int:
+        """Estimate a bounded 0-100 risk score from severities."""
+        weights = {"critical": 35, "high": 20, "medium": 10, "low": 4, "info": 1}
+        score = sum(weights.get(str(issue.get("severity")), 5) for issue in issues)
+        return max(0, min(100, score))
+
+    def _build_summary_from_issues(self, issues: list[dict[str, Any]], errors: list[str]) -> str:
+        """Create a concise human-readable summary."""
+        if not issues:
+            if errors:
+                return "Review completed with parser fallbacks. Manual validation may still be helpful."
+            return "No significant issues detected in the reviewed changes."
+
+        counts: dict[str, int] = {}
+        for issue in issues:
+            severity = str(issue.get("severity", "medium"))
+            counts[severity] = counts.get(severity, 0) + 1
+
+        ordered = ["critical", "high", "medium", "low", "info"]
+        parts = [f"{counts[level]} {level}" for level in ordered if counts.get(level)]
+        summary = f"Detected {len(issues)} issue(s): " + ", ".join(parts) + "."
+
+        if errors:
+            summary += " Some findings were recovered through parser fallback logic."
+
+        return summary
+
     def _parse_finding(self, finding: str, default_file_path: str) -> ReviewComment | None:
         """
         Parse a single finding into a ReviewComment.

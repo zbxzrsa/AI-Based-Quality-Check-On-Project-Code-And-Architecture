@@ -142,7 +142,7 @@ export class DashboardComponent extends Component<DashboardProps, DashboardState
 
           // Log response time in development to verify performance
           if (process.env.NODE_ENV === 'development') {
-            console.log(`Dashboard data refresh completed in ${responseTime.toFixed(2)}ms`);
+            console.warn(`Dashboard data refresh completed in ${responseTime.toFixed(2)}ms`);
             if (responseTime > 500) {
               console.warn(`Dashboard refresh exceeded 500ms target: ${responseTime.toFixed(2)}ms`);
             }
@@ -467,34 +467,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 'clamp(12px, 2.5vw, 14px)',
     wordWrap: 'break-word',
   },
-};
-
-// Media query styles applied via inline styles
-const getResponsiveStyles = () => {
-  if (typeof window === 'undefined') return {};
-  
-  const width = window.innerWidth;
-  
-  // Tablet and above
-  if (width >= 768) {
-    return {
-      container: { padding: '20px', maxWidth: '1200px' },
-      header: { flexDirection: 'row' as const, justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-      metricsGrid: { gap: '20px' },
-    };
-  }
-  
-  // Desktop and above
-  if (width >= 1024) {
-    return {
-      container: { padding: '24px', maxWidth: '1400px' },
-      header: { marginBottom: '32px' },
-      metricsGrid: { gap: '24px' },
-      metricCard: { padding: '24px' },
-    };
-  }
-  
-  return {};
 };
 
 export default Dashboard;

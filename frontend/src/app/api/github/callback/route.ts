@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
+    const state = searchParams.get('state');
 
     if (error) {
       return NextResponse.redirect(
@@ -24,12 +25,23 @@ export async function GET(request: NextRequest) {
     }
 
     const cookieStore = await cookies();
+    const storedState = cookieStore.get('github_oauth_state')?.value;
     const accessToken = cookieStore.get('access_token')?.value;
 
+    if (!state || !storedState || state !== storedState) {
+      const response = NextResponse.redirect(
+        new URL('/projects?error=invalid_github_oauth_state', request.url)
+      );
+      response.cookies.delete('github_oauth_state');
+      return response;
+    }
+
     if (!accessToken) {
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
         new URL('/login?returnUrl=/projects', request.url)
       );
+      response.cookies.delete('github_oauth_state');
+      return response;
     }
     
     // Exchange code for GitHub token via backend
@@ -51,21 +63,27 @@ export async function GET(request: NextRequest) {
         ? errorDetail 
         : JSON.stringify(errorDetail);
       
-      return NextResponse.redirect(
+      const redirectResponse = NextResponse.redirect(
         new URL(`/projects?error=github_connection_failed&error_detail=${encodeURIComponent(errorMessage)}`, request.url)
       );
+      redirectResponse.cookies.delete('github_oauth_state');
+      return redirectResponse;
     }
 
     await response.json();
 
     // Redirect back to projects page with success flag
-    return NextResponse.redirect(
+    const redirectResponse = NextResponse.redirect(
       new URL('/projects?github_connected=true', request.url)
     );
+    redirectResponse.cookies.delete('github_oauth_state');
+    return redirectResponse;
   } catch (error) {
     console.error('[GitHub Callback] Unexpected error:', error);
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL('/projects?error=internal_error', request.url)
     );
+    response.cookies.delete('github_oauth_state');
+    return response;
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnalysisTask, ScheduleResult, RetrySchedule } from '../../types/AnalysisQueue';
+import { AnalysisTask, RetrySchedule } from '../../types/AnalysisQueue';
 import {
   getTaskTypeText,
   getStatusColor,

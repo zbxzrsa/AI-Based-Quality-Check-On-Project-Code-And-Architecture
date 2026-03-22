@@ -5,6 +5,7 @@ Database migration manager for automatic application of Alembic migrations
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -74,6 +75,16 @@ class MigrationManager:
         # Backup directory
         self.backup_dir = Path(__file__).parent.parent.parent / "backups"
         self.backup_dir.mkdir(exist_ok=True)
+
+    @staticmethod
+    def _is_valid_backup_id(backup_id: str) -> bool:
+        """Validate backup_id format to prevent path traversal and command abuse."""
+        return bool(re.fullmatch(r"\d{8}_\d{6}", backup_id))
+
+    @staticmethod
+    def _is_valid_db_identifier(identifier: str) -> bool:
+        """Allow only safe PostgreSQL identifier characters."""
+        return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}", identifier))
 
     async def check_pending_migrations(self) -> list[str]:
         """
@@ -675,6 +686,14 @@ class MigrationManager:
             True if restoration was successful, False otherwise
         """
         try:
+            if not self._is_valid_backup_id(backup_id):
+                logger.error(f"Invalid backup ID format: {backup_id}")
+                return False
+
+            if not self._is_valid_db_identifier(settings.POSTGRES_DB):
+                logger.error("Invalid PostgreSQL database name format")
+                return False
+
             backup_path = self.backup_dir / f"postgres_backup_{backup_id}.sql"
             metadata_path = self.backup_dir / f"postgres_backup_{backup_id}.json"
 
@@ -711,7 +730,7 @@ class MigrationManager:
                     "-d",
                     "postgres",
                     "-c",
-                    f"DROP DATABASE IF EXISTS {settings.POSTGRES_DB};",
+                    f'DROP DATABASE IF EXISTS "{settings.POSTGRES_DB}";',
                 ],
                 env=env,
                 capture_output=True,
@@ -735,7 +754,7 @@ class MigrationManager:
                     "-d",
                     "postgres",
                     "-c",
-                    f"CREATE DATABASE {settings.POSTGRES_DB};",
+                    f'CREATE DATABASE "{settings.POSTGRES_DB}";',
                 ],
                 env=env,
                 capture_output=True,

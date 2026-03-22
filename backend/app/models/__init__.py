@@ -97,7 +97,14 @@ class Project(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     github_repo_url = Column(String(500), unique=True)
-    github_connection_type = Column(SQLEnum(GitHubConnectionType), default=GitHubConnectionType.HTTPS)
+    github_connection_type = Column(
+        SQLEnum(
+            GitHubConnectionType,
+            name="github_connection_type",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=GitHubConnectionType.HTTPS,
+    )
     github_ssh_key_id = Column(UUID(as_uuid=True), ForeignKey("ssh_keys.id"), nullable=True)
     github_cli_token = Column(String(500), nullable=True)  # Encrypted GitHub CLI token
     github_webhook_secret = Column(String(255))

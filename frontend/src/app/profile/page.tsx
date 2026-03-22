@@ -39,6 +39,37 @@ interface APISettings {
   default_llm_model: string | null;
 }
 
+interface APISettingsUpdatePayload {
+  default_llm_provider: string;
+  default_llm_model: string;
+  openrouter_api_key?: string;
+  openai_api_key?: string;
+  anthropic_api_key?: string;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'data' in error.response &&
+    error.response.data &&
+    typeof error.response.data === 'object' &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export default function ProfilePage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -81,15 +112,15 @@ export default function ProfilePage() {
       if (settings.default_llm_model) {
         setDefaultModel(settings.default_llm_model);
       }
-    } catch (error) {
-      console.error('Failed to load API settings:', error);
+    } catch {
+      // Keep the page usable even if settings fail to load initially.
     }
   };
 
   const handleSaveAPISettings = async () => {
     setIsLoading(true);
     try {
-      const updateData: any = {
+      const updateData: APISettingsUpdatePayload = {
         default_llm_provider: defaultProvider,
         default_llm_model: defaultModel,
       };
@@ -115,10 +146,10 @@ export default function ProfilePage() {
       // Clear input fields and reload settings
       setApiKeys({ openrouter: '', openai: '', anthropic: '' });
       await loadAPISettings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to save API settings',
+        description: getApiErrorMessage(error, 'Failed to save API settings'),
         variant: 'destructive',
       });
     } finally {
@@ -141,10 +172,10 @@ export default function ProfilePage() {
       });
 
       await loadAPISettings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to delete API key',
+        description: getApiErrorMessage(error, 'Failed to delete API key'),
         variant: 'destructive',
       });
     } finally {
@@ -551,7 +582,7 @@ export default function ProfilePage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Your Projects</h3>
               <p className="text-muted-foreground">
-                Projects you're contributing to will appear here.
+                Projects you&apos;re contributing to will appear here.
               </p>
             </Card>
           </TabsContent>

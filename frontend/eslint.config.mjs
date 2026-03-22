@@ -74,4 +74,24 @@ export default [
             '@next/next/no-html-link-for-pages': 'off',
         },
     },
+    {
+        files: [
+            '**/*.test.{js,jsx,ts,tsx}',
+            '**/*.spec.{js,jsx,ts,tsx}',
+            '**/*.property.test.{js,jsx,ts,tsx}',
+            '**/__tests__/**/*.{js,jsx,ts,tsx}',
+            'tests/**/*.{js,jsx,ts,tsx}',
+        ],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-unused-vars': 'off',
+            'no-console': 'off',
+        },
+    },
+    {
+        files: ['**/*.d.ts'],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+        },
+    },
 ];

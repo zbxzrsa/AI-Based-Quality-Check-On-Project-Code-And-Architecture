@@ -160,8 +160,8 @@ class BaselineManager:
                             "description": data["metadata"].get("description", ""),
                         }
                     )
-            except Exception:
-                logger.info("Error reading baseline file {baseline_file}: {str(e)}")
+            except Exception as e:
+                logger.warning(f"Error reading baseline file {baseline_file}: {str(e)}")
 
         # Sort by timestamp (newest first)
         baselines.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -221,8 +221,8 @@ class BaselineManager:
                         }
                     )
 
-        except Exception:
-            logger.info("Error capturing nodes: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Error capturing nodes: {str(e)}")
 
         return nodes
 
@@ -270,8 +270,8 @@ class BaselineManager:
                         }
                     )
 
-        except Exception:
-            logger.info("Error capturing relationships: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Error capturing relationships: {str(e)}")
 
         return relationships
 
@@ -333,7 +333,7 @@ class BaselineManager:
         """
         # Create hash of project_id and version for uniqueness
         hash_input = f"{project_id}_{version}".encode()
-        hash_suffix = hashlib.md5(hash_input).hexdigest()[:8]
+        hash_suffix = hashlib.sha256(hash_input).hexdigest()[:8]
 
         # Clean version string for filename
         clean_version = version.replace("/", "-").replace("\\", "-").replace(" ", "_")
@@ -352,8 +352,8 @@ class BaselineManager:
         try:
             with open(baseline_file, "w") as f:
                 json.dump(baseline.to_dict(), f, indent=2)
-        except Exception:
-            logger.info("Error storing baseline: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Error storing baseline: {str(e)}")
             raise
 
     async def _load_baseline_by_id(self, baseline_id: str) -> ArchitectureBaseline | None:

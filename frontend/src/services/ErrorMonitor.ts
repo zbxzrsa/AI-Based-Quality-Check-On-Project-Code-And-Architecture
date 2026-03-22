@@ -23,7 +23,7 @@ export interface ErrorContext {
   url: string;
   userAgent: string;
   timestamp: Date;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 export interface ErrorReport {
@@ -165,7 +165,7 @@ export class ErrorMonitor {
     // }
 
     if (this.config.enableDebugMode) {
-      console.log(`[ErrorMonitor] ${level.toUpperCase()}: ${message}`);
+      console.warn(`[ErrorMonitor] ${level.toUpperCase()}: ${message}`);
     }
   }
 

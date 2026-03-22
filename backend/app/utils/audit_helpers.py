@@ -37,7 +37,7 @@ def log_action_sync(
         success: Whether the action succeeded
         metadata: Additional metadata to log
     """
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = request.client.host if request.client else "unknown"
 
     AuditService.log_action(
         db=db,
@@ -75,7 +75,7 @@ async def log_action_async(
         success: Whether the action succeeded
         metadata: Additional metadata to log
     """
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
 
     await audit_service.log_data_access(

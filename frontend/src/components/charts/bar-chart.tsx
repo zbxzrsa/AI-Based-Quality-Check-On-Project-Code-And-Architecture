@@ -12,8 +12,10 @@ import {
 } from 'recharts';
 import { Card } from '@/components/ui/card';
 
+type ChartDatum = Record<string, string | number | null | undefined>;
+
 interface BarChartProps {
-  data: any[];
+  data: ChartDatum[];
   title: string;
   xAxisKey: string;
   bars: {

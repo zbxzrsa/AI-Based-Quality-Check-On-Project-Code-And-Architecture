@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import MainLayout from '@/components/layout/main-layout';
 import LineChart from '@/components/charts/line-chart';
 import BarChart from '@/components/charts/bar-chart';
@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Download, FileJson, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, FileJson, FileSpreadsheet } from 'lucide-react';
 
 export default function MetricsPage() {
   // Mock data
@@ -49,10 +49,9 @@ export default function MetricsPage() {
     { week: 'Week 4', prs: 20, reviews: 35, issues: 7 },
   ];
 
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
   const [isExporting, setIsExporting] = useState(false);
 
-  const allMetricsData = useMemo(() => ({
+  const allMetricsData = {
     codeQuality: codeQualityData,
     architectureHealth: architectureHealthData,
     reviewCompletion: reviewCompletionData,
@@ -67,7 +66,7 @@ export default function MetricsPage() {
       codeCoverage: '87%',
     },
     generatedAt: new Date().toISOString(),
-  }), []);
+  };
 
   const handleExport = async (format: 'json' | 'csv') => {
     setIsExporting(true);

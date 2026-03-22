@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Bundle Size Performance Tests
  * 
@@ -34,7 +33,7 @@ describe('Bundle Size Performance Tests', () => {
     try {
       const stats = fs.statSync(filePath);
       return stats.size;
-    } catch (error) {
+    } catch {
       return 0;
     }
   }

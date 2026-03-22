@@ -15,6 +15,45 @@ interface LoginErrors {
   general?: string;
 }
 
+function getApiErrorStatus(error: unknown): number | undefined {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'status' in error.response &&
+    typeof error.response.status === 'number'
+  ) {
+    return error.response.status;
+  }
+
+  return undefined;
+}
+
+function getApiErrorDetail(error: unknown): string | undefined {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'data' in error.response &&
+    error.response.data &&
+    typeof error.response.data === 'object' &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return undefined;
+}
+
 export default function SecureLogin() {
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -91,20 +130,22 @@ export default function SecureLogin() {
     try {
       await login(formData.email, formData.password);
       // Successful login - AuthContext will handle redirect
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login failed:', error);
       const newAttemptCount = attemptCount + 1;
       setAttemptCount(newAttemptCount);
+      const status = getApiErrorStatus(error);
+      const errorDetail = getApiErrorDetail(error);
 
       // Handle different error types
-      if (error.response?.status === 429) {
+      if (status === 429) {
         setErrors({ general: 'Too many login attempts. Please try again later.' });
         setIsLocked(true);
         setLockoutTime(new Date(Date.now() + 15 * 60 * 1000)); // 15 minutes
-      } else if (error.response?.status === 403) {
-        setErrors({ general: error.response.data.detail || 'Account is locked.' });
+      } else if (status === 403) {
+        setErrors({ general: errorDetail || 'Account is locked.' });
         setIsLocked(true);
-      } else if (error.response?.status === 401) {
+      } else if (status === 401) {
         setErrors({ general: 'Invalid email or password.' });
         
         // Client-side lockout after 5 attempts
@@ -113,17 +154,17 @@ export default function SecureLogin() {
           setLockoutTime(new Date(Date.now() + 15 * 60 * 1000));
           setErrors({ general: 'Too many failed attempts. Account locked for 15 minutes.' });
         }
-      } else if (error.response?.status === 500) {
+      } else if (status === 500) {
         // Handle server errors, including token issues
-        const errorDetail = error.response.data.detail || 'Server error occurred.';
-        if (errorDetail.includes('No token received')) {
+        const serverErrorDetail = errorDetail || 'Server error occurred.';
+        if (serverErrorDetail.includes('No token received')) {
           setErrors({ general: 'Authentication service error. Please try again or contact support.' });
         } else {
-          setErrors({ general: errorDetail });
+          setErrors({ general: serverErrorDetail });
         }
       } else {
         // Handle network errors or other issues
-        const errorMessage = error.message || 'Login failed. Please check your connection and try again.';
+        const errorMessage = errorDetail || 'Login failed. Please check your connection and try again.';
         setErrors({ general: errorMessage });
       }
     } finally {
@@ -287,7 +328,7 @@ export default function SecureLogin() {
               href="/register"
               className="font-medium text-indigo-600 hover:text-indigo-500"
             >
-              Don't have an account? Sign up
+              Don&apos;t have an account? Sign up
             </a>
           </div>
         </form>

@@ -3,52 +3,52 @@
 ## 5 Roles at a Glance
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         ROLE HIERARCHY                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ADMIN ──────────────────────────────────────────────────────  │
-│    │  Full system control • All permissions                    │
-│    │                                                            │
-│    ├─► MANAGER ────────────────────────────────────────────    │
-│    │     │  Project oversight & ROI • 7 permissions            │
-│    │     │                                                      │
-│    │     ├─► REVIEWER ──────────────────────────────────       │
-│    │     │     │  Read/Write analysis • 4 permissions          │
-│    │     │     │                                               │
-│    │     ├─► PROGRAMMER ────────────────────────────           │
-│    │           │  CRUD own branch • 5 permissions              │
-│    │           │                                               │
-│    └─────────► VISITOR ──────────────────────────              │
-│                  Read-only grants • 1 permission               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────�?
+�?                        ROLE HIERARCHY                          �?
+├─────────────────────────────────────────────────────────────────�?
+�?                                                                �?
+�? ADMIN ──────────────────────────────────────────────────────  �?
+�?   �? Full system control �?All permissions                    �?
+�?   �?                                                           �?
+�?   ├─�?MANAGER ────────────────────────────────────────────    �?
+�?   �?    �? Project oversight & ROI �?7 permissions            �?
+�?   �?    �?                                                     �?
+�?   �?    ├─�?REVIEWER ──────────────────────────────────       �?
+�?   �?    �?    �? Read/Write analysis �?4 permissions          �?
+�?   �?    �?    �?                                              �?
+�?   �?    ├─�?PROGRAMMER ────────────────────────────           �?
+�?   �?          �? CRUD own branch �?5 permissions              �?
+�?   �?          �?                                              �?
+�?   └─────────�?VISITOR ──────────────────────────              �?
+�?                 Read-only grants �?1 permission               �?
+�?                                                                �?
+└─────────────────────────────────────────────────────────────────�?
 ```
 
 ## Permission Matrix
 
-| Permission | 👑 ADMIN | 📊 MANAGER | 🔍 REVIEWER | 💻 PROGRAMMER | 👁️ VISITOR |
+| Permission | 👑 ADMIN | 📊 MANAGER | 🔍 REVIEWER | 💻 PROGRAMMER | 👁�?VISITOR |
 |-----------|:--------:|:----------:|:-----------:|:-------------:|:----------:|
 | **User Management** |
-| CREATE_USER | ✅ | ❌ | ❌ | ❌ | ❌ |
-| DELETE_USER | ✅ | ❌ | ❌ | ❌ | ❌ |
-| UPDATE_USER | ✅ | ❌ | ❌ | ❌ | ❌ |
-| VIEW_USER | ✅ | ✅ | ❌ | ❌ | ❌ |
+| CREATE_USER | �?| �?| �?| �?| �?|
+| DELETE_USER | �?| �?| �?| �?| �?|
+| UPDATE_USER | �?| �?| �?| �?| �?|
+| VIEW_USER | �?| �?| �?| �?| �?|
 | **Project Management** |
-| CREATE_PROJECT | ✅ | ✅ | ❌ | ✅ | ❌ |
-| DELETE_PROJECT | ✅ | ✅ | ❌ | ❌ | ❌ |
-| UPDATE_PROJECT | ✅ | ✅ | ✅ | ✅ | ❌ |
-| VIEW_PROJECT | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CREATE_PROJECT | �?| �?| �?| �?| �?|
+| DELETE_PROJECT | �?| �?| �?| �?| �?|
+| UPDATE_PROJECT | �?| �?| �?| �?| �?|
+| VIEW_PROJECT | �?| �?| �?| �?| �?|
 | **Configuration** |
-| MODIFY_CONFIG | ✅ | ❌ | ❌ | ❌ | ❌ |
-| VIEW_CONFIG | ✅ | ✅ | ✅ | ✅ | ❌ |
+| MODIFY_CONFIG | �?| �?| �?| �?| �?|
+| VIEW_CONFIG | �?| �?| �?| �?| �?|
 | **Reports** |
-| EXPORT_REPORT | ✅ | ✅ | ✅ | ✅ | ❌ |
+| EXPORT_REPORT | �?| �?| �?| �?| �?|
 
 ## Default Test Accounts
 
 ```bash
-# All accounts use password: Admin123!
+# All accounts use password: change-me-strong-password
 
 Username: admin      Role: ADMIN       ID: admin-0000-0000-0000-000000000001
 Username: manager    Role: MANAGER     ID: mngr-0000-0000-0000-000000000002
@@ -61,48 +61,48 @@ Username: visitor    Role: VISITOR     ID: visit-0000-0000-0000-000000000005
 
 ### 👑 ADMIN - System Administrator
 ```
-✓ Manage all users and roles
-✓ Configure system settings
-✓ Access all projects
-✓ Full CRUD on everything
+�?Manage all users and roles
+�?Configure system settings
+�?Access all projects
+�?Full CRUD on everything
 ```
 
 ### 📊 MANAGER - Project Manager
 ```
-✓ Create and delete projects
-✓ View team members
-✓ Export ROI reports
-✓ Monitor project health
-✗ Cannot manage users
-✗ Cannot modify system config
+�?Create and delete projects
+�?View team members
+�?Export ROI reports
+�?Monitor project health
+�?Cannot manage users
+�?Cannot modify system config
 ```
 
 ### 🔍 REVIEWER - Code Reviewer
 ```
-✓ Review code changes
-✓ Update analysis settings
-✓ Export quality reports
-✓ View project details
-✗ Cannot create/delete projects
-✗ Cannot manage users
+�?Review code changes
+�?Update analysis settings
+�?Export quality reports
+�?View project details
+�?Cannot create/delete projects
+�?Cannot manage users
 ```
 
 ### 💻 PROGRAMMER - Developer
 ```
-✓ Create own projects
-✓ Update own projects
-✓ View granted projects
-✓ Export analysis reports
-✗ Cannot delete projects
-✗ Cannot access others' projects (without grant)
+�?Create own projects
+�?Update own projects
+�?View granted projects
+�?Export analysis reports
+�?Cannot delete projects
+�?Cannot access others' projects (without grant)
 ```
 
-### 👁️ VISITOR - Stakeholder
+### 👁�?VISITOR - Stakeholder
 ```
-✓ View granted projects only
-✗ Cannot modify anything
-✗ Cannot export reports
-✗ Cannot create projects
+�?View granted projects only
+�?Cannot modify anything
+�?Cannot export reports
+�?Cannot create projects
 ```
 
 ## Quick Commands
@@ -145,7 +145,7 @@ VALUES (
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "programmer", "password": "Admin123!"}'
+  -d '{"username": "programmer", "password": "change-me-strong-password"}'
 ```
 
 ### Check Permission
@@ -205,7 +205,7 @@ function MyComponent() {
 
 ## Best Practices
 
-✅ **DO:**
+�?**DO:**
 - Use MANAGER for project leads
 - Use REVIEWER for QA team
 - Use PROGRAMMER for developers
@@ -214,7 +214,7 @@ function MyComponent() {
 - Regularly audit user roles
 - Log role changes
 
-❌ **DON'T:**
+�?**DON'T:**
 - Give ADMIN role to regular users
 - Share account credentials
 - Use default passwords in production
@@ -225,7 +225,7 @@ function MyComponent() {
 
 - 📖 [Full RBAC Documentation](RBAC_ROLES.md)
 - 🔄 [Migration Guide](RBAC_MIGRATION_GUIDE.md)
-- 🏗️ [Architecture Documentation](ARCHITECTURE.md)
+- 🏗�?[Architecture Documentation](ARCHITECTURE.md)
 
 ---
 

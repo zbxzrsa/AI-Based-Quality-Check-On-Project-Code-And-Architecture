@@ -31,6 +31,10 @@ export interface ValidationResult {
   errors: ValidationError[];
 }
 
+interface SyntaxErrorWithLineNumber extends SyntaxError {
+  lineNumber?: number;
+}
+
 class ConfigService {
   private static instance: ConfigService;
   private config: AppConfig | null = null;
@@ -251,8 +255,9 @@ class ConfigService {
       return parsed as AppConfig;
     } catch (error) {
       if (error instanceof SyntaxError) {
+        const syntaxError = error as SyntaxErrorWithLineNumber;
         throw new Error(
-          `Configuration file format is invalid:\nLine ${(error as any).lineNumber || '?'}: ${error.message}`
+          `Configuration file format is invalid:\nLine ${syntaxError.lineNumber || '?'}: ${error.message}`
         );
       }
       throw error;

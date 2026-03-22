@@ -8,10 +8,13 @@ export default function TestCorsPage() {
     const [result, setResult] = useState<string>('');
     const [loading, setLoading] = useState(false);
 
+    const getErrorMessage = (error: unknown) =>
+        error instanceof Error ? error.message : 'Unknown request error';
+
     const testCors = async () => {
         setLoading(true);
         setResult('');
-        
+
         try {
             const response = await fetch('http://localhost:8000/', {
                 method: 'GET',
@@ -19,15 +22,15 @@ export default function TestCorsPage() {
                     'Content-Type': 'application/json',
                 },
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
-                setResult(`✅ CORStestSuccess！\nresponse: ${JSON.stringify(data, null, 2)}`);
+                setResult(`SUCCESS: CORS test passed.\n\nResponse: ${JSON.stringify(data, null, 2)}`);
             } else {
-                setResult(`❌ HTTPerror: ${response.status} ${response.statusText}`);
+                setResult(`HTTP error: ${response.status} ${response.statusText}`);
             }
-        } catch (error: any) {
-            setResult(`❌ CORSerror: ${error.message}`);
+        } catch (error: unknown) {
+            setResult(`CORS error: ${getErrorMessage(error)}`);
         } finally {
             setLoading(false);
         }
@@ -36,7 +39,7 @@ export default function TestCorsPage() {
     const testHealthEndpoint = async () => {
         setLoading(true);
         setResult('');
-        
+
         try {
             const response = await fetch('http://localhost:8000/health', {
                 method: 'GET',
@@ -44,15 +47,15 @@ export default function TestCorsPage() {
                     'Content-Type': 'application/json',
                 },
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
-                setResult(`✅ Healthchecksuccess！\nresponse: ${JSON.stringify(data, null, 2)}`);
+                setResult(`SUCCESS: Health check passed.\n\nResponse: ${JSON.stringify(data, null, 2)}`);
             } else {
-                setResult(`❌ HTTPerror: ${response.status} ${response.statusText}`);
+                setResult(`HTTP error: ${response.status} ${response.statusText}`);
             }
-        } catch (error: any) {
-            setResult(`❌ requesterror: ${error.message}`);
+        } catch (error: unknown) {
+            setResult(`Request error: ${getErrorMessage(error)}`);
         } finally {
             setLoading(false);
         }
@@ -62,42 +65,42 @@ export default function TestCorsPage() {
         <div className="container mx-auto p-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>CORS test页面</CardTitle>
+                    <CardTitle>CORS Test Page</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex space-x-4">
-                        <Button 
-                            onClick={testCors} 
+                        <Button
+                            onClick={testCors}
                             disabled={loading}
                             variant="default"
                         >
-                            {loading ? 'test中...' : 'test根path (/)'}
+                            {loading ? 'Testing...' : 'Test Root Path (/)'}
                         </Button>
-                        
-                        <Button 
-                            onClick={testHealthEndpoint} 
+
+                        <Button
+                            onClick={testHealthEndpoint}
                             disabled={loading}
                             variant="outline"
                         >
-                            {loading ? 'test中...' : 'test健康check (/health)'}
+                            {loading ? 'Testing...' : 'Test Health Check (/health)'}
                         </Button>
                     </div>
-                    
+
                     {result && (
                         <div className="mt-4">
-                            <h3 className="text-lg font-semibold mb-2">testresult:</h3>
+                            <h3 className="text-lg font-semibold mb-2">Test result:</h3>
                             <pre className="bg-gray-100 p-4 rounded-lg text-sm whitespace-pre-wrap">
                                 {result}
                             </pre>
                         </div>
                     )}
-                    
+
                     <div className="mt-6 text-sm text-gray-600">
-                        <h4 className="font-semibold">desc:</h4>
+                        <h4 className="font-semibold">Description:</h4>
                         <ul className="list-disc list-inside mt-2 space-y-1">
-                            <li>这item页面test前端是否能够success访问后端API</li>
-                            <li>如果看到CORSerror，desc跨域config有问题</li>
-                            <li>确保后端service器在 http://localhost:8000 上run</li>
+                            <li>This page verifies whether the frontend can reach the backend API.</li>
+                            <li>If you see a CORS error, the backend cross-origin configuration likely needs attention.</li>
+                            <li>Make sure the backend service is running on `http://localhost:8000`.</li>
                         </ul>
                     </div>
                 </CardContent>

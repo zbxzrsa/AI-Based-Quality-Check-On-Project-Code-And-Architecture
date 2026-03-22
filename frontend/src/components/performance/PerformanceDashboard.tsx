@@ -27,8 +27,6 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { 
-  Activity, 
-  Database, 
   Globe, 
   Zap, 
   TrendingUp, 

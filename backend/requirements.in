@@ -58,6 +58,7 @@ prometheus-client
 python-json-logger
 watchtower
 boto3
+psutil
 
 # OpenTelemetry for distributed tracing
 opentelemetry-api

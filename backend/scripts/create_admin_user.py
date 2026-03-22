@@ -60,16 +60,16 @@ async def create_admin_user(email: str = None, password: str = None, full_name: 
             existing_user = result.scalar_one_or_none()
 
             if existing_user:
-                logger.info("❌ Admin user with email '{email}' already exists!")
-                logger.info("   User ID: {existing_user.id}")
-                logger.info("   Role: {existing_user.role.value}")
-                logger.info("   Created: {existing_user.created_at}")
+                logger.info(f"❌ Admin user with email '{email}' already exists!")
+                logger.info(f"   User ID: {existing_user.id}")
+                logger.info(f"   Role: {existing_user.role.value}")
+                logger.info(f"   Created: {existing_user.created_at}")
                 logger.info()
                 logger.info("If you need to reset the password, use the password reset feature.")
                 return False
 
             # Hash password
-            logger.info("Creating admin user: {email}")
+            logger.info(f"Creating admin user: {email}")
             password_hash = hash_password(password)
 
             # Create admin user
@@ -92,10 +92,10 @@ async def create_admin_user(email: str = None, password: str = None, full_name: 
             logger.info("=" * 60)
             logger.info("LOGIN CREDENTIALS")
             logger.info("=" * 60)
-            logger.info("Email:    {email}")
-            logger.info("Password: {password}")
-            logger.info("Role:     {admin_user.role.value}")
-            logger.info("User ID:  {admin_user.id}")
+            logger.info(f"Email:    {email}")
+            logger.info("Password: (hidden)")
+            logger.info(f"Role:     {admin_user.role.value}")
+            logger.info(f"User ID:  {admin_user.id}")
             logger.info("=" * 60)
             logger.info()
             logger.info("⚠️  IMPORTANT SECURITY NOTICE:")
@@ -109,8 +109,8 @@ async def create_admin_user(email: str = None, password: str = None, full_name: 
 
             return True
 
-        except Exception:
-            logger.info("❌ Error creating admin user: {e}")
+        except Exception as e:
+            logger.info(f"❌ Error creating admin user: {e}")
             await db.rollback()
             return False
 
@@ -121,7 +121,11 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Create admin user for AI Code Review Platform")
     parser.add_argument("--email", default="admin@example.com", help="Admin email address (default: admin@example.com)")
-    parser.add_argument("--password", default="Admin123!", help="Admin password (default: Admin123!)")
+    parser.add_argument(
+        "--password",
+        default=None,
+        help="Admin password (if omitted, uses ADMIN_PASSWORD env var)",
+    )
     parser.add_argument(
         "--name", default="System Administrator", help="Admin full name (default: System Administrator)"
     )

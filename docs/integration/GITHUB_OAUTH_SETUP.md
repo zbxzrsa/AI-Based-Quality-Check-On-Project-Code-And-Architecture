@@ -7,13 +7,13 @@
 
 ### 1. 验证 GitHub OAuth App 配置
 
-当前配置的 Client ID: `Ov23liJ6a4mt3pLXL5gz`
+当前配置的 Client ID: `your_github_client_id`
 
 请在 GitHub 上验证此 OAuth App：
 
 1. 访问 [GitHub Developer Settings](https://github.com/settings/developers)
 2. 点击 "OAuth Apps"
-3. 找到对应的应用（Client ID: `Ov23liJ6a4mt3pLXL5gz`）
+3. 找到对应的应用（Client ID: `your_github_client_id`）
 4. 确认以下配置：
    - **Application name**: 你的应用名称
    - **Homepage URL**: `http://localhost:3000` (开发环境)

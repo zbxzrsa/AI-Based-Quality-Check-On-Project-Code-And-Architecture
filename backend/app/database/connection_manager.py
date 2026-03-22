@@ -360,7 +360,7 @@ class ConnectionManager:
             try:
                 # Test actual pool connectivity
                 test_connection = await asyncio.wait_for(self._postgresql_pool.acquire(), timeout=5.0)
-                await test_connection.close()
+                await self._postgresql_pool.release(test_connection)
 
                 # Update last successful connection time
                 stats.last_updated = current_time
@@ -404,7 +404,7 @@ class ConnectionManager:
             if service == "PostgreSQL" and self._postgresql_pool:
                 # Test PostgreSQL pool
                 test_connection = await asyncio.wait_for(self._postgresql_pool.acquire(), timeout=10.0)
-                await test_connection.close()
+                await self._postgresql_pool.release(test_connection)
 
                 # Update statistics to reflect successful recovery
                 stats.health_status = HealthState.HEALTHY

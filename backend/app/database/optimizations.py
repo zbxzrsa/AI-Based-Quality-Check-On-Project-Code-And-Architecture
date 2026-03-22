@@ -19,6 +19,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.performance_optimizer import cache_result
 from app.database.postgresql import get_db
+from app.database.sql_injection_prevention import validate_sql_identifier
 from app.models import CodeReview as Review
 from app.models import Project
 
@@ -222,13 +223,14 @@ class DatabaseOptimizer:
 
             for table in tables_to_maintain:
                 try:
+                    safe_table = validate_sql_identifier(table)
                     # ANALYZE for updated statistics
-                    await db.execute(text(f"ANALYZE {table}"))
-                    maintenance_results[f"{table}_analyze"] = "completed"
+                    await db.execute(text(f"ANALYZE {safe_table}"))
+                    maintenance_results[f"{safe_table}_analyze"] = "completed"
 
                     # Get table statistics
                     stats_query = await db.execute(
-                        text(f"""
+                        text("""
                         SELECT
                             schemaname,
                             tablename,
@@ -237,13 +239,15 @@ class DatabaseOptimizer:
                             last_vacuum,
                             last_analyze
                         FROM pg_stat_user_tables
-                        WHERE tablename = '{table}'
+                        WHERE tablename = :table_name
                     """)
+                        ,
+                        {"table_name": safe_table},
                     )
 
                     stats = stats_query.fetchone()
                     if stats:
-                        maintenance_results[f"{table}_stats"] = {
+                        maintenance_results[f"{safe_table}_stats"] = {
                             "live_tuples": stats.live_tuples,
                             "dead_tuples": stats.dead_tuples,
                             "last_vacuum": stats.last_vacuum.isoformat() if stats.last_vacuum else None,
@@ -252,7 +256,7 @@ class DatabaseOptimizer:
 
                         # Recommend VACUUM if dead tuples > 20% of live tuples
                         if stats.dead_tuples > stats.live_tuples * 0.2:
-                            maintenance_results[f"{table}_vacuum_recommended"] = True
+                            maintenance_results[f"{safe_table}_vacuum_recommended"] = True
 
                 except Exception as e:
                     maintenance_results[f"{table}_error"] = str(e)
@@ -302,7 +306,9 @@ class DatabaseOptimizer:
             ]
 
             for table, columns, description in index_recommendations:
-                index_name = f"idx_{table}_{'_'.join(columns)}"
+                safe_table = validate_sql_identifier(table)
+                safe_columns = [validate_sql_identifier(column) for column in columns]
+                index_name = validate_sql_identifier(f"idx_{safe_table}_{'_'.join(safe_columns)}")
 
                 # Check if index already exists
                 existing_indexes = await db.execute(
@@ -311,21 +317,21 @@ class DatabaseOptimizer:
                     FROM pg_indexes
                     WHERE tablename = :table AND indexname = :index_name
                 """),
-                    {"table": table, "index_name": index_name},
+                    {"table": safe_table, "index_name": index_name},
                 )
 
                 if not existing_indexes.fetchone():
                     try:
                         # Create index
-                        columns_str = ", ".join(columns)
+                        columns_str = ", ".join(safe_columns)
                         create_index_sql = f"""
                             CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name}
-                            ON {table} ({columns_str})
+                            ON {safe_table} ({columns_str})
                         """
 
                         await db.execute(text(create_index_sql))
                         recommendations.append(f"Created index {index_name}: {description}")
-                        logger.info(f"Created index {index_name} on {table}({columns_str})")
+                        logger.info(f"Created index {index_name} on {safe_table}({columns_str})")
 
                     except Exception as e:
                         logger.warning(f"Failed to create index {index_name}: {e}")
@@ -592,10 +598,11 @@ class DatabaseOptimizer:
 
         for table in tables:
             try:
+                safe_table = validate_sql_identifier(table)
                 # VACUUM ANALYZE
-                await db.execute(text(f"VACUUM ANALYZE {table}"))
-                results.append(f"Successfully vacuumed and analyzed {table}")
-                logger.info(f"Vacuumed and analyzed table: {table}")
+                await db.execute(text(f"VACUUM ANALYZE {safe_table}"))
+                results.append(f"Successfully vacuumed and analyzed {safe_table}")
+                logger.info(f"Vacuumed and analyzed table: {safe_table}")
 
             except Exception as e:
                 error_msg = f"Failed to vacuum {table}: {str(e)}"

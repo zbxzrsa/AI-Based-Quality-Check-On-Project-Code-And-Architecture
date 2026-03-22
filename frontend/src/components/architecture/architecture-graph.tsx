@@ -17,8 +17,15 @@ import 'reactflow/dist/style.css';
 import { Card } from '@/components/ui/card';
 import type { GraphNode, GraphEdge } from '@/hooks/useProjects';
 
+interface CustomNodeData {
+  label: string;
+  type?: string;
+  health?: string;
+  complexity?: number;
+}
+
 // Custom node component
-function CustomNode({ data }: { data: any }) {
+function CustomNode({ data }: { data: CustomNodeData }) {
   const getHealthColor = (health: string) => {
     switch (health) {
       case 'healthy':

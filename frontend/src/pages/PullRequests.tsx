@@ -73,8 +73,6 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
     
     // Update the selected PR
     setSelectedPR(updatedPR);
-
-    console.log(`PR ${selectedPR.number} ${decision}:`, comment);
   }, [selectedPR]);
 
   // Handle add comment

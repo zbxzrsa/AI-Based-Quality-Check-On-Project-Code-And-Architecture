@@ -16,7 +16,7 @@ interface ProjectActionsProps {
   onDelete?: () => void;
 }
 
-export function ProjectActions({ projectId, onView, onEdit, onDelete }: ProjectActionsProps) {
+export function ProjectActions({ projectId: _projectId, onView, onEdit, onDelete }: ProjectActionsProps) {
   return (
     <div className="flex gap-2">
       {/* View button - visible to all users with VIEW_PROJECTS permission */}
@@ -52,7 +52,7 @@ interface UserManagementActionsProps {
   onDelete?: () => void;
 }
 
-export function UserManagementActions({ userId, onEdit, onDelete }: UserManagementActionsProps) {
+export function UserManagementActions({ userId: _userId, onEdit, onDelete }: UserManagementActionsProps) {
   return (
     <div className="flex gap-2">
       {/* Edit user - only visible to admins with MODIFY_USER permission */}

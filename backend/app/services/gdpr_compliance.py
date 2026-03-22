@@ -314,7 +314,7 @@ For questions or to exercise your rights, contact: privacy@your-domain.com
             .where(AuditLog.user_id == user_id)
             .values(
                 user_email="anonymized@deleted.local",
-                ip_address="0.0.0.0",
+                ip_address="unknown",
                 user_agent="DELETED",
             )
         )

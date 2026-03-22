@@ -173,8 +173,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("Error during migration: %s", str(e), exc_info=True)
 
-    # Create default test user if not exists
-    if postgres_available and not testing:
+    # Create default admin user in non-production when explicitly configured
+    if postgres_available and not testing and settings.ENVIRONMENT != "production":
         try:
             import uuid
 
@@ -183,46 +183,50 @@ async def lifespan(app: FastAPI):
             from app.models import User, UserRole
             from app.utils.password import hash_password, verify_password
 
-            async for db in get_db():
-                stmt = select(User).where(User.email == "admin@example.com")
-                result = await db.execute(stmt)
-                existing_user = result.scalar_one_or_none()
+            default_admin_email = os.environ.get("DEFAULT_ADMIN_EMAIL")
+            default_admin_password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
 
-                if not existing_user:
-                    default_user = User(
-                        id=uuid.uuid4(),
-                        email="admin@example.com",
-                        password_hash=hash_password("Admin123!"),
-                        role=UserRole.USER,
-                        full_name="Admin User",
-                        is_active=True,
-                    )
-                    db.add(default_user)
-                    await db.commit()
-                    logger.info("Default test user created: admin@example.com / Admin123!")
-                else:
-                    updated = False
-                    # Keep development credentials deterministic so local login always works.
-                    if settings.ENVIRONMENT != "production" and not verify_password(
-                        "Admin123!", existing_user.password_hash
-                    ):
-                        existing_user.password_hash = hash_password("Admin123!")
-                        updated = True
+            if not default_admin_email or not default_admin_password:
+                logger.info("Default admin creation skipped (DEFAULT_ADMIN_EMAIL/PASSWORD not set)")
+            else:
+                async for db in get_db():
+                    stmt = select(User).where(User.email == default_admin_email)
+                    result = await db.execute(stmt)
+                    existing_user = result.scalar_one_or_none()
 
-                    if existing_user.role != UserRole.USER:
-                        existing_user.role = UserRole.USER
-                        updated = True
-
-                    if not existing_user.is_active:
-                        existing_user.is_active = True
-                        updated = True
-
-                    if updated:
+                    if not existing_user:
+                        default_user = User(
+                            id=uuid.uuid4(),
+                            email=default_admin_email,
+                            password_hash=hash_password(default_admin_password),
+                            role=UserRole.USER,
+                            full_name="Admin User",
+                            is_active=True,
+                        )
+                        db.add(default_user)
                         await db.commit()
-                        logger.info("Default test user normalized: admin@example.com / Admin123!")
+                        logger.info("Default admin user created")
                     else:
-                        logger.info("Default test user already exists")
-                break
+                        updated = False
+                        # Keep development credentials deterministic so local login always works.
+                        if not verify_password(default_admin_password, existing_user.password_hash):
+                            existing_user.password_hash = hash_password(default_admin_password)
+                            updated = True
+
+                        if existing_user.role != UserRole.USER:
+                            existing_user.role = UserRole.USER
+                            updated = True
+
+                        if not existing_user.is_active:
+                            existing_user.is_active = True
+                            updated = True
+
+                        if updated:
+                            await db.commit()
+                            logger.info("Default admin user normalized")
+                        else:
+                            logger.info("Default test user already exists")
+                    break
         except Exception as e:
             logger.warning("Could not create default user: %s", str(e))
 
@@ -323,7 +327,7 @@ Authorization: Bearer <your_jwt_token>
      -H "Content-Type: application/json" \\
      -d '{
        "email": "user@example.com",
-       "password": "SecurePassword123!",
+       "password": "your-strong-password",
        "full_name": "John Doe"
      }'
    ```
@@ -334,7 +338,7 @@ Authorization: Bearer <your_jwt_token>
      -H "Content-Type: application/json" \\
      -d '{
        "email": "user@example.com",
-       "password": "SecurePassword123!"
+       "password": "your-strong-password"
      }'
    ```
 

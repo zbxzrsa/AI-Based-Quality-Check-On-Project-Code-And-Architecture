@@ -28,7 +28,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useBranchArchitecture } from '@/hooks/useProjects';
-import type { GraphNode, GraphEdge } from '@/hooks/useProjects';
+import type { GraphNode } from '@/hooks/useProjects';
 
 export default function BranchArchitecturePage() {
   const params = useParams();

@@ -1,4 +1,3 @@
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 /**
  * Page Load Performance Tests
  * 
@@ -296,6 +295,7 @@ describe('Page Load Performance Tests', () => {
       return (
         <div>
           <h1>Page with Images</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Test-only inline SVG placeholder */}
           <img
             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3C/svg%3E"
             alt="Placeholder"

@@ -7,10 +7,10 @@
 ## 📋 目录
 
 1. [系统要求](#系统要求)
-2. [快速启动](#快速启动)
+2. [快速启动](#快速启�?
 3. [详细安装步骤](#详细安装步骤)
 4. [环境配置](#环境配置)
-5. [数据库设置](#数据库设置)
+5. [数据库设置](#数据库设�?
 6. [启动服务](#启动服务)
 7. [登录系统](#登录系统)
 8. [GitHub OAuth 配置](#github-oauth-配置)
@@ -31,9 +31,9 @@
 - **Neo4j**: 5.0+
 - **Redis**: 7.0+
 
-### 可选工具
+### 可选工�?
 
-- **Docker Desktop**: 用于容器化部署
+- **Docker Desktop**: 用于容器化部�?
 - **Git**: 版本控制
 
 ### 系统资源
@@ -43,7 +43,7 @@
 
 ---
 
-## 快速启动
+## 快速启�?
 
 ### 方式 1: 手动启动（推荐用于开发）
 
@@ -74,7 +74,7 @@ cd backend
 # 创建虚拟环境
 python -m venv venv
 
-# 激活虚拟环境
+# 激活虚拟环�?
 # Windows PowerShell:
 .\venv\Scripts\Activate.ps1
 # Linux/Mac:
@@ -84,14 +84,14 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# 运行数据库迁移
+# 运行数据库迁�?
 alembic upgrade head
 
-# 启动后端服务器
+# 启动后端服务�?
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### 4. 启动前端（新终端窗口）
+#### 4. 启动前端（新终端窗口�?
 
 ```bash
 cd frontend
@@ -112,10 +112,10 @@ npm run dev
 ### 方式 2: Docker 启动
 
 ```bash
-# 启动所有服务
+# 启动所有服�?
 docker-compose up -d
 
-# 查看服务状态
+# 查看服务状�?
 docker-compose ps
 
 # 查看日志
@@ -140,7 +140,7 @@ cd backend
 python -m venv venv
 ```
 
-#### 步骤 3: 激活虚拟环境
+#### 步骤 3: 激活虚拟环�?
 
 **Windows PowerShell:**
 ```powershell
@@ -182,7 +182,7 @@ cp .env.example .env
 # Linux/Mac: nano .env
 ```
 
-#### 步骤 7: 运行数据库迁移
+#### 步骤 7: 运行数据库迁�?
 
 ```bash
 alembic upgrade head
@@ -194,7 +194,7 @@ alembic upgrade head
 # 运行测试
 pytest
 
-# 检查代码格式
+# 检查代码格�?
 black --check app/
 isort --check app/
 
@@ -210,11 +210,11 @@ ruff check app/
 cd frontend
 ```
 
-#### 步骤 2: 检查 Node.js 版本
+#### 步骤 2: 检�?Node.js 版本
 
 ```bash
-node --version  # 应该是 18.0.0+
-npm --version   # 应该是 9.0.0+
+node --version  # 应该�?18.0.0+
+npm --version   # 应该�?9.0.0+
 ```
 
 #### 步骤 3: 安装依赖
@@ -240,7 +240,7 @@ cp .env.example .env.local
 # 运行 linting
 npm run lint
 
-# 运行类型检查
+# 运行类型检�?
 npm run type-check
 
 # 运行测试（可选）
@@ -254,7 +254,7 @@ npm test
 ### 后端环境变量 (.env)
 
 ```bash
-# 数据库配置
+# 数据库配�?
 POSTGRES_DB=ai_code_review
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password
@@ -273,7 +273,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
 
-# 安全密钥（使用 openssl rand -hex 32 生成）
+# 安全密钥（使�?openssl rand -hex 32 生成�?
 JWT_SECRET=your_jwt_secret_min_32_chars
 JWT_ALGORITHM=HS256
 JWT_EXPIRATION_HOURS=24
@@ -315,7 +315,7 @@ NEXT_PUBLIC_GITHUB_CLIENT_ID=
 
 ---
 
-## 数据库设置
+## 数据库设�?
 
 ### PostgreSQL 设置
 
@@ -337,13 +337,13 @@ brew install postgresql
 brew services start postgresql
 ```
 
-#### 2. 创建数据库
+#### 2. 创建数据�?
 
 ```bash
-# 连接到 PostgreSQL
+# 连接�?PostgreSQL
 psql -U postgres
 
-# 创建数据库
+# 创建数据�?
 CREATE DATABASE ai_code_review;
 
 # 创建用户（如果需要）
@@ -352,7 +352,7 @@ CREATE USER your_user WITH PASSWORD 'your_password';
 # 授予权限
 GRANT ALL PRIVILEGES ON DATABASE ai_code_review TO your_user;
 
-# 退出
+# 退�?
 \q
 ```
 
@@ -372,7 +372,7 @@ POSTGRES_PASSWORD=your_password
 
 **Windows/Mac:**
 - 下载 Neo4j Desktop: https://neo4j.com/download/
-- 创建新数据库，设置密码
+- 创建新数据库，设置密�?
 
 **Linux:**
 ```bash
@@ -395,9 +395,9 @@ sudo systemctl start neo4j
 http://localhost:7474
 
 # 首次登录
-用户名: neo4j
+用户�? neo4j
 密码: neo4j
-# 系统会要求修改密码
+# 系统会要求修改密�?
 ```
 
 #### 3. 更新 .env 文件
@@ -415,7 +415,7 @@ NEO4J_DATABASE=neo4j
 
 **Windows:**
 - 下载: https://github.com/microsoftarchive/redis/releases
-- 或使用 WSL2 安装 Linux 版本
+- 或使�?WSL2 安装 Linux 版本
 
 **Linux (Ubuntu/Debian):**
 ```bash
@@ -450,18 +450,18 @@ REDIS_DB=0
 
 ## 启动服务
 
-### 启动后端服务器
+### 启动后端服务�?
 
 ```bash
 cd backend
 
-# 激活虚拟环境
+# 激活虚拟环�?
 # Windows:
 .\venv\Scripts\Activate.ps1
 # Linux/Mac:
 source venv/bin/activate
 
-# 启动服务器
+# 启动服务�?
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -477,9 +477,9 @@ INFO:     Application startup complete.
 **访问:**
 - API: http://localhost:8000
 - 文档: http://localhost:8000/docs
-- 健康检查: http://localhost:8000/health
+- 健康检�? http://localhost:8000/health
 
-### 启动前端服务器
+### 启动前端服务�?
 
 ```bash
 cd frontend
@@ -493,11 +493,11 @@ npm run dev
 > frontend@0.1.0 dev
 > next dev
 
-   ▲ Next.js 14.x.x
+   �?Next.js 14.x.x
    - Local:        http://localhost:6066
    - Network:      http://192.168.x.x:3000
 
- ✓ Ready in 2.5s
+ �?Ready in 2.5s
 ```
 
 **访问:**
@@ -509,59 +509,59 @@ npm run dev
 
 ## 登录系统
 
-### 创建管理员账号
+### 创建管理员账�?
 
-首次使用需要创建管理员账号：
+首次使用需要创建管理员账号�?
 
 ```bash
 cd backend
 
-# 激活虚拟环境
+# 激活虚拟环�?
 # Windows:
 .\venv\Scripts\Activate.ps1
 # Linux/Mac:
 source venv/bin/activate
 
-# 创建默认管理员
+# 创建默认管理�?
 python scripts/create_admin_user.py
 
-# 或创建自定义管理员
+# 或创建自定义管理�?
 python scripts/create_admin_user.py \
   --email your-admin@example.com \
   --password YourSecurePass123! \
   --name "Your Name"
 ```
 
-### 默认管理员凭证
+### 默认管理员凭�?
 
 **Email:** `admin@example.com`  
-**密码:** `Admin123!`
+**密码:** `change-me-strong-password`
 
 ### 登录步骤
 
 1. 访问 http://localhost:6066/login
-2. 输入 Email 和密码
+2. 输入 Email 和密�?
 3. 点击 "Sign in" 按钮
 4. 登录成功后跳转到 Dashboard
 
-### 注册新用户
+### 注册新用�?
 
 1. 访问 http://localhost:6066/register
-2. 填写信息：
+2. 填写信息�?
    - Full Name（全名）
    - Email（邮箱）
    - Password（密码，至少8字符，包含大小写字母和数字）
    - Confirm Password（确认密码）
-3. 勾选同意条款
+3. 勾选同意条�?
 4. 点击 "Create account"
 
 ### 密码要求
 
-- 至少 8 个字符
-- 至少 1 个大写字母
-- 至少 1 个小写字母
-- 至少 1 个数字
-- 至少 1 个特殊字符 (!@#$%^&*()_+-=[]{}|;:,.<>?)
+- 至少 8 个字�?
+- 至少 1 个大写字�?
+- 至少 1 个小写字�?
+- 至少 1 个数�?
+- 至少 1 个特殊字�?(!@#$%^&*()_+-=[]{}|;:,.<>?)
 
 ---
 
@@ -570,13 +570,13 @@ python scripts/create_admin_user.py \
 ### 步骤 1: 创建 GitHub OAuth 应用
 
 1. 访问 GitHub Settings: https://github.com/settings/developers
-2. 点击 "OAuth Apps" → "New OAuth App"
+2. 点击 "OAuth Apps" �?"New OAuth App"
 3. 填写信息:
    - **Application name**: AI Code Review Platform
    - **Homepage URL**: `http://localhost:6066`
    - **Authorization callback URL**: `http://localhost:6066/api/github/callback`
 4. 点击 "Register application"
-5. 记录 **Client ID** 和生成 **Client Secret**
+5. 记录 **Client ID** 和生�?**Client Secret**
 
 ### 步骤 2: 配置后端
 
@@ -612,17 +612,17 @@ npm run dev
 1. 访问 http://localhost:6066/projects
 2. 点击 "Add Project"
 3. 点击 "Connect with GitHub"
-4. 应该跳转到 GitHub 授权页面
-5. 授权后返回应用
+4. 应该跳转�?GitHub 授权页面
+5. 授权后返回应�?
 
 ---
 
 ## 验证安装
 
-### 检查后端
+### 检查后�?
 
 ```bash
-# 检查健康状态
+# 检查健康状�?
 curl http://localhost:8000/health
 
 # 或使用浏览器访问
@@ -632,13 +632,13 @@ http://localhost:8000/health
 {"status":"healthy"}
 ```
 
-### 检查前端
+### 检查前�?
 
 ```bash
 # 访问前端
 http://localhost:6066
 
-# 应该看到登录页面或 Dashboard
+# 应该看到登录页面�?Dashboard
 ```
 
 ### 检查数据库连接
@@ -674,23 +674,23 @@ npm test
 
 ### 后端无法启动
 
-#### 问题: 端口 8000 被占用
+#### 问题: 端口 8000 被占�?
 
 ```bash
-# Windows: 查找占用端口的进程
+# Windows: 查找占用端口的进�?
 netstat -ano | findstr :8000
 
 # Linux/Mac:
 lsof -i :8000
 
-# 停止进程或更改端口
+# 停止进程或更改端�?
 uvicorn app.main:app --reload --port 8001
 ```
 
-#### 问题: 数据库连接失败
+#### 问题: 数据库连接失�?
 
 ```bash
-# 检查 PostgreSQL 是否运行
+# 检�?PostgreSQL 是否运行
 # Windows:
 Get-Service postgresql*
 
@@ -698,7 +698,7 @@ Get-Service postgresql*
 sudo systemctl status postgresql
 
 # 检查连接字符串
-# 确保 .env 中的数据库配置正确
+# 确保 .env 中的数据库配置正�?
 ```
 
 #### 问题: 模块导入错误
@@ -707,14 +707,14 @@ sudo systemctl status postgresql
 # 重新安装依赖
 pip install -r requirements.txt --force-reinstall
 
-# 检查虚拟环境是否激活
+# 检查虚拟环境是否激�?
 which python  # Linux/Mac
 where python  # Windows
 ```
 
 ### 前端无法启动
 
-#### 问题: 端口 3000 被占用
+#### 问题: 端口 3000 被占�?
 
 ```bash
 # Windows:
@@ -723,14 +723,14 @@ netstat -ano | findstr :3000
 # Linux/Mac:
 lsof -i :3000
 
-# 或更改端口
+# 或更改端�?
 npm run dev -- -p 3001
 ```
 
-#### 问题: 模块未找到
+#### 问题: 模块未找�?
 
 ```bash
-# 删除 node_modules 和 package-lock.json
+# 删除 node_modules �?package-lock.json
 rm -rf node_modules package-lock.json
 
 # 重新安装
@@ -747,12 +747,12 @@ rm -rf .next
 npm run build
 ```
 
-### 数据库问题
+### 数据库问�?
 
 #### PostgreSQL 连接超时
 
 ```bash
-# 检查 PostgreSQL 是否运行
+# 检�?PostgreSQL 是否运行
 sudo systemctl status postgresql
 
 # 重启 PostgreSQL
@@ -765,20 +765,20 @@ sudo ufw allow 5432/tcp
 #### Neo4j 无法连接
 
 ```bash
-# 检查 Neo4j 是否运行
+# 检�?Neo4j 是否运行
 sudo systemctl status neo4j
 
 # 重启 Neo4j
 sudo systemctl restart neo4j
 
-# 检查配置
+# 检查配�?
 cat /etc/neo4j/neo4j.conf
 ```
 
 #### Redis 连接失败
 
 ```bash
-# 检查 Redis 是否运行
+# 检�?Redis 是否运行
 sudo systemctl status redis
 
 # 重启 Redis
@@ -793,17 +793,17 @@ redis-cli ping
 #### 错误: "redirect_uri is not associated with this application"
 
 **解决方案:**
-1. 检查 GitHub OAuth 应用的回调 URL
+1. 检�?GitHub OAuth 应用的回�?URL
 2. 必须完全匹配: `http://localhost:6066/api/github/callback`
 3. 确保没有多余的斜杠或空格
-4. 重启前端服务器
+4. 重启前端服务�?
 
 #### 错误: "Configuration Error: GitHub Client ID is not configured"
 
 **解决方案:**
-1. 检查 `frontend/.env.local` 文件是否存在
-2. 确认 `NEXT_PUBLIC_GITHUB_CLIENT_ID` 已设置
-3. 重启前端服务器
+1. 检�?`frontend/.env.local` 文件是否存在
+2. 确认 `NEXT_PUBLIC_GITHUB_CLIENT_ID` 已设�?
+3. 重启前端服务�?
 
 ---
 
@@ -821,23 +821,23 @@ redis-cli ping
 ```bash
 # 重启后端
 cd backend
-# 按 Ctrl+C 停止
+# �?Ctrl+C 停止
 uvicorn app.main:app --reload
 
 # 重启前端
 cd frontend
-# 按 Ctrl+C 停止
+# �?Ctrl+C 停止
 npm run dev
 ```
 
 ### 查看日志
 
 ```bash
-# 后端日志在终端直接显示
+# 后端日志在终端直接显�?
 
-# 前端日志在终端直接显示
+# 前端日志在终端直接显�?
 
-# 查看数据库日志
+# 查看数据库日�?
 # PostgreSQL:
 sudo tail -f /var/log/postgresql/postgresql-14-main.log
 
@@ -871,7 +871,7 @@ cd frontend
 npm update
 ```
 
-### 运行数据库迁移
+### 运行数据库迁�?
 
 ```bash
 cd backend
@@ -879,17 +879,17 @@ cd backend
 # 查看当前版本
 alembic current
 
-# 升级到最新版本
+# 升级到最新版�?
 alembic upgrade head
 
-# 降级一个版本
+# 降级一个版�?
 alembic downgrade -1
 
-# 创建新迁移
+# 创建新迁�?
 alembic revision --autogenerate -m "描述"
 ```
 
-### 创建新用户
+### 创建新用�?
 
 ```bash
 # 通过脚本创建
@@ -909,7 +909,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 备份数据库
+### 备份数据�?
 
 ```bash
 # 备份 PostgreSQL
@@ -932,10 +932,10 @@ neo4j-admin database load neo4j --from=/backups/neo4j.dump
 ### 使用 Docker Compose
 
 ```bash
-# 启动所有服务
+# 启动所有服�?
 docker-compose up -d
 
-# 查看服务状态
+# 查看服务状�?
 docker-compose ps
 
 # 查看日志
@@ -944,7 +944,7 @@ docker-compose logs -f
 # 停止服务
 docker-compose down
 
-# 停止并删除数据
+# 停止并删除数�?
 docker-compose down -v
 ```
 
@@ -962,17 +962,17 @@ docker-compose down -v
 
 ## 生产环境部署
 
-### 安全检查清单
+### 安全检查清�?
 
-- [ ] 修改所有默认密码
-- [ ] 使用强密码（至少 16 字符）
+- [ ] 修改所有默认密�?
+- [ ] 使用强密码（至少 16 字符�?
 - [ ] 启用 HTTPS
-- [ ] 配置防火墙
-- [ ] 启用数据库备份
+- [ ] 配置防火�?
+- [ ] 启用数据库备�?
 - [ ] 配置日志轮转
 - [ ] 设置监控告警
-- [ ] 限制数据库访问
-- [ ] 启用 CORS 白名单
+- [ ] 限制数据库访�?
+- [ ] 启用 CORS 白名�?
 - [ ] 配置 Rate Limiting
 
 ### 环境变量
@@ -983,7 +983,7 @@ ENVIRONMENT=production
 DEBUG=false
 LOG_LEVEL=WARNING
 
-# 使用强密钥
+# 使用强密�?
 JWT_SECRET=$(openssl rand -hex 32)
 SECRET_KEY=$(openssl rand -hex 32)
 SESSION_SECRET=$(openssl rand -hex 32)
@@ -1002,11 +1002,11 @@ SESSION_SECRET=$(openssl rand -hex 32)
 
 ### 常见问题
 
-1. 检查本文档的故障排查部分
+1. 检查本文档的故障排查部�?
 2. 查看后端日志
-3. 查看前端控制台
+3. 查看前端控制�?
 4. 检查数据库连接
 
 ---
 
-**🎉 安装完成！现在可以开始使用 AI Code Review Platform。**
+**🎉 安装完成！现在可以开始使�?AI Code Review Platform�?*

@@ -7,7 +7,6 @@ Use JSON-based serialization for all user-provided or external data.
 
 import json
 import logging
-import pickle
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -60,50 +59,24 @@ def deserialize_json(json_str: str) -> Any:
         raise ValueError(f"Cannot deserialize JSON: {e}") from e
 
 
-def serialize_pickle(data: Any) -> bytes:
+def serialize_pickle(_data: Any) -> bytes:
     """
-    Serialize data using pickle for complex Python objects.
+    Pickle serialization is intentionally disabled.
 
-    ⚠️  SECURITY WARNING: Only use for trusted data!
-    Pickle can execute arbitrary code during deserialization.
-    Never use pickle to deserialize untrusted data from users,
-    databases, or external sources.
-
-    Recommended alternatives:
-    - Use JSON with custom encoders for most data types
-    - Use msgpack or protobuf for binary serialization
+    Pickle can execute arbitrary code during deserialization, which is not safe
+    for any data that might be influenced by users or external systems.
     """
-    logger.warning("Using pickle serialization. Ensure data is from a trusted source.")
-    try:
-        return pickle.dumps(data)
-    except (TypeError, pickle.PickleError) as e:
-        raise ValueError(f"Cannot serialize data with pickle: {e}") from e
+    raise ValueError("Pickle serialization is disabled for security reasons. Use JSON instead.")
 
 
-def deserialize_pickle(data: bytes) -> Any:
+def deserialize_pickle(_data: bytes) -> Any:
     """
-    Deserialize pickle data.
+    Pickle deserialization is intentionally disabled.
 
-    ⚠️  SECURITY WARNING: Only use for trusted data!
-    Pickle deserialization can execute arbitrary code.
-
-    Only deserialize pickled data that:
-    1. Comes from your own application
-    2. Is stored in a controlled, secure location
-    3. Has not been tampered with
-
-    Never deserialize:
-    - User-provided pickled data
-    - Data from untrusted sources
-    - Data from the internet
+    Pickle can execute arbitrary code during deserialization, which is not safe
+    for any data that might be influenced by users or external systems.
     """
-    logger.warning("Deserializing pickle data. Ensure data is from a trusted source.")
-    try:
-        # Use pickle.loads() with default protocol for backward compatibility
-        # Consider adding integrity checks (HMAC) for production use
-        return pickle.loads(data)
-    except (TypeError, pickle.UnpicklingError) as e:
-        raise ValueError(f"Cannot deserialize pickle data: {e}") from e
+    raise ValueError("Pickle deserialization is disabled for security reasons. Use JSON instead.")
 
 
 def compress_json(data: Any) -> bytes:

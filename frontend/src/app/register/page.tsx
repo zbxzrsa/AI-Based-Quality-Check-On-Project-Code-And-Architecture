@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useForm, Controller } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import Link from 'next/link'
@@ -11,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Check, X, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -36,16 +34,13 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const { register: registerUser, loading } = useAuth()
-  const [passwordStrength, setPasswordStrength] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
-    watch,
     control,
     formState: { errors },
   } = useForm<RegisterFormData>({
@@ -55,7 +50,11 @@ export default function RegisterPage() {
     },
   })
 
-  const password = watch('password', '')
+  const password = useWatch({
+    control,
+    name: 'password',
+    defaultValue: '',
+  })
 
   // Calculate password strength
   const calculatePasswordStrength = (pwd: string) => {
@@ -69,10 +68,7 @@ export default function RegisterPage() {
     return Math.min(strength, 100)
   }
 
-  // Update password strength when password changes
-  useEffect(() => {
-    setPasswordStrength(calculatePasswordStrength(password))
-  }, [password])
+  const passwordStrength = calculatePasswordStrength(password)
 
   const getPasswordStrengthText = () => {
     if (passwordStrength < 40) return 'Weak'
@@ -96,8 +92,10 @@ export default function RegisterPage() {
         description: 'Welcome! Redirecting to dashboard...',
       })
       // Navigation is handled by AuthContext after auto-login
-    } catch (err: any) {
-      const errorMessage = err.message || 'An error occurred during registration'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error
+        ? err.message
+        : 'An error occurred during registration'
       setError(errorMessage)
       toast({
         variant: 'destructive',

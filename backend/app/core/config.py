@@ -121,7 +121,7 @@ class Settings(BaseSettings):
 
     @field_validator("POSTGRES_PASSWORD", mode="before")
     @classmethod
-    def validate_postgres_password(cls, v):
+    def normalize_postgres_password(cls, v):
         """确保PostgreSQL密码不包含特殊字符导致连接问题"""
         if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             # 如果密码包含特殊字符，使用简化版本
@@ -130,7 +130,7 @@ class Settings(BaseSettings):
 
     @field_validator("REDIS_PASSWORD", mode="before")
     @classmethod
-    def validate_redis_password(cls, v):
+    def normalize_redis_password(cls, v):
         """确保Redis密码简单可靠"""
         if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             return "redis123"
@@ -138,7 +138,7 @@ class Settings(BaseSettings):
 
     @field_validator("NEO4J_PASSWORD", mode="before")
     @classmethod
-    def validate_neo4j_password(cls, v):
+    def normalize_neo4j_password(cls, v):
         """确保Neo4j密码简单可靠"""
         if v and any(char in v for char in ["%", "$", "^", "&", "#", "@", "!", "*"]):
             return "neo4j123"
@@ -234,7 +234,7 @@ class Settings(BaseSettings):
 
     @field_validator("POSTGRES_PASSWORD", mode="after")
     @classmethod
-    def validate_postgres_password(cls, v: str) -> str:  # noqa: F811
+    def ensure_postgres_password_non_empty(cls, v: str) -> str:
         """Validate POSTGRES_PASSWORD is non-empty (Requirement 1.3)"""
         # Only validate if not in testing mode
         if not os.environ.get("TESTING"):
@@ -244,7 +244,7 @@ class Settings(BaseSettings):
 
     @field_validator("NEO4J_PASSWORD", mode="after")
     @classmethod
-    def validate_neo4j_password(cls, v: str) -> str:  # noqa: F811
+    def ensure_neo4j_password_non_empty(cls, v: str) -> str:
         """Validate NEO4J_PASSWORD is non-empty (Requirement 1.3)"""
         # Only validate if not in testing mode
         if not os.environ.get("TESTING"):
@@ -403,7 +403,7 @@ class Settings(BaseSettings):
 
         return errors
 
-    def validate_celery_config(self) -> list[str]:  # noqa: F811
+    def get_celery_config_validation_errors(self) -> list[str]:
         """
         Validate Celery configuration.
 

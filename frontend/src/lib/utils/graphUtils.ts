@@ -6,7 +6,7 @@ export interface Neo4jNode {
   id: number | string;
   type: string;
   name: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 export interface Neo4jEdge {
@@ -19,14 +19,18 @@ export interface Neo4jEdge {
 export interface GraphData {
   nodes: Neo4jNode[];
   links: Neo4jEdge[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+}
+
+interface HierarchyNode extends Neo4jNode {
+  children: HierarchyNode[];
 }
 
 /**
  * Transform Neo4j graph data to React Flow format
  */
 export function transformToReactFlow(graphData: GraphData) {
-  const nodes = graphData.nodes.map((node, index) => {
+  const nodes = graphData.nodes.map((node) => {
     // Calculate importance based on connections
     const inDegree = graphData.links.filter((link) => link.target === node.id).length;
     const outDegree = graphData.links.filter((link) => link.source === node.id).length;
@@ -140,7 +144,9 @@ export function calculateCentrality(graphData: GraphData) {
  * Build hierarchical tree structure from flat graph data
  */
 export function buildHierarchyTree(graphData: GraphData, rootId?: string) {
-  const nodeMap = new Map(graphData.nodes.map((node) => [String(node.id), { ...node, children: [] as any[] }]));
+  const nodeMap = new Map<string, HierarchyNode>(
+    graphData.nodes.map((node) => [String(node.id), { ...node, children: [] }])
+  );
 
   // Find containment relationships (CONTAINS edges)
   graphData.links

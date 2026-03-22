@@ -6,13 +6,13 @@ This document describes the 5 role types implemented in the system and their res
 
 ```
 ADMIN (Full Control)
-  ‚Üì
+  ‚Ü?
 MANAGER (Project Oversight & ROI)
-  ‚Üì
+  ‚Ü?
 REVIEWER (Read/Write Analysis)
-  ‚Üì
+  ‚Ü?
 PROGRAMMER (CRUD Own Branch)
-  ‚Üì
+  ‚Ü?
 VISITOR (Read-Only)
 ```
 
@@ -22,17 +22,17 @@ VISITOR (Read-Only)
 **Description:** System administrators with complete access to all features and data.
 
 **Permissions:**
-- ‚úÖ CREATE_USER - Create new user accounts
-- ‚úÖ DELETE_USER - Delete user accounts
-- ‚úÖ UPDATE_USER - Modify user information
-- ‚úÖ VIEW_USER - View user details
-- ‚úÖ CREATE_PROJECT - Create new projects
-- ‚úÖ DELETE_PROJECT - Delete projects
-- ‚úÖ UPDATE_PROJECT - Modify project settings
-- ‚úÖ VIEW_PROJECT - View project details
-- ‚úÖ MODIFY_CONFIG - Modify system configuration
-- ‚úÖ VIEW_CONFIG - View system configuration
-- ‚úÖ EXPORT_REPORT - Export analysis reports
+- ‚ú?CREATE_USER - Create new user accounts
+- ‚ú?DELETE_USER - Delete user accounts
+- ‚ú?UPDATE_USER - Modify user information
+- ‚ú?VIEW_USER - View user details
+- ‚ú?CREATE_PROJECT - Create new projects
+- ‚ú?DELETE_PROJECT - Delete projects
+- ‚ú?UPDATE_PROJECT - Modify project settings
+- ‚ú?VIEW_PROJECT - View project details
+- ‚ú?MODIFY_CONFIG - Modify system configuration
+- ‚ú?VIEW_CONFIG - View system configuration
+- ‚ú?EXPORT_REPORT - Export analysis reports
 
 **Use Cases:**
 - System administration and maintenance
@@ -46,13 +46,13 @@ VISITOR (Read-Only)
 **Description:** Project managers who oversee projects and track ROI metrics.
 
 **Permissions:**
-- ‚úÖ VIEW_USER - View user details
-- ‚úÖ CREATE_PROJECT - Create new projects
-- ‚úÖ DELETE_PROJECT - Delete projects
-- ‚úÖ UPDATE_PROJECT - Modify project settings
-- ‚úÖ VIEW_PROJECT - View project details
-- ‚úÖ VIEW_CONFIG - View system configuration
-- ‚úÖ EXPORT_REPORT - Export analysis reports
+- ‚ú?VIEW_USER - View user details
+- ‚ú?CREATE_PROJECT - Create new projects
+- ‚ú?DELETE_PROJECT - Delete projects
+- ‚ú?UPDATE_PROJECT - Modify project settings
+- ‚ú?VIEW_PROJECT - View project details
+- ‚ú?VIEW_CONFIG - View system configuration
+- ‚ú?EXPORT_REPORT - Export analysis reports
 
 **Use Cases:**
 - Project portfolio management
@@ -66,10 +66,10 @@ VISITOR (Read-Only)
 **Description:** Code reviewers who can analyze code and provide feedback.
 
 **Permissions:**
-- ‚úÖ UPDATE_PROJECT - Modify project analysis settings
-- ‚úÖ VIEW_PROJECT - View project details
-- ‚úÖ VIEW_CONFIG - View system configuration
-- ‚úÖ EXPORT_REPORT - Export analysis reports
+- ‚ú?UPDATE_PROJECT - Modify project analysis settings
+- ‚ú?VIEW_PROJECT - View project details
+- ‚ú?VIEW_CONFIG - View system configuration
+- ‚ú?EXPORT_REPORT - Export analysis reports
 
 **Use Cases:**
 - Code quality review
@@ -83,11 +83,11 @@ VISITOR (Read-Only)
 **Description:** Developers who can create and manage their own projects/branches.
 
 **Permissions:**
-- ‚úÖ CREATE_PROJECT - Create new projects
-- ‚úÖ UPDATE_PROJECT - Modify own project settings
-- ‚úÖ VIEW_PROJECT - View project details
-- ‚úÖ VIEW_CONFIG - View system configuration
-- ‚úÖ EXPORT_REPORT - Export analysis reports
+- ‚ú?CREATE_PROJECT - Create new projects
+- ‚ú?UPDATE_PROJECT - Modify own project settings
+- ‚ú?VIEW_PROJECT - View project details
+- ‚ú?VIEW_CONFIG - View system configuration
+- ‚ú?EXPORT_REPORT - Export analysis reports
 
 **Use Cases:**
 - Creating personal or team projects
@@ -103,7 +103,7 @@ VISITOR (Read-Only)
 **Description:** External stakeholders with read-only access to specific projects.
 
 **Permissions:**
-- ‚úÖ VIEW_PROJECT - View project details (only for granted projects)
+- ‚ú?VIEW_PROJECT - View project details (only for granted projects)
 
 **Use Cases:**
 - Viewing project status
@@ -119,17 +119,17 @@ VISITOR (Read-Only)
 
 | Permission | ADMIN | MANAGER | REVIEWER | PROGRAMMER | VISITOR |
 |-----------|-------|---------|----------|------------|---------|
-| CREATE_USER | ‚úÖ | ‚ùå | ‚ùå | ‚ùå | ‚ùå |
-| DELETE_USER | ‚úÖ | ‚ùå | ‚ùå | ‚ùå | ‚ùå |
-| UPDATE_USER | ‚úÖ | ‚ùå | ‚ùå | ‚ùå | ‚ùå |
-| VIEW_USER | ‚úÖ | ‚úÖ | ‚ùå | ‚ùå | ‚ùå |
-| CREATE_PROJECT | ‚úÖ | ‚úÖ | ‚ùå | ‚úÖ | ‚ùå |
-| DELETE_PROJECT | ‚úÖ | ‚úÖ | ‚ùå | ‚ùå | ‚ùå |
-| UPDATE_PROJECT | ‚úÖ | ‚úÖ | ‚úÖ | ‚úÖ | ‚ùå |
-| VIEW_PROJECT | ‚úÖ | ‚úÖ | ‚úÖ | ‚úÖ | ‚úÖ |
-| MODIFY_CONFIG | ‚úÖ | ‚ùå | ‚ùå | ‚ùå | ‚ùå |
-| VIEW_CONFIG | ‚úÖ | ‚úÖ | ‚úÖ | ‚úÖ | ‚ùå |
-| EXPORT_REPORT | ‚úÖ | ‚úÖ | ‚úÖ | ‚úÖ | ‚ùå |
+| CREATE_USER | ‚ú?| ‚ù?| ‚ù?| ‚ù?| ‚ù?|
+| DELETE_USER | ‚ú?| ‚ù?| ‚ù?| ‚ù?| ‚ù?|
+| UPDATE_USER | ‚ú?| ‚ù?| ‚ù?| ‚ù?| ‚ù?|
+| VIEW_USER | ‚ú?| ‚ú?| ‚ù?| ‚ù?| ‚ù?|
+| CREATE_PROJECT | ‚ú?| ‚ú?| ‚ù?| ‚ú?| ‚ù?|
+| DELETE_PROJECT | ‚ú?| ‚ú?| ‚ù?| ‚ù?| ‚ù?|
+| UPDATE_PROJECT | ‚ú?| ‚ú?| ‚ú?| ‚ú?| ‚ù?|
+| VIEW_PROJECT | ‚ú?| ‚ú?| ‚ú?| ‚ú?| ‚ú?|
+| MODIFY_CONFIG | ‚ú?| ‚ù?| ‚ù?| ‚ù?| ‚ù?|
+| VIEW_CONFIG | ‚ú?| ‚ú?| ‚ú?| ‚ú?| ‚ù?|
+| EXPORT_REPORT | ‚ú?| ‚ú?| ‚ú?| ‚ú?| ‚ù?|
 
 ## Default Test Accounts
 
@@ -137,11 +137,11 @@ The system includes 5 default test accounts (one for each role):
 
 | Username | Password | Role | User ID |
 |----------|----------|------|---------|
-| admin | Admin123! | ADMIN | admin-0000-0000-0000-000000000001 |
-| manager | Admin123! | MANAGER | mngr-0000-0000-0000-000000000002 |
-| reviewer | Admin123! | REVIEWER | revw-0000-0000-0000-000000000003 |
-| programmer | Admin123! | PROGRAMMER | prog-0000-0000-0000-000000000004 |
-| visitor | Admin123! | VISITOR | visit-0000-0000-0000-000000000005 |
+| admin | change-me-strong-password | ADMIN | admin-0000-0000-0000-000000000001 |
+| manager | change-me-strong-password | MANAGER | mngr-0000-0000-0000-000000000002 |
+| reviewer | change-me-strong-password | REVIEWER | revw-0000-0000-0000-000000000003 |
+| programmer | change-me-strong-password | PROGRAMMER | prog-0000-0000-0000-000000000004 |
+| visitor | change-me-strong-password | VISITOR | visit-0000-0000-0000-000000000005 |
 
 ‚ö†Ô∏è **Security Warning:** Change these default passwords immediately in production environments!
 

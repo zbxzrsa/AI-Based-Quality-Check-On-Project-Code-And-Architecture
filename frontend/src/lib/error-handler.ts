@@ -252,7 +252,7 @@ export class ErrorHandler {
   private static sendToMonitoring(logData: Record<string, unknown>): void {
     // TODO: Integrate with monitoring service (Sentry, DataDog, etc.)
     // Example: Sentry.captureException(logData);
-    console.log('[Monitoring] Error logged:', logData);
+    console.warn('[Monitoring] Error logged:', logData);
   }
 
   /**
@@ -374,7 +374,7 @@ export class ErrorHandler {
           
           // Wait before retrying (exponential backoff)
           const delay = delayMs * Math.pow(2, attempt);
-          console.log(`[Error Handler] Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          console.warn(`[Error Handler] Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }

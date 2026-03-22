@@ -46,6 +46,13 @@ interface ProjectPullRequestsResponse {
     status: string;
     risk_score: number | null;
     created_at: string;
+    description?: string | null;
+    branch_name?: string | null;
+    commit_sha?: string | null;
+    files_changed?: number;
+    lines_added?: number;
+    lines_deleted?: number;
+    analyzed_at?: string | null;
   }>;
 }
 
@@ -155,16 +162,16 @@ export function useProjectPullRequests(projectId: string, state: string = 'all')
         project_id: response.project_id,
         github_pr_number: pr.number,
         title: pr.title,
-        description: null,
-        branch_name: 'unknown',
-        commit_sha: '',
+        description: pr.description ?? null,
+        branch_name: pr.branch_name ?? 'unknown',
+        commit_sha: pr.commit_sha ?? '',
         status: pr.status,
         risk_score: pr.risk_score,
-        files_changed: 0,
-        lines_added: 0,
-        lines_deleted: 0,
+        files_changed: pr.files_changed ?? 0,
+        lines_added: pr.lines_added ?? 0,
+        lines_deleted: pr.lines_deleted ?? 0,
         created_at: pr.created_at,
-        analyzed_at: null,
+        analyzed_at: pr.analyzed_at ?? null,
       })) satisfies PullRequest[];
     },
     enabled: !!projectId,
@@ -194,8 +201,25 @@ export function useSyncProject() {
     mutationFn: async (projectId: string) => {
       return apiClient.post(`/github/projects/${projectId}/sync`);
     },
-    onSuccess: (_, projectId) => {
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['architecture'], exact: false });
+    },
+  });
+}
+
+export function useAnalyzePullRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ prId, projectId: _projectId }: { prId: string; projectId: string }) => {
+      return apiClient.post(`/github/pr/${prId}/analyze`);
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'pulls'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'analytics'] });
     },
   });
 }

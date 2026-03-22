@@ -158,6 +158,7 @@ export default function PullRequestReviewPage() {
   const [reviewData, setReviewData] = useState<PullRequestReviewData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isQueueing, setIsQueueing] = useState(false);
   const [commentFilters, setCommentFilters] = useState<CommentFilters>({
     severity: [],
     category: [],
@@ -184,33 +185,37 @@ export default function PullRequestReviewPage() {
           fetch(`/api/github/pulls/${prId}/files`, { credentials: 'include' }),
         ]);
 
-        if (!reviewResponse.ok) {
-          const reviewError = await reviewResponse.json().catch(() => ({ detail: 'Failed to load review' }));
-          throw new Error(reviewError.detail || 'Failed to load review');
-        }
-
         if (!filesResponse.ok) {
           const filesError = await filesResponse.json().catch(() => ({ detail: 'Failed to load pull request files' }));
           throw new Error(filesError.detail || 'Failed to load pull request files');
         }
-
-        const review = (await reviewResponse.json()) as ReviewApiResponse;
         const files = (await filesResponse.json()) as PullFilesApiResponse;
+
+        let review: ReviewApiResponse | null = null;
+        if (reviewResponse.ok) {
+          review = (await reviewResponse.json()) as ReviewApiResponse;
+        } else if (reviewResponse.status !== 404) {
+          const reviewError = await reviewResponse.json().catch(() => ({ detail: 'Failed to load review' }));
+          throw new Error(reviewError.detail || 'Failed to load review');
+        }
 
         if (cancelled) {
           return;
         }
 
         setReviewData({
-          reviewId: review.review_id,
+          reviewId: review?.review_id || `pending-${prId}`,
           prId,
           prNumber: files.pr_number,
-          status: review.status,
-          startedAt: review.started_at,
-          completedAt: review.completed_at,
-          summary: review.summary || null,
+          status: review?.status || 'pending',
+          startedAt: review?.started_at || null,
+          completedAt: review?.completed_at || null,
+          summary: review?.summary || {
+            total_issues: 0,
+            severity_counts: {},
+          },
           files: files.files,
-          comments: formatReviewComments(review.comments),
+          comments: formatReviewComments(review?.comments || []),
         });
       } catch (loadError) {
         if (!cancelled) {
@@ -311,6 +316,41 @@ export default function PullRequestReviewPage() {
     setCommentStatuses((current) => ({ ...current, [commentId]: status }));
   };
 
+  const queueAnalysis = async () => {
+    if (!prId || isQueueing) {
+      return;
+    }
+
+    setIsQueueing(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/github/pr/${prId}/analyze`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const analysisError = await response.json().catch(() => ({ detail: 'Failed to queue analysis' }));
+        throw new Error(analysisError.detail || 'Failed to queue analysis');
+      }
+
+      setReviewData((current) =>
+        current
+          ? {
+              ...current,
+              status: 'in_progress',
+              startedAt: current.startedAt || new Date().toISOString(),
+            }
+          : current
+      );
+    } catch (queueError) {
+      setError(queueError instanceof Error ? queueError.message : 'Failed to queue analysis');
+    } finally {
+      setIsQueueing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -379,6 +419,11 @@ export default function PullRequestReviewPage() {
               {reviewData.status.replace('_', ' ')}
             </Badge>
             <Badge variant="outline">Review ID {reviewData.reviewId}</Badge>
+            {(reviewData.status === 'pending' || reviewData.status === 'failed') && (
+              <Button onClick={queueAnalysis} disabled={isQueueing}>
+                {isQueueing ? 'Queueing analysis...' : 'Analyze Now'}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => router.back()}>
               Back
             </Button>

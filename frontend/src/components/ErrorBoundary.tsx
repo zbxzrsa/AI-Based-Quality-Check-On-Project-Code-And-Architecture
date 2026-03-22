@@ -187,7 +187,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 marginBottom: '24px',
               }}
             >
-              We're sorry, but something unexpected happened. The error has been reported to our team.
+              We&apos;re sorry, but something unexpected happened. The error has been reported to our team.
             </p>
 
             {process.env.NODE_ENV === 'development' && (

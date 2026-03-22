@@ -56,7 +56,7 @@ First, you need to register and login to get a token:
      ```json
      {
        "email": "your.email@example.com",
-       "password": "SecurePassword123!",
+       "password": "your-strong-password",
        "full_name": "Your Name"
      }
      ```
@@ -69,7 +69,7 @@ First, you need to register and login to get a token:
      ```json
      {
        "email": "your.email@example.com",
-       "password": "SecurePassword123!"
+       "password": "your-strong-password"
      }
      ```
    - Click "Execute"
@@ -108,7 +108,7 @@ curl -X POST "http://localhost:8000/api/v1/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
-    "password": "SecurePassword123!",
+    "password": "your-strong-password",
     "full_name": "John Doe"
   }'
 
@@ -117,7 +117,7 @@ curl -X POST "http://localhost:8000/api/v1/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
-    "password": "SecurePassword123!"
+    "password": "your-strong-password"
   }'
 
 # Response will include:

@@ -4,7 +4,7 @@
  * Displays detailed view of a pull request with code diff
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { PullRequest } from '../types/pullRequest';
 import { ApprovalActions } from './ApprovalActions';
@@ -131,6 +131,7 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
           <div style={styles.reviewersList}>
             {pullRequest.reviewers.map((reviewer) => (
               <div key={reviewer.id} style={styles.reviewer}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={reviewer.avatar || '/default-avatar.png'}
                   alt={reviewer.name}
@@ -147,6 +148,7 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
           <div style={styles.approvalsList}>
             {pullRequest.approvers.map((approver, index) => (
               <div key={index} style={styles.approval}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={approver.user.avatar || '/default-avatar.png'}
                   alt={approver.user.name}
@@ -193,6 +195,7 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
           {pullRequest.comments.map((comment) => (
             <div key={comment.id} style={styles.comment}>
               <div style={styles.commentHeader}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={getCommentAuthorAvatar(comment.author)}
                   alt={getCommentAuthorName(comment.author)}

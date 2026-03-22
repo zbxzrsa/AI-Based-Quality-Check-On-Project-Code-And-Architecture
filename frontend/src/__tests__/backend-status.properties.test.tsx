@@ -36,7 +36,7 @@ describe('Backend Status Hook - Property Tests', () => {
       <BackendStatusProvider>{children}</BackendStatusProvider>
     );
 
-    const { result } = renderHook(() => useBackendStatusContext(), { wrapper });
+    renderHook(() => useBackendStatusContext(), { wrapper });
 
     // Wait for the health check to complete
     await waitFor(() => {
@@ -70,7 +70,7 @@ describe('Backend Status Hook - Property Tests', () => {
       <BackendStatusProvider>{children}</BackendStatusProvider>
     );
 
-    const { result } = renderHook(() => useBackendStatusContext(), { wrapper });
+    renderHook(() => useBackendStatusContext(), { wrapper });
 
     // Wait for initial check
     await waitFor(() => {
@@ -110,7 +110,7 @@ describe('Backend Status Hook - Property Tests', () => {
       <BackendStatusProvider>{children}</BackendStatusProvider>
     );
 
-    const { result } = renderHook(() => useBackendStatusContext(), { wrapper });
+    renderHook(() => useBackendStatusContext(), { wrapper });
 
     // Wait for initial check
     await waitFor(() => {

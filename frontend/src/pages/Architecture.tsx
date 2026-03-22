@@ -30,7 +30,6 @@ import ReactFlow, {
   NodeTypes,
   MarkerType,
   Panel,
-  useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
 import { toPng, toSvg } from 'html-to-image';
@@ -627,6 +626,11 @@ function ArchitectureInner({
         />
         <Panel position="top-left" className="bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-lg">
           <h2 className="text-lg font-semibold mb-2">Architecture Visualization</h2>
+          {exportError && (
+            <p className="mb-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+              {exportError}
+            </p>
+          )}
           {selectedNodeId && (
             <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-950/50 rounded border border-blue-200 dark:border-blue-800">
               <p className="text-xs text-blue-700 dark:text-blue-300">

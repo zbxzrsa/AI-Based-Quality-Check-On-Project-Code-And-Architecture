@@ -94,7 +94,7 @@ class Neo4jWithCircuitBreaker:
         import hashlib
 
         cache_key_str = f"neo4j:read:{query}:{str(parameters)}"
-        cache_key = f"neo4j:read:{hashlib.md5(cache_key_str.encode()).hexdigest()}"
+        cache_key = f"neo4j:read:{hashlib.sha256(cache_key_str.encode()).hexdigest()}"
 
         async def _execute():
             driver = await get_neo4j_driver()

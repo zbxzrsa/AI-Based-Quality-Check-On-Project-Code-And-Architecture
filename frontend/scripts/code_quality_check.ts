@@ -3,8 +3,6 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-type CommandResult = { stdout: string; stderr: string; code: number };
-
 type CommandError = {
   stdout?: string;
   stderr?: string;
@@ -23,7 +21,11 @@ function runCommand(command: string, cwd: string): { stdout: string; stderr: str
     return { stdout, stderr: '', code: 0 };
   } catch (error: unknown) {
     const commandError = error as CommandError;
-    return { stdout: error.stdout || '', stderr: error.stderr || '', code: error.status || 1 };
+    return {
+      stdout: commandError.stdout || '',
+      stderr: commandError.stderr || '',
+      code: commandError.status || 1,
+    };
   }
 }
 

@@ -30,7 +30,7 @@ router = APIRouter()
 
 def _request_ip(request: Request) -> str:
     """Extract client IP from request safely."""
-    return request.client.host if request.client else "0.0.0.0"
+    return request.client.host if request.client else "unknown"
 
 
 # Request/Response Models

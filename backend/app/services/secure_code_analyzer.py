@@ -484,15 +484,15 @@ class LargeClass:
     analyzer = SecureCodeAnalyzer()
     result = analyzer.analyze_code(test_code, "test_file.py")
 
-    logger.info("Analysis completed in {result.analysis_time:.2f} seconds")
-    logger.info("Found {len(result.issues)} issues:")
-    logger.info("Complexity score: {result.complexity_score}")
-    logger.info("Functions: {result.functions_count}, Classes: {result.classes_count}")
+    logger.info(f"Analysis completed in {result.analysis_time:.2f} seconds")
+    logger.info(f"Found {len(result.issues)} issues:")
+    logger.info(f"Complexity score: {result.complexity_score}")
+    logger.info(f"Functions: {result.functions_count}, Classes: {result.classes_count}")
 
     for issue in result.issues:
-        logger.info("[{issue.severity.value.upper()}] {issue.issue_type}: {issue.description}")
+        logger.info(f"[{issue.severity.value.upper()}] {issue.issue_type}: {issue.description}")
         if issue.suggestion:
-            logger.info("  Suggestion: {issue.suggestion}")
+            logger.info(f"  Suggestion: {issue.suggestion}")
         logger.info()
 
 

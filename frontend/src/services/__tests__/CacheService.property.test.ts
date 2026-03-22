@@ -1,6 +1,19 @@
 import * as fc from 'fast-check';
 import { CacheService } from '../CacheService';
 
+type CacheValue = unknown;
+
+interface CacheEntryRecord {
+  key: string;
+  data: CacheValue;
+}
+
+interface CacheOperation {
+  operation: 'set' | 'get';
+  key: string;
+  data: CacheValue;
+}
+
 describe('Property 24: GETrequestcache', () => {
   describe('cache基本property', () => {
     it('对于任何键value对，set后立即getshouldreturn相同的data', () => {
@@ -8,7 +21,7 @@ describe('Property 24: GETrequestcache', () => {
         fc.property(
           fc.string({ minLength: 1 }),
           fc.anything(),
-          (key: string, data: any) => {
+          (key: string, data: CacheValue) => {
             const cache = new CacheService();
             cache.set(key, data);
             const retrieved = cache.get(key);
@@ -25,7 +38,7 @@ describe('Property 24: GETrequestcache', () => {
           fc.string({ minLength: 1 }),
           fc.anything(),
           fc.integer({ min: 1, max: 10 }),
-          (key: string, data: any, repeatCount: number) => {
+          (key: string, data: CacheValue, repeatCount: number) => {
             const cache = new CacheService(5 * 60 * 1000);
             cache.set(key, data);
             for (let i = 0; i < repeatCount; i++) {
@@ -45,7 +58,7 @@ describe('Property 24: GETrequestcache', () => {
           fc.string({ minLength: 1 }),
           fc.anything(),
           fc.integer({ min: 50, max: 200 }),
-          async (key: string, data: any, ttl: number) => {
+          async (key: string, data: CacheValue, ttl: number) => {
             const cache = new CacheService();
             cache.set(key, data, ttl);
             await new Promise(resolve => setTimeout(resolve, ttl + 50));
@@ -69,7 +82,7 @@ describe('Property 24: GETrequestcache', () => {
             }),
             { minLength: 2, maxLength: 20 }
           ),
-          (entries: Array<{ key: string; data: any }>) => {
+          (entries: CacheEntryRecord[]) => {
             const cache = new CacheService();
             const uniqueEntries = new Map(entries.map(e => [e.key, e.data]));
             uniqueEntries.forEach((data, key) => {
@@ -98,7 +111,7 @@ describe('Property 24: GETrequestcache', () => {
             }),
             { minLength: 1, maxLength: 50 }
           ),
-          (operations: Array<{ operation: 'set' | 'get'; key: string; data: any }>) => {
+          (operations: CacheOperation[]) => {
             const cache = new CacheService();
             let expectedGets = 0;
             operations.forEach(op => {
@@ -128,7 +141,7 @@ describe('Property 24: GETrequestcache', () => {
             }),
             { minLength: 1, maxLength: 50 }
           ),
-          (operations: Array<{ operation: 'set' | 'get'; key: string; data: any }>) => {
+          (operations: CacheOperation[]) => {
             const cache = new CacheService();
             operations.forEach(op => {
               if (op.operation === 'set') {
@@ -158,7 +171,7 @@ describe('Property 24: GETrequestcache', () => {
             }),
             { minLength: 1, maxLength: 30 }
           ),
-          (entries: Array<{ key: string; data: any }>) => {
+          (entries: CacheEntryRecord[]) => {
             const cache = new CacheService();
             entries.forEach(({ key, data }) => {
               cache.set(key, data);
@@ -187,7 +200,7 @@ describe('Property 24: GETrequestcache', () => {
             }),
             { minLength: 1, maxLength: 20 }
           ),
-          (pattern: string, entries: Array<{ key: string; data: any }>) => {
+          (pattern: string, entries: CacheEntryRecord[]) => {
             const cache = new CacheService();
             const uniqueEntries = new Map(entries.map(e => [e.key, e.data]));
             uniqueEntries.forEach((data, key) => {

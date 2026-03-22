@@ -19,6 +19,21 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>
 
+function getAxiosErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string' && detail.length > 0) {
+      return detail
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
+}
+
 export default function ForgotPasswordPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -46,11 +61,11 @@ export default function ForgotPasswordPage() {
         title: 'Email Sent',
         description: 'Check your email for password reset instructions',
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.response?.data?.detail || 'Failed to send reset email',
+        description: getAxiosErrorMessage(error, 'Failed to send reset email'),
       })
     } finally {
       setIsLoading(false)
@@ -69,13 +84,13 @@ export default function ForgotPasswordPage() {
             </div>
             <CardTitle className="text-2xl text-center">Check your email</CardTitle>
             <CardDescription className="text-center">
-              We've sent password reset instructions to
+              We&apos;ve sent password reset instructions to
             </CardDescription>
             <p className="text-center font-medium">{getValues('email')}</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Didn't receive the email? Check your spam folder or try again.
+              Didn&apos;t receive the email? Check your spam folder or try again.
             </p>
             <Button
               variant="outline"
@@ -109,7 +124,7 @@ export default function ForgotPasswordPage() {
           </div>
           <CardTitle className="text-2xl text-center">Forgot password?</CardTitle>
           <CardDescription className="text-center">
-            Enter your email address and we'll send you instructions to reset your password
+            Enter your email address and we&apos;ll send you instructions to reset your password
           </CardDescription>
         </CardHeader>
         <CardContent>

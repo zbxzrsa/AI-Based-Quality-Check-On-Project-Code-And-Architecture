@@ -82,12 +82,12 @@ def get_client_ip(request: Request) -> str:
         request: FastAPI request object
 
     Returns:
-        Client IP address or "0.0.0.0" if unavailable
+        Client IP address or "unknown" if unavailable
     """
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "0.0.0.0"
+    return request.client.host if request.client else "unknown"
 
 
 def get_user_agent(request: Request) -> str:
