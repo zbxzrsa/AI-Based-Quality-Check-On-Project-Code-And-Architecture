@@ -3,7 +3,7 @@
 
 # Stage 1: Builder
 # Use Python 3.11 slim-bookworm image for better compatibility
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 # Set working directory
 WORKDIR /build
@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Stage 2: Runtime
 # Use Python 3.11 slim-bookworm for compatibility with pydantic-core
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 # Set working directory
 WORKDIR /app
