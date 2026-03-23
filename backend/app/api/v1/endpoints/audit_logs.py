@@ -5,21 +5,19 @@ This module provides REST API endpoints for querying and exporting audit logs.
 
 Validates Requirements: 15.6, 15.7
 """
-
-import io
-import logging
-import uuid
+from typing import Optional, List
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel, Field
+import uuid
+import io
+import logging
 
-from app.api.dependencies import get_current_user
 from app.database.postgresql import get_db
-from app.services.audit_logging_service import AuditEventType, AuditLoggingService
-from app.services.audit_logging_service import AuditLogEntry as AuditLogModel
+from app.services.audit_logging_service import AuditLoggingService, AuditEventType, AuditLogEntry as AuditLogModel
+from app.api.dependencies import get_current_user
 
 router = APIRouter(tags=["audit-logs"])
 
@@ -31,89 +29,82 @@ logger = logging.getLogger(__name__)
 # Request/Response Models
 # ========================================
 
-
 class AuditLogQueryParams(BaseModel):
     """Query parameters for audit log search"""
-
-    user_id: str | None = Field(None, description="Filter by user ID")
-    user_email: str | None = Field(None, description="Filter by user email")
-    event_type: str | None = Field(None, description="Filter by event type")
-    event_category: str | None = Field(None, description="Filter by category (auth, authz, data, admin)")
-    action: str | None = Field(None, description="Filter by action")
-    resource_type: str | None = Field(None, description="Filter by resource type")
-    resource_id: str | None = Field(None, description="Filter by resource ID")
-    ip_address: str | None = Field(None, description="Filter by IP address")
-    success: bool | None = Field(None, description="Filter by success status")
-    start_date: datetime | None = Field(None, description="Filter by start date (ISO 8601)")
-    end_date: datetime | None = Field(None, description="Filter by end date (ISO 8601)")
+    user_id: Optional[str] = Field(None, description="Filter by user ID")
+    user_email: Optional[str] = Field(None, description="Filter by user email")
+    event_type: Optional[str] = Field(None, description="Filter by event type")
+    event_category: Optional[str] = Field(None, description="Filter by category (auth, authz, data, admin)")
+    action: Optional[str] = Field(None, description="Filter by action")
+    resource_type: Optional[str] = Field(None, description="Filter by resource type")
+    resource_id: Optional[str] = Field(None, description="Filter by resource ID")
+    ip_address: Optional[str] = Field(None, description="Filter by IP address")
+    success: Optional[bool] = Field(None, description="Filter by success status")
+    start_date: Optional[datetime] = Field(None, description="Filter by start date (ISO 8601)")
+    end_date: Optional[datetime] = Field(None, description="Filter by end date (ISO 8601)")
     limit: int = Field(100, ge=1, le=1000, description="Maximum number of results")
     offset: int = Field(0, ge=0, description="Offset for pagination")
 
 
 class AuditLogEntry(BaseModel):
     """Audit log entry response model"""
-
     id: str
     timestamp: str = ""
     event_type: str = "unknown"
     event_category: str = "unknown"
     severity: str = "info"
-    resource_type: str | None = None
-    resource_id: str | None = None
-    resource_name: str | None = None
-    user_id: str | None = None
-    user_email: str | None = None
-    user_role: str | None = None
-    ip_address: str | None = None
-    user_agent: str | None = None
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    resource_name: Optional[str] = None
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_role: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
     action: str = "unknown"
     description: str = ""
     success: bool = True
-    error_message: str | None = None
-    previous_state: dict | None = None
-    new_state: dict | None = None
-    changes: dict | None = None
-    metadata: dict | None = None
+    error_message: Optional[str] = None
+    previous_state: Optional[dict] = None
+    new_state: Optional[dict] = None
+    changes: Optional[dict] = None
+    metadata: Optional[dict] = None
 
 
 class AuditLogQueryResponse(BaseModel):
     """Response model for audit log queries"""
-
     total: int = Field(..., description="Total number of matching logs")
     limit: int = Field(..., description="Maximum results per page")
     offset: int = Field(..., description="Current offset")
-    items: list[AuditLogEntry] = Field(..., description="Audit log entries")
+    items: List[AuditLogEntry] = Field(..., description="Audit log entries")
 
 
 class AuditLogExportParams(BaseModel):
     """Parameters for audit log export"""
-
     format: str = Field("json", description="Export format (json or csv)")
-    user_id: str | None = None
-    user_email: str | None = None
-    event_type: str | None = None
-    event_category: str | None = None
-    action: str | None = None
-    resource_type: str | None = None
-    resource_id: str | None = None
-    start_date: datetime | None = None
-    end_date: datetime | None = None
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    event_type: Optional[str] = None
+    event_category: Optional[str] = None
+    action: Optional[str] = None
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
 
 
 class IntegrityVerificationResponse(BaseModel):
     """Response model for integrity verification"""
-
     total_logs: int
     verified: bool
     integrity_status: str
-    breaks: list[dict]
+    breaks: List[dict]
     verified_at: str
 
 
 # ========================================
 # API Endpoints
 # ========================================
-
 
 @router.get(
     "/",
@@ -122,17 +113,17 @@ class IntegrityVerificationResponse(BaseModel):
     description="Query audit logs with filtering by user, action, date range, and other criteria. Requires admin or compliance_officer role.",
 )
 async def query_audit_logs(
-    user_id: str | None = Query(None, description="Filter by user ID"),
-    user_email: str | None = Query(None, description="Filter by user email"),
-    event_type: str | None = Query(None, description="Filter by event type"),
-    event_category: str | None = Query(None, description="Filter by category (auth, authz, data, admin)"),
-    action: str | None = Query(None, description="Filter by action"),
-    resource_type: str | None = Query(None, description="Filter by resource type"),
-    resource_id: str | None = Query(None, description="Filter by resource ID"),
-    ip_address: str | None = Query(None, description="Filter by IP address"),
-    success: bool | None = Query(None, description="Filter by success status"),
-    start_date: datetime | None = Query(None, description="Filter by start date (ISO 8601)"),
-    end_date: datetime | None = Query(None, description="Filter by end date (ISO 8601)"),
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    user_email: Optional[str] = Query(None, description="Filter by user email"),
+    event_type: Optional[str] = Query(None, description="Filter by event type"),
+    event_category: Optional[str] = Query(None, description="Filter by category (auth, authz, data, admin)"),
+    action: Optional[str] = Query(None, description="Filter by action"),
+    resource_type: Optional[str] = Query(None, description="Filter by resource type"),
+    resource_id: Optional[str] = Query(None, description="Filter by resource ID"),
+    ip_address: Optional[str] = Query(None, description="Filter by IP address"),
+    success: Optional[bool] = Query(None, description="Filter by success status"),
+    start_date: Optional[datetime] = Query(None, description="Filter by start date (ISO 8601)"),
+    end_date: Optional[datetime] = Query(None, description="Filter by end date (ISO 8601)"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db),
@@ -140,9 +131,9 @@ async def query_audit_logs(
 ):
     """
     Query audit logs with filters
-
+    
     Validates Requirement: 15.6
-
+    
     This endpoint allows administrators and compliance officers to query
     audit logs with various filters including:
     - User (by ID or email)
@@ -152,16 +143,19 @@ async def query_audit_logs(
     - IP address
     - Success/failure status
     - Date range
-
+    
     Results are paginated and returned in reverse chronological order.
     """
     # Check authorization - only admin and compliance_officer can query audit logs
     if current_user.get("role") not in ["admin", "compliance_officer"]:
-        raise HTTPException(status_code=403, detail="Only administrators and compliance officers can query audit logs")
-
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators and compliance officers can query audit logs"
+        )
+    
     # Create audit logging service
     audit_service = AuditLoggingService(db)
-
+    
     # Convert user_id to UUID if provided
     user_id_uuid = None
     if user_id:
@@ -169,7 +163,7 @@ async def query_audit_logs(
             user_id_uuid = uuid.UUID(user_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format")
-
+    
     # Query logs
     result = await audit_service.query_logs(
         user_id=user_id_uuid,
@@ -186,7 +180,7 @@ async def query_audit_logs(
         limit=limit,
         offset=offset,
     )
-
+    
     return result
 
 
@@ -202,25 +196,31 @@ async def export_audit_logs(
 ):
     """
     Export audit logs for compliance reporting
-
+    
     Validates Requirement: 15.7
-
+    
     This endpoint allows administrators and compliance officers to export
     audit logs in JSON or CSV format for compliance reporting and analysis.
-
+    
     Supports the same filtering options as the query endpoint.
     """
     # Check authorization
     if current_user.get("role") not in ["admin", "compliance_officer"]:
-        raise HTTPException(status_code=403, detail="Only administrators and compliance officers can export audit logs")
-
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators and compliance officers can export audit logs"
+        )
+    
     # Validate format
     if export_params.format not in ["json", "csv"]:
-        raise HTTPException(status_code=400, detail="Invalid export format. Supported formats: json, csv")
-
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid export format. Supported formats: json, csv"
+        )
+    
     # Create audit logging service
     audit_service = AuditLoggingService(db)
-
+    
     # Convert user_id to UUID if provided
     user_id_uuid = None
     if export_params.user_id:
@@ -228,7 +228,7 @@ async def export_audit_logs(
             user_id_uuid = uuid.UUID(export_params.user_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format")
-
+    
     # Export logs
     exported_data = await audit_service.export_logs(
         format=export_params.format,
@@ -242,7 +242,7 @@ async def export_audit_logs(
         start_date=export_params.start_date,
         end_date=export_params.end_date,
     )
-
+    
     # Determine content type and filename
     if export_params.format == "json":
         media_type = "application/json"
@@ -250,12 +250,14 @@ async def export_audit_logs(
     else:  # csv
         media_type = "text/csv"
         filename = f"audit_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-
+    
     # Return as downloadable file
     return StreamingResponse(
         io.BytesIO(exported_data.encode()),
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
     )
 
 
@@ -271,31 +273,34 @@ async def verify_audit_log_integrity(
 ):
     """
     Verify integrity of audit trail hash chain
-
+    
     This endpoint verifies that:
     1. Each log entry's hash matches its computed hash
     2. Each log entry's previous_hash matches the previous entry's current_hash
-
+    
     Any breaks in the chain indicate potential tampering.
-
+    
     Only administrators can verify audit log integrity.
     """
     # Check authorization - only admin can verify integrity
     if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Only administrators can verify audit log integrity")
-
+        raise HTTPException(
+            status_code=403,
+            detail="Only administrators can verify audit log integrity"
+        )
+    
     # Create audit logging service
     audit_service = AuditLoggingService(db)
-
+    
     # Verify integrity
     result = await audit_service.verify_chain_integrity()
-
+    
     return result
 
 
 @router.get(
     "/event-types",
-    response_model=list[str],
+    response_model=List[str],
     summary="Get available event types",
     description="Get list of all available audit event types",
 )
@@ -304,16 +309,16 @@ async def get_event_types(
 ):
     """
     Get list of available audit event types
-
+    
     Returns all event type constants that can be used for filtering.
     """
     # Get all event type constants
     event_types = [
         getattr(AuditEventType, attr)
         for attr in dir(AuditEventType)
-        if not attr.startswith("_") and isinstance(getattr(AuditEventType, attr), str)
+        if not attr.startswith('_') and isinstance(getattr(AuditEventType, attr), str)
     ]
-
+    
     return sorted(event_types)
 
 
@@ -323,14 +328,14 @@ async def get_event_types(
     description="Get statistics about audit logs. Requires admin or compliance_officer role.",
 )
 async def get_audit_log_statistics(
-    start_date: datetime | None = Query(None, description="Start date for statistics"),
-    end_date: datetime | None = Query(None, description="End date for statistics"),
+    start_date: Optional[datetime] = Query(None, description="Start date for statistics"),
+    end_date: Optional[datetime] = Query(None, description="End date for statistics"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """
     Get audit log statistics
-
+    
     Returns statistics including:
     - Total number of logs
     - Logs by event category
@@ -341,61 +346,68 @@ async def get_audit_log_statistics(
     # Check authorization
     if current_user.get("role") not in ["admin", "compliance_officer"]:
         raise HTTPException(
-            status_code=403, detail="Only administrators and compliance officers can view audit log statistics"
+            status_code=403,
+            detail="Only administrators and compliance officers can view audit log statistics"
         )
-
+    
     from sqlalchemy import func, select
-
+    
     # Build base query with date filters
     filters = []
     if start_date:
         filters.append(AuditLogModel.timestamp >= start_date)
     if end_date:
         filters.append(AuditLogModel.timestamp <= end_date)
-
+    
     # Total logs
     total_query = select(func.count(AuditLogModel.id))
     if filters:
         total_query = total_query.where(*filters)
     total_result = await db.execute(total_query)
     total_logs = total_result.scalar()
-
+    
     # Logs by category
-    category_query = select(AuditLogModel.event_category, func.count(AuditLogModel.id).label("count")).group_by(
-        AuditLogModel.event_category
-    )
+    category_query = select(
+        AuditLogModel.event_category,
+        func.count(AuditLogModel.id).label('count')
+    ).group_by(AuditLogModel.event_category)
     if filters:
         category_query = category_query.where(*filters)
     category_result = await db.execute(category_query)
     logs_by_category = {row[0]: row[1] for row in category_result}
-
+    
     # Logs by success/failure
-    success_query = select(AuditLogModel.success, func.count(AuditLogModel.id).label("count")).group_by(
-        AuditLogModel.success
-    )
+    success_query = select(
+        AuditLogModel.success,
+        func.count(AuditLogModel.id).label('count')
+    ).group_by(AuditLogModel.success)
     if filters:
         success_query = success_query.where(*filters)
     success_result = await db.execute(success_query)
     logs_by_success = {row[0]: row[1] for row in success_result}
-
+    
     # Most active users (top 10)
-    users_query = select(AuditLogModel.user_email, func.count(AuditLogModel.id).label("count")).where(
-        AuditLogModel.user_email.isnot(None)
-    )
+    users_query = select(
+        AuditLogModel.user_email,
+        func.count(AuditLogModel.id).label('count')
+    ).where(AuditLogModel.user_email.isnot(None))
     if filters:
         users_query = users_query.where(*filters)
     users_query = users_query.group_by(AuditLogModel.user_email).order_by(func.count(AuditLogModel.id).desc()).limit(10)
     users_result = await db.execute(users_query)
     most_active_users = [{"email": row[0], "count": row[1]} for row in users_result]
-
+    
     # Most common actions (top 10)
-    actions_query = select(AuditLogModel.action, func.count(AuditLogModel.id).label("count"))
+    actions_query = select(
+        AuditLogModel.action,
+        func.count(AuditLogModel.id).label('count')
+    )
     if filters:
         actions_query = actions_query.where(*filters)
     actions_query = actions_query.group_by(AuditLogModel.action).order_by(func.count(AuditLogModel.id).desc()).limit(10)
     actions_result = await db.execute(actions_query)
     most_common_actions = [{"action": row[0], "count": row[1]} for row in actions_result]
-
+    
     return {
         "total_logs": total_logs,
         "logs_by_category": logs_by_category,
@@ -408,7 +420,7 @@ async def get_audit_log_statistics(
         "date_range": {
             "start": start_date.isoformat() if start_date else None,
             "end": end_date.isoformat() if end_date else None,
-        },
+        }
     }
 
 
@@ -416,21 +428,18 @@ async def get_audit_log_statistics(
 # Feature Flag Audit Endpoint
 # ========================================
 
-
 class FeatureFlagChangeLog(BaseModel):
     """Request model for feature flag change logging"""
-
     flag_name: str = Field(..., description="Name of the feature flag")
     old_value: bool = Field(..., description="Previous value of the flag")
     new_value: bool = Field(..., description="New value of the flag")
-    user_id: str | None = Field(None, description="User who made the change")
-    timestamp: datetime | None = Field(None, description="Timestamp of the change")
-    metadata: dict | None = Field(None, description="Additional metadata")
+    user_id: Optional[str] = Field(None, description="User who made the change")
+    timestamp: Optional[datetime] = Field(None, description="Timestamp of the change")
+    metadata: Optional[dict] = Field(None, description="Additional metadata")
 
 
 class FeatureFlagAuditResponse(BaseModel):
     """Response model for feature flag audit logging"""
-
     success: bool = Field(..., description="Whether the log was recorded successfully")
     log_id: str = Field(..., description="ID of the created audit log entry")
     message: str = Field(..., description="Status message")
@@ -481,20 +490,17 @@ async def log_feature_flag_change(
         timestamp = change_log.timestamp or datetime.now(timezone.utc)
 
         # Create audit logging service
-        from app.services.audit_logging_service import AuditEventType, AuditLoggingService
-
+        from app.services.audit_logging_service import AuditLoggingService, AuditEventType
         audit_service = AuditLoggingService(db)
 
         # Prepare metadata
         metadata = change_log.metadata or {}
-        metadata.update(
-            {
-                "flag_name": change_log.flag_name,
-                "old_value": change_log.old_value,
-                "new_value": change_log.new_value,
-                "changed_at": timestamp.isoformat(),
-            }
-        )
+        metadata.update({
+            "flag_name": change_log.flag_name,
+            "old_value": change_log.old_value,
+            "new_value": change_log.new_value,
+            "changed_at": timestamp.isoformat(),
+        })
 
         # Log the feature flag change
         log_id = await audit_service.log_event(
@@ -527,11 +533,13 @@ async def log_feature_flag_change(
                 "user_email": user_email,
                 "timestamp": timestamp.isoformat(),
                 "log_id": str(log_id),
-            },
+            }
         )
 
         return FeatureFlagAuditResponse(
-            success=True, log_id=str(log_id), message="Feature flag change logged successfully"
+            success=True,
+            log_id=str(log_id),
+            message=f"Feature flag change logged successfully"
         )
 
     except ValueError as e:
@@ -541,9 +549,12 @@ async def log_feature_flag_change(
             extra={
                 "error": str(e),
                 "flag_name": change_log.flag_name,
-            },
+            }
         )
-        raise HTTPException(status_code=400, detail=f"Invalid data: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid data: {str(e)}"
+        )
     except Exception as e:
         # Handle unexpected errors
         logger.error(
@@ -553,6 +564,10 @@ async def log_feature_flag_change(
                 "error_type": type(e).__name__,
                 "flag_name": change_log.flag_name,
             },
-            exc_info=True,
+            exc_info=True
         )
-        raise HTTPException(status_code=500, detail="Failed to log feature flag change")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to log feature flag change"
+        )
+

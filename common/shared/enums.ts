@@ -11,18 +11,13 @@
 
 export enum Role {
   ADMIN = 'ADMIN',                    // Full system control
-  USER = 'USER',                      // Default non-admin role
-  // Backward-compatible legacy values retained for payload/data compatibility
-  MANAGER = 'MANAGER',
-  REVIEWER = 'REVIEWER',
-  PROGRAMMER = 'PROGRAMMER',
-  DEVELOPER = 'DEVELOPER',
-  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',
-  VISITOR = 'VISITOR',
+  MANAGER = 'MANAGER',                // Project oversight & ROI
+  REVIEWER = 'REVIEWER',              // Read/Write analysis
+  PROGRAMMER = 'PROGRAMMER',          // CRUD own branch
+  DEVELOPER = 'DEVELOPER',            // Developer role (alias for PROGRAMMER)
+  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',  // Compliance officer
+  VISITOR = 'VISITOR',                // Read-only grants
 }
-
-export const toEffectiveRole = (role: Role | string): Role.ADMIN | Role.USER =>
-  role === Role.ADMIN ? Role.ADMIN : Role.USER;
 
 export enum Permission {
   // User Management

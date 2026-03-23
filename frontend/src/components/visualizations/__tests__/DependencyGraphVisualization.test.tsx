@@ -16,41 +16,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import DependencyGraphVisualization from '../DependencyGraphVisualization';
 
-interface MockGraphNode {
-  id: string;
-  data?: {
-    label?: string;
-  };
-}
-
-interface MockGraphEdge {
-  id: string;
-  source: string;
-  target: string;
-}
-
-interface MockReactFlowProps {
-  nodes?: MockGraphNode[];
-  edges?: MockGraphEdge[];
-  onNodeClick?: (_event: unknown, node: MockGraphNode) => void;
-}
-
-interface MockPanelProps {
-  children?: React.ReactNode;
-}
-
 // Mock ReactFlow
 jest.mock('reactflow', () => ({
   __esModule: true,
-  default: function MockReactFlow({
-    nodes,
-    edges,
-    onNodeClick,
-  }: MockReactFlowProps) {
+  default: function MockReactFlow({ nodes, edges, onNodeClick }: any) {
     return (
       <div data-testid="react-flow">
         <div data-testid="graph-nodes">
-          {nodes?.map((node) => (
+          {nodes?.map((node: any) => (
             <div
               key={node.id}
               data-testid={`node-${node.id}`}
@@ -61,7 +34,7 @@ jest.mock('reactflow', () => ({
           ))}
         </div>
         <div data-testid="graph-edges">
-          {edges?.map((edge) => (
+          {edges?.map((edge: any) => (
             <div key={edge.id} data-testid={`edge-${edge.id}`}>
               {edge.source} → {edge.target}
             </div>
@@ -72,12 +45,35 @@ jest.mock('reactflow', () => ({
   },
   Controls: () => <div data-testid="flow-controls" />,
   Background: () => <div data-testid="flow-background" />,
-  Panel: ({ children }: MockPanelProps) => <div data-testid="flow-panel">{children}</div>,
-  useNodesState: (initialNodes: MockGraphNode[]) => [initialNodes, jest.fn()],
-  useEdgesState: (initialEdges: MockGraphEdge[]) => [initialEdges, jest.fn()],
+  Panel: ({ children }: any) => <div data-testid="flow-panel">{children}</div>,
+  useNodesState: (initialNodes: any) => [initialNodes, jest.fn()],
+  useEdgesState: (initialEdges: any) => [initialEdges, jest.fn()],
   ConnectionMode: { Loose: 'loose' },
   MarkerType: { ArrowClosed: 'arrowclosed' },
 }));
+          {graphData.links.map((link: any, index: number) => (
+            <div key={index} data-testid={`link-${index}`}>
+              {typeof link.source === 'string' ? link.source : link.source.id} →{' '}
+              {typeof link.target === 'string' ? link.target : link.target.id}
+            </div>
+          ))}
+        </div>
+        <button
+          data-testid="zoom-in-btn"
+          onClick={() => onZoom && onZoom({ k: 1.5 })}
+        >
+          Zoom In
+        </button>
+        <button
+          data-testid="zoom-out-btn"
+          onClick={() => onZoom && onZoom({ k: 0.5 })}
+        >
+          Zoom Out
+        </button>
+      </div>
+    );
+  };
+});
 
 // Mock WebSocket
 class MockWebSocket {
@@ -92,7 +88,7 @@ class MockWebSocket {
     }, 0);
   }
 
-  send(_data: string) {
+  send(data: string) {
     // Mock send
   }
 
@@ -101,11 +97,7 @@ class MockWebSocket {
   }
 }
 
-Object.defineProperty(globalThis, 'WebSocket', {
-  configurable: true,
-  writable: true,
-  value: MockWebSocket,
-});
+(global as any).WebSocket = MockWebSocket;
 
 describe('DependencyGraphVisualization', () => {
   beforeEach(() => {

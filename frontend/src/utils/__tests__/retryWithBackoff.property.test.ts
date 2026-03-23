@@ -10,13 +10,6 @@
 import fc from 'fast-check';
 import { retryWithBackoff, RetryOptions } from '../retryWithBackoff';
 
-interface RetryableError extends Error {
-  response?: {
-    status: number;
-  };
-  code?: string;
-}
-
 describe('Property 9: APIrequestretry机制', () => {
   it('should retry up to maxRetries times for any failing operation', async () => {
     await fc.assert(
@@ -33,7 +26,7 @@ describe('Property 9: APIrequestretry机制', () => {
           };
           try {
             await retryWithBackoff(mockFn, options);
-          } catch {
+          } catch (e) {
             // Expected to fail
           }
           expect(mockFn).toHaveBeenCalledTimes(maxRetries + 1);
@@ -49,7 +42,7 @@ describe('Property 9: APIrequestretry机制', () => {
         fc.oneof(fc.integer({ min: 400, max: 428 }), fc.integer({ min: 430, max: 499 })),
         fc.integer({ min: 1, max: 3 }),
         async (statusCode: number, maxRetries: number) => {
-          const error: RetryableError = new Error('Client error');
+          const error: any = new Error('Client error');
           error.response = { status: statusCode };
           const mockFn = jest.fn().mockRejectedValue(error);
           const options: RetryOptions = {
@@ -61,7 +54,7 @@ describe('Property 9: APIrequestretry机制', () => {
           try {
             await retryWithBackoff(mockFn, options);
             expect(true).toBe(false);
-          } catch {
+          } catch (e) {
             // Expected to throw immediately
           }
           expect(mockFn).toHaveBeenCalledTimes(1);
@@ -119,9 +112,8 @@ describe('Property 9: APIrequestretry机制', () => {
           try {
             await retryWithBackoff(mockFn, options);
             expect(true).toBe(false);
-          } catch (error: unknown) {
-            expect(error).toBeInstanceOf(Error);
-            expect((error as Error).message).toBe(errorMessage);
+          } catch (e: any) {
+            expect(e.message).toBe(errorMessage);
           }
           expect(mockFn).toHaveBeenCalledTimes(maxRetries + 1);
         }
@@ -148,7 +140,7 @@ describe('Property 9: APIrequestretry机制', () => {
           };
           try {
             await retryWithBackoff(mockFn, options);
-          } catch {
+          } catch (e) {
             // Expected to fail
           }
           if (shouldRetryValue) {
@@ -170,7 +162,7 @@ describe('Property 9: APIrequestretry机制', () => {
         fc.integer({ min: 500, max: 599 }),
         fc.integer({ min: 1, max: 3 }),
         async (statusCode: number, maxRetries: number) => {
-          const error: RetryableError = new Error('Server error');
+          const error: any = new Error('Server error');
           error.response = { status: statusCode };
           const mockFn = jest.fn().mockRejectedValue(error);
           const options: RetryOptions = {
@@ -181,7 +173,7 @@ describe('Property 9: APIrequestretry机制', () => {
           };
           try {
             await retryWithBackoff(mockFn, options);
-          } catch {
+          } catch (e) {
             // Expected to fail after retries
           }
           expect(mockFn).toHaveBeenCalledTimes(maxRetries + 1);
@@ -197,7 +189,7 @@ describe('Property 9: APIrequestretry机制', () => {
         fc.constantFrom('ECONNABORTED', 'ENOTFOUND', 'ETIMEDOUT'),
         fc.integer({ min: 1, max: 3 }),
         async (errorCode: string, maxRetries: number) => {
-          const error: RetryableError = new Error('Network error');
+          const error: any = new Error('Network error');
           error.code = errorCode;
           const mockFn = jest.fn().mockRejectedValue(error);
           const options: RetryOptions = {
@@ -208,7 +200,7 @@ describe('Property 9: APIrequestretry机制', () => {
           };
           try {
             await retryWithBackoff(mockFn, options);
-          } catch {
+          } catch (e) {
             // Expected to fail after retries
           }
           expect(mockFn).toHaveBeenCalledTimes(maxRetries + 1);
@@ -223,7 +215,7 @@ describe('Property 9: APIrequestretry机制', () => {
       fc.asyncProperty(
         fc.integer({ min: 1, max: 3 }),
         async (maxRetries: number) => {
-          const error: RetryableError = new Error('Too Many Requests');
+          const error: any = new Error('Too Many Requests');
           error.response = { status: 429 };
           const mockFn = jest.fn().mockRejectedValue(error);
           const options: RetryOptions = {
@@ -234,7 +226,7 @@ describe('Property 9: APIrequestretry机制', () => {
           };
           try {
             await retryWithBackoff(mockFn, options);
-          } catch {
+          } catch (e) {
             // Expected to fail after retries
           }
           expect(mockFn).toHaveBeenCalledTimes(maxRetries + 1);

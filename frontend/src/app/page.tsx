@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -9,7 +9,7 @@ import { Shield, Code, GitPullRequest, Users, TrendingUp, Database, Cpu, Lock } 
 
 export default function Home() {
     const router = useRouter();
-    const [stats] = useState({
+    const [stats, setStats] = useState({
         totalReviews: 1250,
         projects: 8,
         complianceScore: 94,

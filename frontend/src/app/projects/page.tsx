@@ -25,16 +25,17 @@ import {
   GitBranch,
   Clock,
   AlertTriangle,
+  CheckCircle,
   Settings,
   RefreshCw,
   Filter,
-  Download
+  Download,
+  Upload
 } from 'lucide-react'
-import { useProjects, useSyncProject } from '@/hooks/useProjects'
+import { useProjects } from '@/hooks/useProjects'
 import { AddProjectModal } from '@/components/projects/add-project-modal'
 import { useToast } from '@/hooks/use-toast'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useApiCall } from '@/hooks/useApiCall'
 
 // Skeleton components
 function ProjectCardSkeleton() {
@@ -81,38 +82,10 @@ interface Project {
 interface ProjectCardProps {
   project: Project
   onClick: () => void
-  onSync: () => void
-  isSyncing: boolean
-}
-
-function getProjectSyncState(project: Project) {
-  if (!project.github_repo_url) {
-    return {
-      label: 'Repository Missing',
-      description: 'Connect a GitHub repository before syncing.',
-      variant: 'destructive' as const,
-    }
-  }
-
-  if (!project.language) {
-    return {
-      label: 'Ready to Sync',
-      description: 'GitHub connected. Run sync to import pull requests.',
-      variant: 'warning' as const,
-    }
-  }
-
-  return {
-    label: 'Synced',
-    description: 'Repository metadata is available and ready for review.',
-    variant: 'success' as const,
-  }
 }
 
 // Grid view card component
-function ProjectGridCard({ project, onClick, onSync, isSyncing }: ProjectCardProps) {
-  const syncState = getProjectSyncState(project)
-
+function ProjectGridCard({ project, onClick }: ProjectCardProps) {
   return (
     <Card
       className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -134,10 +107,6 @@ function ProjectGridCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
             <CardDescription className="mt-1">
               {project.description || 'No description'}
             </CardDescription>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge variant={syncState.variant}>{syncState.label}</Badge>
-              {project.github_repo_url && <Badge variant="outline">GitHub Linked</Badge>}
-            </div>
           </div>
           <Badge variant={project.is_active ? "success" : "secondary"}>
             {project.is_active ? 'Active' : 'Inactive'}
@@ -156,8 +125,6 @@ function ProjectGridCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground">{syncState.description}</p>
-
         <div className="flex items-center text-xs text-muted-foreground pt-2 border-t">
           <Clock className="mr-1 h-3 w-3" aria-hidden="true" />
           <time dateTime={project.updated_at}>
@@ -166,18 +133,6 @@ function ProjectGridCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            onSync()
-          }}
-          disabled={isSyncing || !project.github_repo_url}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? 'Syncing...' : 'Sync GitHub'}
-        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -206,9 +161,7 @@ function ProjectGridCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
 }
 
 // List view card component
-function ProjectListCard({ project, onClick, onSync, isSyncing }: ProjectCardProps) {
-  const syncState = getProjectSyncState(project)
-
+function ProjectListCard({ project, onClick }: ProjectCardProps) {
   return (
     <Card
       className="hover:shadow-md transition-shadow cursor-pointer"
@@ -224,10 +177,6 @@ function ProjectListCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
                 <p className="text-sm text-muted-foreground mt-1">
                   {project.description || 'No description'}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant={syncState.variant}>{syncState.label}</Badge>
-                  {project.github_repo_url && <Badge variant="outline">GitHub Linked</Badge>}
-                </div>
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                   {project.github_repo_url && (
                     <div className="flex items-center gap-1">
@@ -252,18 +201,6 @@ function ProjectListCard({ project, onClick, onSync, isSyncing }: ProjectCardPro
             <Badge variant={project.is_active ? "success" : "secondary"}>
               {project.is_active ? 'Active' : 'Inactive'}
             </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                onSync()
-              }}
-              disabled={isSyncing || !project.github_repo_url}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing...' : 'Sync'}
-            </Button>
             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onClick() }}>
               View Details
             </Button>
@@ -278,16 +215,12 @@ function ProjectsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { execute } = useApiCall()
   const { data: projects = [], isLoading, error, refetch, isRefetching } = useProjects()
-  const syncProject = useSyncProject()
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('name')
-  const [showCreateModal, setShowCreateModal] = useState(
-    () => searchParams?.get('github_connected') === 'true'
-  )
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedLanguage, setSelectedLanguage] = useState('all')
 
@@ -302,13 +235,15 @@ function ProjectsPageContent() {
     const errorDetail = searchParams?.get('error_detail')
 
     if (githubConnected === 'true') {
+      console.log('[Projects Page] GitHub connected successfully')
       toast({
         title: 'GitHub Connected',
         description: 'Your GitHub account has been connected successfully',
       })
+      setShowCreateModal(true)
     } else if (error) {
-      console.error('[Projects Page] GitHub connection error:', error)
-      console.error('[Projects Page] Error detail:', errorDetail || errorDescription)
+      console.warn('[Projects Page] GitHub connection error:', error)
+      console.warn('[Projects Page] Error detail:', errorDetail || errorDescription)
 
       const errorMsg = errorDetail || errorDescription || 'Failed to connect GitHub account'
 
@@ -336,11 +271,11 @@ function ProjectsPageContent() {
     return projects
       .filter(project => {
         const matchesSearch = project.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                              (project.description?.toLowerCase() || '').includes(debouncedSearchTerm.toLowerCase())
+          (project.description?.toLowerCase() || '').includes(debouncedSearchTerm.toLowerCase())
 
         const matchesStatus = selectedStatus === 'all' ||
-                             (selectedStatus === 'active' && project.is_active) ||
-                             (selectedStatus === 'inactive' && !project.is_active)
+          (selectedStatus === 'active' && project.is_active) ||
+          (selectedStatus === 'inactive' && !project.is_active)
 
         const matchesLanguage = selectedLanguage === 'all' || project.language === selectedLanguage
 
@@ -369,15 +304,6 @@ function ProjectsPageContent() {
   const handleRefresh = useCallback(() => {
     refetch()
   }, [refetch])
-
-  const handleSyncProject = useCallback(async (project: Project) => {
-    await execute(
-      () => syncProject.mutateAsync(project.id),
-      {
-        successMessage: `"${project.name}" synced with GitHub.`,
-      }
-    )
-  }, [execute, syncProject])
 
   const handleExport = useCallback(() => {
     // Export projects as CSV
@@ -607,16 +533,12 @@ function ProjectsPageContent() {
                   key={project.id}
                   project={project}
                   onClick={() => router.push(`/projects/${project.id}`)}
-                  onSync={() => void handleSyncProject(project)}
-                  isSyncing={syncProject.isPending && syncProject.variables === project.id}
                 />
               ) : (
                 <ProjectListCard
                   key={project.id}
                   project={project}
                   onClick={() => router.push(`/projects/${project.id}`)}
-                  onSync={() => void handleSyncProject(project)}
-                  isSyncing={syncProject.isPending && syncProject.variables === project.id}
                 />
               )
             ))}

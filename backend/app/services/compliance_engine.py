@@ -1,17 +1,14 @@
 """
 Compliance Rules Engine for regulated industries
 """
-
-import re
+from typing import List, Dict, Any, Optional
 from enum import Enum
-from typing import Any
-
 from pydantic import BaseModel
+import re
 
 
 class ComplianceFramework(str, Enum):
     """Supported compliance frameworks"""
-
     PCI_DSS = "pci_dss"
     HIPAA = "hipaa"
     GDPR = "gdpr"
@@ -22,7 +19,6 @@ class ComplianceFramework(str, Enum):
 
 class RuleSeverity(str, Enum):
     """Rule violation severity levels"""
-
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -32,21 +28,19 @@ class RuleSeverity(str, Enum):
 
 class ComplianceRule(BaseModel):
     """Individual compliance rule"""
-
     id: str
     framework: ComplianceFramework
     name: str
     description: str
     severity: RuleSeverity
     category: str
-    pattern: str | None = None  # Regex pattern for code matching
-    file_patterns: list[str] = []  # File patterns to check
+    pattern: Optional[str] = None  # Regex pattern for code matching
+    file_patterns: List[str] = []  # File patterns to check
     enabled: bool = True
 
 
 class ComplianceViolation(BaseModel):
     """Detected compliance violation"""
-
     rule_id: str
     framework: ComplianceFramework
     severity: RuleSeverity
@@ -59,7 +53,7 @@ class ComplianceViolation(BaseModel):
 
 class ComplianceRulesEngine:
     """Engine for evaluating compliance rules"""
-
+    
     # PCI-DSS Rules
     PCI_DSS_RULES = [
         ComplianceRule(
@@ -102,7 +96,7 @@ class ComplianceRulesEngine:
             file_patterns=["requirements.txt", "package.json"],
         ),
     ]
-
+    
     # HIPAA Rules
     HIPAA_RULES = [
         ComplianceRule(
@@ -144,7 +138,7 @@ class ComplianceRulesEngine:
             file_patterns=["*.py", "*.js"],
         ),
     ]
-
+    
     # GDPR Rules
     GDPR_RULES = [
         ComplianceRule(
@@ -184,56 +178,56 @@ class ComplianceRulesEngine:
             category="privacy",
         ),
     ]
-
-    def __init__(self, frameworks: list[ComplianceFramework] = None):
+    
+    def __init__(self, frameworks: List[ComplianceFramework] = None):
         """
         Initialize compliance rules engine
-
+        
         Args:
             frameworks: List of frameworks to check (default: all)
         """
         self.frameworks = frameworks or list(ComplianceFramework)
         self.rules = self._load_rules()
-
-    def _load_rules(self) -> list[ComplianceRule]:
+    
+    def _load_rules(self) -> List[ComplianceRule]:
         """Load rules for selected frameworks"""
         all_rules = []
-
+        
         if ComplianceFramework.PCI_DSS in self.frameworks:
             all_rules.extend(self.PCI_DSS_RULES)
         if ComplianceFramework.HIPAA in self.frameworks:
             all_rules.extend(self.HIPAA_RULES)
         if ComplianceFramework.GDPR in self.frameworks:
             all_rules.extend(self.GDPR_RULES)
-
+        
         return [rule for rule in all_rules if rule.enabled]
-
-    def check_code(self, file_path: str, code: str) -> list[ComplianceViolation]:
+    
+    def check_code(self, file_path: str, code: str) -> List[ComplianceViolation]:
         """
         Check code against compliance rules
-
+        
         Args:
             file_path: Path to the file being checked
             code: Source code content
-
+            
         Returns:
             List of compliance violations
         """
         violations = []
-
+        
         for rule in self.rules:
             # Check if file matches rule patterns
             if not self._matches_file_pattern(file_path, rule.file_patterns):
                 continue
-
+            
             # Check pattern if defined
             if rule.pattern:
                 matches = re.finditer(rule.pattern, code, re.IGNORECASE | re.MULTILINE)
-
+                
                 for match in matches:
                     # Calculate line number
-                    line_number = code[: match.start()].count("\n") + 1
-
+                    line_number = code[:match.start()].count('\n') + 1
+                    
                     violation = ComplianceViolation(
                         rule_id=rule.id,
                         framework=rule.framework,
@@ -245,18 +239,17 @@ class ComplianceRulesEngine:
                         remediation=self._get_remediation(rule.id),
                     )
                     violations.append(violation)
-
+        
         return violations
-
-    def _matches_file_pattern(self, file_path: str, patterns: list[str]) -> bool:
+    
+    def _matches_file_pattern(self, file_path: str, patterns: List[str]) -> bool:
         """Check if file path matches any pattern"""
         if not patterns:
             return True
-
+        
         import fnmatch
-
         return any(fnmatch.fnmatch(file_path, pattern) for pattern in patterns)
-
+    
     def _get_remediation(self, rule_id: str) -> str:
         """Get remediation advice for a rule"""
         remediations = {
@@ -270,14 +263,14 @@ class ComplianceRulesEngine:
             "GDPR-Article-32": "Hash passwords using bcrypt or Argon2",
         }
         return remediations.get(rule_id, "See compliance framework documentation for remediation")
-
-    def generate_report(self, violations: list[ComplianceViolation]) -> dict[str, Any]:
+    
+    def generate_report(self, violations: List[ComplianceViolation]) -> Dict[str, Any]:
         """
         Generate compliance report
-
+        
         Args:
             violations: List of detected violations
-
+            
         Returns:
             Compliance report dictionary
         """
@@ -288,7 +281,7 @@ class ComplianceRulesEngine:
             if framework not in by_framework:
                 by_framework[framework] = []
             by_framework[framework].append(violation)
-
+        
         # Group by severity
         by_severity = {}
         for violation in violations:
@@ -296,26 +289,32 @@ class ComplianceRulesEngine:
             if severity not in by_severity:
                 by_severity[severity] = []
             by_severity[severity].append(violation)
-
+        
         return {
             "total_violations": len(violations),
-            "by_framework": {framework: len(viols) for framework, viols in by_framework.items()},
-            "by_severity": {severity: len(viols) for severity, viols in by_severity.items()},
+            "by_framework": {
+                framework: len(viols) 
+                for framework, viols in by_framework.items()
+            },
+            "by_severity": {
+                severity: len(viols)
+                for severity, viols in by_severity.items()
+            },
             "critical_count": len(by_severity.get("critical", [])),
             "high_count": len(by_severity.get("high", [])),
             "compliance_score": self._calculate_compliance_score(violations),
             "violations": [v.dict() for v in violations],
         }
-
-    def _calculate_compliance_score(self, violations: list[ComplianceViolation]) -> float:
+    
+    def _calculate_compliance_score(self, violations: List[ComplianceViolation]) -> float:
         """
         Calculate compliance score (0-100)
-
+        
         Higher violations = lower score
         """
         if not violations:
             return 100.0
-
+        
         # Weight violations by severity
         weights = {
             RuleSeverity.CRITICAL: 10,
@@ -324,10 +323,10 @@ class ComplianceRulesEngine:
             RuleSeverity.LOW: 1,
             RuleSeverity.INFO: 0.5,
         }
-
+        
         total_weight = sum(weights.get(v.severity, 1) for v in violations)
-
+        
         # Score decreases with violations
         score = max(0, 100 - (total_weight * 2))
-
+        
         return round(score, 2)

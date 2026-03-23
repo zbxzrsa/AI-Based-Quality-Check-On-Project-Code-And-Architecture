@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { PullRequest } from '../types/pullRequest';
+import type { PullRequest, User } from '../types/pullRequest';
 
 interface PullRequestListProps {
   pullRequests: PullRequest[];
@@ -101,7 +101,6 @@ export const PullRequestList: React.FC<PullRequestListProps> = ({
 
               <div style={styles.prMeta}>
                 <div style={styles.prAuthor}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={pr.author.avatar || '/default-avatar.png'}
                     alt={pr.author.name}
@@ -132,7 +131,6 @@ export const PullRequestList: React.FC<PullRequestListProps> = ({
                 </span>
                 <div style={styles.reviewers}>
                   {pr.reviewers.slice(0, 3).map((reviewer) => (
-                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       key={reviewer.id}
                       src={reviewer.avatar || '/default-avatar.png'}

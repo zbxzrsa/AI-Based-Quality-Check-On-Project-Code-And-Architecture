@@ -20,8 +20,6 @@ interface TimelineEvent {
     type: 'release' | 'refactor' | 'migration';
 }
 
-type MetricKey = 'coupling' | 'complexity' | 'coverage' | 'loc';
-
 interface ArchitectureTimelineProps {
     data: TimelineDataPoint[];
     events?: TimelineEvent[];
@@ -70,10 +68,7 @@ export default function ArchitectureTimeline({
             .range([innerHeight, 0]);
 
         // Axes
-        const xAxis = d3
-            .axisBottom(xScale)
-            .ticks(6)
-            .tickFormat((value) => d3.timeFormat('%b %Y')(new Date(value.valueOf())));
+        const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(d3.timeFormat('%b %Y') as any);
         const yAxis = d3.axisLeft(yScale);
 
         g.append('g')
@@ -89,7 +84,7 @@ export default function ArchitectureTimeline({
         g.append('g')
             .attr('class', 'grid')
             .attr('opacity', 0.1)
-            .call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(() => ''));
+            .call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat('' as any));
 
         // Line generators
         const lineGenerators = {
@@ -115,7 +110,7 @@ export default function ArchitectureTimeline({
                 .curve(d3.curveMonotoneX),
         };
 
-        const metrics: Array<{ key: MetricKey; color: string; label: string }> = [
+        const metrics = [
             { key: 'coupling', color: '#ef4444', label: 'Coupling Score' },
             { key: 'complexity', color: '#f59e0b', label: 'Complexity' },
             { key: 'coverage', color: '#10b981', label: 'Test Coverage' },
@@ -145,14 +140,14 @@ export default function ArchitectureTimeline({
                 .attr('r', 3)
                 .attr('fill', metric.color)
                 .style('cursor', 'pointer')
-                .on('mouseover', function (_event, d: TimelineDataPoint) {
+                .on('mouseover', function (_event, d: any) {
                     d3.select(this).attr('r', 5);
 
                     // Tooltip
                     const tooltip = g
                         .append('g')
                         .attr('class', 'tooltip')
-                        .attr('transform', `translate(${xScale(d.date)},${yScale(d[metric.key] as number) - 40})`);
+                        .attr('transform', `translate(${xScale(d.date)},${yScale(d[metric.key]) - 40})`);
 
                     tooltip
                         .append('rect')
@@ -229,8 +224,8 @@ export default function ArchitectureTimeline({
             .on('end', (event) => {
                 if (event.selection) {
                     const [x0, x1] = event.selection;
-                    xScale.invert(x0);
-                    xScale.invert(x1);
+                    const dateRange = [xScale.invert(x0), xScale.invert(x1)];
+                    console.log('Selected date range:', dateRange);
                 }
             });
 

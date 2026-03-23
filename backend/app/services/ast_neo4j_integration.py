@@ -5,35 +5,31 @@ This script implements the core engine for parsing Python code into an Abstract 
 extracting ClassDef, FunctionDef, and Import nodes, and providing Cypher queries for Neo4j insertion
 with support for detecting coupling anomalies and cyclic dependencies.
 """
-
 import logging
-
 logger = logging.getLogger(__name__)
 
 import ast
 import os
+from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass
 class ASTNode:
     """Represents an AST node with Neo4j insertion data"""
-
     node_type: str
     name: str
     full_name: str
     file_path: str
     line_number: int
-    properties: dict[str, Any]
+    properties: Dict[str, Any]
     cypher_create: str
-    cypher_relationships: list[str]
+    cypher_relationships: List[str]
 
 
 @dataclass
 class CouplingAnalysis:
     """Analysis of coupling between components"""
-
     afferent_coupling: int  # Incoming dependencies
     efferent_coupling: int  # Outgoing dependencies
     instability: float  # Instability metric (0-1)
@@ -46,12 +42,12 @@ class ASTNeo4jIntegration:
     """
 
     def __init__(self):
-        self.nodes: list[ASTNode] = []
-        self.relationships: list[tuple[str, str, str]] = []  # (source_id, target_id, rel_type)
-        self.imports: dict[str, str] = {}  # name -> module
-        self.function_calls: list[tuple[str, str]] = []  # (caller, callee)
+        self.nodes: List[ASTNode] = []
+        self.relationships: List[Tuple[str, str, str]] = []  # (source_id, target_id, rel_type)
+        self.imports: Dict[str, str] = {}  # name -> module
+        self.function_calls: List[Tuple[str, str]] = []  # (caller, callee)
 
-    def parse_python_file(self, file_path: str) -> list[ASTNode]:
+    def parse_python_file(self, file_path: str) -> List[ASTNode]:
         """
         Parse a Python file and extract AST nodes
 
@@ -61,7 +57,7 @@ class ASTNeo4jIntegration:
         Returns:
             List of ASTNode objects ready for Neo4j insertion
         """
-        with open(file_path, encoding="utf-8") as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             source_code = f.read()
 
         try:
@@ -91,9 +87,9 @@ class ASTNeo4jIntegration:
 
     def _create_file_node(self, file_path: str, source_code: str) -> ASTNode:
         """Create a file-level node"""
-        lines = source_code.split("\n")
+        lines = source_code.split('\n')
         loc = len([line for line in lines if line.strip()])  # Lines of code
-        comment_lines = len([line for line in lines if line.strip().startswith("#")])
+        comment_lines = len([line for line in lines if line.strip().startswith('#')])
         comment_ratio = comment_lines / loc if loc > 0 else 0
 
         return ASTNode(
@@ -106,19 +102,19 @@ class ASTNeo4jIntegration:
                 "language": "python",
                 "lines_of_code": loc,
                 "comment_ratio": round(comment_ratio, 2),
-                "extension": ".py",
+                "extension": ".py"
             },
-            cypher_create="""
-            CREATE (f:File {
+            cypher_create=f"""
+            CREATE (f:File {{
                 fileId: $fileId,
                 name: $name,
                 path: $path,
                 language: $language,
                 linesOfCode: $linesOfCode,
                 commentRatio: $commentRatio
-            })
+            }})
             """,
-            cypher_relationships=[],
+            cypher_relationships=[]
         )
 
     def _create_relationships(self):
@@ -130,7 +126,7 @@ class ASTNeo4jIntegration:
         # Inheritance relationships (added during AST analysis)
         # Import dependencies (added during AST analysis)
 
-    def get_cypher_queries_for_insertion(self, project_id: str) -> list[str]:
+    def get_cypher_queries_for_insertion(self, project_id: str) -> List[str]:
         """
         Generate Cypher queries for inserting all nodes and relationships into Neo4j
 
@@ -147,14 +143,12 @@ class ASTNeo4jIntegration:
             if node.node_type == "File":
                 queries.append(f"""
                 MATCH (p:Project {{projectId: '{project_id}'}})
-                {
-                    node.cypher_create.replace("$fileId", f"'{project_id}::{node.full_name}'")
-                    .replace("$name", f"'{node.name}'")
-                    .replace("$path", f"'{node.full_name}'")
-                    .replace("$language", f"'{node.properties['language']}'")
-                    .replace("$linesOfCode", str(node.properties["lines_of_code"]))
-                    .replace("$commentRatio", str(node.properties["comment_ratio"]))
-                }
+                {node.cypher_create.replace('$fileId', f"'{project_id}::{node.full_name}'")
+                                      .replace('$name', f"'{node.name}'")
+                                      .replace('$path', f"'{node.full_name}'")
+                                      .replace('$language', f"'{node.properties['language']}'")
+                                      .replace('$linesOfCode', str(node.properties['lines_of_code']))
+                                      .replace('$commentRatio', str(node.properties['comment_ratio']))}
                 MERGE (p)-[:CONTAINS {{level: 'file'}}]->(f)
                 """)
 
@@ -171,7 +165,7 @@ class ASTNeo4jIntegration:
                 """)
 
             elif node.node_type == "Function":
-                is_method = node.properties.get("is_method", False)
+                is_method = node.properties.get('is_method', False)
                 queries.append(f"""
                 MERGE (fn:Function {{
                     functionId: '{project_id}::{node.file_path}::{node.name}',
@@ -179,14 +173,14 @@ class ASTNeo4jIntegration:
                     filePath: '{node.file_path}',
                     startLine: {node.line_number},
                     isMethod: {str(is_method).lower()},
-                    isAsync: {str(node.properties.get("is_async", False)).lower()}
+                    isAsync: {str(node.properties.get('is_async', False)).lower()}
                 }})
                 """)
 
                 # Link to class if it's a method
                 if is_method:
                     queries.append(f"""
-                    MATCH (c:Class {{classId: '{project_id}::{node.file_path}::{node.properties.get("class_name", "")}'}})
+                    MATCH (c:Class {{classId: '{project_id}::{node.file_path}::{node.properties.get('class_name', '')}'}})
                     MATCH (fn:Function {{functionId: '{project_id}::{node.file_path}::{node.name}'}})
                     MERGE (c)-[:CONTAINS {{level: 'method'}}]->(fn)
                     """)
@@ -196,12 +190,12 @@ class ASTNeo4jIntegration:
                 MATCH (f:File {{fileId: '{project_id}::{node.file_path}'}})
                 MERGE (imp:Import {{
                     importId: '{project_id}::{node.file_path}::{node.name}',
-                    module: '{node.properties.get("module", "")}',
+                    module: '{node.properties.get('module', '')}',
                     name: '{node.name}',
-                    alias: '{node.properties.get("alias", "")}'
+                    alias: '{node.properties.get('alias', '')}'
                 }})
                 MERGE (f)-[:CONTAINS {{level: 'import'}}]->(imp)
-                MERGE (target:Module {{moduleId: '{node.properties.get("module", "")}'}})
+                MERGE (target:Module {{moduleId: '{node.properties.get('module', '')}'}})
                 MERGE (f)-[:DEPENDS_ON {{type: 'import', weight: 1.0}}]->(target)
                 """)
 
@@ -224,7 +218,7 @@ class ASTNeo4jIntegration:
 
         return queries
 
-    def detect_coupling_anomalies(self, project_id: str) -> dict[str, Any]:
+    def detect_coupling_anomalies(self, project_id: str) -> Dict[str, Any]:
         """
         Detect coupling anomalies in the codebase
 
@@ -274,7 +268,7 @@ class ASTNeo4jIntegration:
             RETURN a.name AS component_a,
                    b.name AS component_b,
                    'Bidirectional dependency detected' AS coupling_type
-            """,
+            """
         ]
 
         return {
@@ -282,11 +276,11 @@ class ASTNeo4jIntegration:
             "anomaly_detection": {
                 "high_instability_threshold": 0.8,
                 "bidirectional_coupling": "Indicates tight coupling",
-                "circular_dependencies": "Always problematic",
-            },
+                "circular_dependencies": "Always problematic"
+            }
         }
 
-    def detect_cyclic_dependencies(self, project_id: str) -> dict[str, Any]:
+    def detect_cyclic_dependencies(self, project_id: str) -> Dict[str, Any]:
         """
         Detect cyclic dependencies in the codebase
 
@@ -319,7 +313,7 @@ class ASTNeo4jIntegration:
             RETURN n.name AS component,
                    size(paths) AS cycleCount,
                    'Strongly connected component' AS issueType
-            """,
+            """
         ]
 
         return {
@@ -327,8 +321,8 @@ class ASTNeo4jIntegration:
             "cycle_analysis": {
                 "short_cycles": "Easiest to break",
                 "long_cycles": "Complex refactoring needed",
-                "strongly_connected": "Highly coupled components",
-            },
+                "strongly_connected": "Highly coupled components"
+            }
         }
 
 
@@ -338,8 +332,8 @@ class ASTAnalyzer(ast.NodeVisitor):
     def __init__(self, file_path: str, integration: ASTNeo4jIntegration):
         self.file_path = file_path
         self.integration = integration
-        self.current_class: str | None = None
-        self.current_function: str | None = None
+        self.current_class: Optional[str] = None
+        self.current_function: Optional[str] = None
 
     def visit_Import(self, node: ast.Import) -> None:
         """Handle import statements"""
@@ -350,16 +344,20 @@ class ASTAnalyzer(ast.NodeVisitor):
                 full_name=name.name,
                 file_path=self.file_path,
                 line_number=node.lineno,
-                properties={"module": name.name, "alias": name.asname or "", "import_type": "import"},
+                properties={
+                    "module": name.name,
+                    "alias": name.asname or "",
+                    "import_type": "import"
+                },
                 cypher_create="",  # Handled in get_cypher_queries
-                cypher_relationships=[],
+                cypher_relationships=[]
             )
             self.integration.nodes.append(import_node)
             self.integration.imports[name.asname or name.name] = name.name
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Handle from ... import ... statements"""
-        module = node.module or ""
+        module = node.module or ''
         for name in node.names:
             full_name = f"{module}.{name.name}" if module else name.name
             import_node = ASTNode(
@@ -372,10 +370,10 @@ class ASTAnalyzer(ast.NodeVisitor):
                     "module": module,
                     "alias": name.asname or "",
                     "import_type": "from_import",
-                    "level": node.level,
+                    "level": node.level
                 },
                 cypher_create="",
-                cypher_relationships=[],
+                cypher_relationships=[]
             )
             self.integration.nodes.append(import_node)
             self.integration.imports[name.asname or name.name] = full_name
@@ -395,9 +393,12 @@ class ASTAnalyzer(ast.NodeVisitor):
             full_name=f"{self.file_path}::{node.name}",
             file_path=self.file_path,
             line_number=node.lineno,
-            properties={"bases": bases, "docstring": ast.get_docstring(node) or ""},
+            properties={
+                "bases": bases,
+                "docstring": ast.get_docstring(node) or ""
+            },
             cypher_create="",
-            cypher_relationships=[],
+            cypher_relationships=[]
         )
         self.integration.nodes.append(class_node)
 
@@ -405,7 +406,9 @@ class ASTAnalyzer(ast.NodeVisitor):
         for base in bases:
             # Try to resolve base class to a full identifier
             base_id = f"{self.file_path}::{base}"  # Simplified - in real implementation would resolve imports
-            self.integration.relationships.append((f"{self.file_path}::{node.name}", base_id, "INHERITS_FROM"))
+            self.integration.relationships.append(
+                (f"{self.file_path}::{node.name}", base_id, "INHERITS_FROM")
+            )
 
         previous_class = self.current_class
         self.current_class = node.name
@@ -420,7 +423,7 @@ class ASTAnalyzer(ast.NodeVisitor):
         """Handle async function definitions"""
         self._process_function(node, is_async=True)
 
-    def _process_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool) -> None:
+    def _process_function(self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef], is_async: bool) -> None:
         """Process function/method definition"""
         args = []
         if node.args.args:
@@ -455,10 +458,10 @@ class ASTAnalyzer(ast.NodeVisitor):
                 "is_method": is_method,
                 "class_name": self.current_class,
                 "decorators": [self._get_decorator_name(d) for d in node.decorator_list],
-                "docstring": ast.get_docstring(node) or "",
+                "docstring": ast.get_docstring(node) or ""
             },
             cypher_create="",
-            cypher_relationships=[],
+            cypher_relationships=[]
         )
         self.integration.nodes.append(function_node)
 
@@ -507,7 +510,7 @@ def main():
 
     # Example: Parse this file itself
     try:
-        integration.parse_python_file(__file__)
+        nodes = integration.parse_python_file(__file__)
         logger.info("Extracted {len(nodes)} AST nodes")
 
         # Generate Cypher queries
@@ -515,19 +518,19 @@ def main():
         logger.info("Generated {len(queries)} Cypher queries")
 
         # Get coupling analysis
-        integration.detect_coupling_anomalies("test-project")
+        coupling = integration.detect_coupling_anomalies("test-project")
         logger.info("Coupling analysis queries generated")
 
         # Get cycle detection
-        integration.detect_cyclic_dependencies("test-project")
+        cycles = integration.detect_cyclic_dependencies("test-project")
         logger.info("Cycle detection queries generated")
 
         # Print sample queries
         logger.info("\nSample Cypher queries:")
-        for _i, _query in enumerate(queries[:3]):
+        for i, query in enumerate(queries[:3]):
             logger.info("{i+1}. {query.strip()[:100]}...")
 
-    except Exception:
+    except Exception as e:
         logger.info("Error: {e}")
 
 

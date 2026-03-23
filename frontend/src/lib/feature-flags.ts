@@ -51,17 +51,6 @@ interface FlagChangeLog {
   userId?: string;
 }
 
-interface FeatureFlagsApiClient {
-  post: (path: string, payload: unknown) => Promise<unknown>;
-}
-
-type FeatureFlagsWindow = Window & {
-  apiClient?: FeatureFlagsApiClient;
-  currentUser?: {
-    id?: string;
-  };
-};
-
 class FeatureFlagsService {
   private flags: Map<string, FeatureFlag>;
   private readonly STORAGE_KEY = 'feature-flags';
@@ -317,9 +306,8 @@ class FeatureFlagsService {
    */
   private async sendAuditLogToBackend(log: FlagChangeLog): Promise<void> {
     // Only send if we have an API client available
-    const featureFlagsWindow = typeof window !== 'undefined' ? (window as FeatureFlagsWindow) : undefined;
-    if (featureFlagsWindow?.apiClient) {
-      const apiClient = featureFlagsWindow.apiClient;
+    if (typeof window !== 'undefined' && (window as any).apiClient) {
+      const apiClient = (window as any).apiClient;
       await apiClient.post('/api/v1/audit/feature-flags', log);
     }
   }
@@ -338,9 +326,8 @@ class FeatureFlagsService {
       }
       
       // Check if auth context is available
-      const featureFlagsWindow = typeof window !== 'undefined' ? (window as FeatureFlagsWindow) : undefined;
-      if (featureFlagsWindow?.currentUser) {
-        return featureFlagsWindow.currentUser.id;
+      if (typeof window !== 'undefined' && (window as any).currentUser) {
+        return (window as any).currentUser.id;
       }
     } catch (error) {
       console.error('Failed to get current user ID:', error);
@@ -655,9 +642,8 @@ class FeatureFlagsService {
    */
   private async sendABTestMetricToBackend(metric: ABTestMetric): Promise<void> {
     // Only send if we have an API client available
-    const featureFlagsWindow = typeof window !== 'undefined' ? (window as FeatureFlagsWindow) : undefined;
-    if (featureFlagsWindow?.apiClient) {
-      const apiClient = featureFlagsWindow.apiClient;
+    if (typeof window !== 'undefined' && (window as any).apiClient) {
+      const apiClient = (window as any).apiClient;
       await apiClient.post('/api/v1/metrics/ab-test', metric);
     }
   }

@@ -4,13 +4,6 @@
 
 import { retryWithBackoff, createRetryFunction, DEFAULT_API_RETRY_OPTIONS, retryTaskWithExactDelays } from '../retryWithBackoff';
 
-interface RetryableError extends Error {
-  code?: string;
-  response?: {
-    status: number;
-  };
-}
-
 describe('retryWithBackoff', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -75,11 +68,10 @@ describe('retryWithBackoff', () => {
         maxDelay: 10000,
         factor: 2,
       });
-      const rejection = expect(promise).rejects.toThrow('Persistent failure');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Persistent failure');
       expect(mockFn).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
 
       consoleErrorSpy.mockRestore();
@@ -98,18 +90,17 @@ describe('retryWithBackoff', () => {
         factor: 2,
         shouldRetry: () => false,
       });
-      const rejection = expect(promise).rejects.toThrow('Do not retry');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Do not retry');
       expect(mockFn).toHaveBeenCalledTimes(1); // No retries
 
       consoleErrorSpy.mockRestore();
     });
 
     it('should not retry 4xx client errors', async () => {
-      const error: RetryableError = new Error('Bad Request');
+      const error: any = new Error('Bad Request');
       error.response = { status: 400 };
       const mockFn = jest.fn().mockRejectedValue(error);
 
@@ -121,11 +112,10 @@ describe('retryWithBackoff', () => {
         maxDelay: 10000,
         factor: 2,
       });
-      const rejection = expect(promise).rejects.toThrow('Bad Request');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Bad Request');
       expect(mockFn).toHaveBeenCalledTimes(1); // No retries for 4xx
 
       consoleErrorSpy.mockRestore();
@@ -134,7 +124,7 @@ describe('retryWithBackoff', () => {
 
   describe('retry策略', () => {
     it('should retry 5xx server errors', async () => {
-      const error: RetryableError = new Error('Internal Server Error');
+      const error: any = new Error('Internal Server Error');
       error.response = { status: 500 };
       const mockFn = jest
         .fn()
@@ -156,7 +146,7 @@ describe('retryWithBackoff', () => {
     });
 
     it('should retry 429 Too Many Requests', async () => {
-      const error: RetryableError = new Error('Too Many Requests');
+      const error: any = new Error('Too Many Requests');
       error.response = { status: 429 };
       const mockFn = jest
         .fn()
@@ -178,7 +168,7 @@ describe('retryWithBackoff', () => {
     });
 
     it('should retry network errors', async () => {
-      const error: RetryableError = new Error('Network Error');
+      const error: any = new Error('Network Error');
       error.code = 'ECONNABORTED';
       const mockFn = jest
         .fn()
@@ -343,11 +333,10 @@ describe('retryWithBackoff', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const promise = retryTaskWithExactDelays(mockFn, [100, 200]);
-      const rejection = expect(promise).rejects.toThrow('Persistent task failure');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Persistent task failure');
       expect(mockFn).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
 
       consoleErrorSpy.mockRestore();
@@ -367,11 +356,10 @@ describe('retryWithBackoff', () => {
         maxDelay: 10000,
         factor: 2,
       });
-      const rejection = expect(promise).rejects.toThrow('No retries');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('No retries');
       expect(mockFn).toHaveBeenCalledTimes(1); // Only initial attempt
 
       consoleErrorSpy.mockRestore();
@@ -422,7 +410,7 @@ describe('retryWithBackoff', () => {
 
   describe('自定义shouldRetry', () => {
     it('should use custom retry logic', async () => {
-      const error: RetryableError = new Error('Custom error');
+      const error: any = new Error('Custom error');
       error.code = 'CUSTOM_ERROR';
 
       const mockFn = jest
@@ -430,7 +418,7 @@ describe('retryWithBackoff', () => {
         .mockRejectedValueOnce(error)
         .mockResolvedValue('success');
 
-      const shouldRetry = jest.fn((err: RetryableError) => err.code === 'CUSTOM_ERROR');
+      const shouldRetry = jest.fn((err: any) => err.code === 'CUSTOM_ERROR');
 
       const promise = retryWithBackoff(mockFn, {
         maxRetries: 3,
@@ -449,12 +437,12 @@ describe('retryWithBackoff', () => {
     });
 
     it('should not retry when custom shouldRetry returns false', async () => {
-      const error: RetryableError = new Error('Do not retry this');
+      const error: any = new Error('Do not retry this');
       error.code = 'NO_RETRY';
 
       const mockFn = jest.fn().mockRejectedValue(error);
 
-      const shouldRetry = jest.fn((err: RetryableError) => err.code !== 'NO_RETRY');
+      const shouldRetry = jest.fn((err: any) => err.code !== 'NO_RETRY');
 
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -465,11 +453,10 @@ describe('retryWithBackoff', () => {
         factor: 2,
         shouldRetry,
       });
-      const rejection = expect(promise).rejects.toThrow('Do not retry this');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Do not retry this');
       expect(shouldRetry).toHaveBeenCalledWith(error);
       expect(mockFn).toHaveBeenCalledTimes(1);
 

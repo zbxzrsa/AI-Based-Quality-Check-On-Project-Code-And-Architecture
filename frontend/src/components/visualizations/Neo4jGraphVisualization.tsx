@@ -6,13 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
+  ZoomIn, 
   ZoomOut, 
   RefreshCw, 
   Filter, 
   Layers, 
   Database, 
+  Code, 
+  FileText,
   AlertTriangle,
+  CheckCircle,
   Eye,
+  EyeOff,
   Download,
   Upload,
   TrendingUp,
@@ -20,7 +25,18 @@ import {
   Loader2,
   Lock
 } from 'lucide-react';
-import ForceGraph2D, { ForceGraphMethods } from 'react-force-graph-2d';
+import ReactFlow, {
+  Node,
+  Edge,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  ConnectionMode,
+  MarkerType,
+  Panel,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { apiClientEnhanced } from '@/lib/api-client';
 import { validateArchitectureAnalysis, type ArchitectureAnalysis } from '@/lib/validations/api-schemas';
 import { ErrorHandler } from '@/lib/error-handler';
@@ -45,11 +61,6 @@ interface Link {
   type: 'import' | 'inheritance' | 'dependency' | 'call' | 'containment' | 'violates';
   weight: number;
   isDrift?: boolean;
-}
-
-interface GraphData {
-  nodes: Node[];
-  links: Link[];
 }
 
 interface Neo4jGraphVisualizationProps {
@@ -159,8 +170,8 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
   const [viewMode, setViewMode] = useState<'all' | 'drift' | 'complexity' | 'layers' | 'clusters'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-  const forceGraphRef = useRef<ForceGraphMethods | null>(null);
+  const [graphData, setGraphData] = useState<any>(null);
+  const forceGraphRef = useRef<any>(null);
   const [graphStats, setGraphStats] = useState({
     clusteringCoefficient: 0,
     averagePathLength: 0,
@@ -170,117 +181,6 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
   
   const graphRef = useRef<HTMLDivElement>(null);
 
-  const calculateClusteringCoefficient = useCallback((inputNodes: Node[], inputLinks: Link[]): number => {
-    const nodeLinks: Record<string, string[]> = {};
-
-    inputLinks.forEach((link) => {
-      if (!nodeLinks[link.source]) nodeLinks[link.source] = [];
-      if (!nodeLinks[link.target]) nodeLinks[link.target] = [];
-
-      nodeLinks[link.source].push(link.target);
-      nodeLinks[link.target].push(link.source);
-    });
-
-    let totalCoefficient = 0;
-    let nodeCount = 0;
-
-    inputNodes.forEach((node) => {
-      const neighbors = nodeLinks[node.id] || [];
-      if (neighbors.length < 2) return;
-
-      let connections = 0;
-      for (let i = 0; i < neighbors.length; i++) {
-        for (let j = i + 1; j < neighbors.length; j++) {
-          if (inputLinks.some((link) =>
-            (link.source === neighbors[i] && link.target === neighbors[j]) ||
-            (link.source === neighbors[j] && link.target === neighbors[i])
-          )) {
-            connections++;
-          }
-        }
-      }
-
-      const maxConnections = (neighbors.length * (neighbors.length - 1)) / 2;
-      totalCoefficient += maxConnections > 0 ? connections / maxConnections : 0;
-      nodeCount++;
-    });
-
-    return nodeCount > 0 ? totalCoefficient / nodeCount : 0;
-  }, []);
-
-  const calculateAveragePathLength = useCallback((_inputNodes: Node[], inputLinks: Link[]): number => {
-    const totalPaths = inputLinks.length;
-    const totalDistance = inputLinks.reduce((sum, link) => sum + (link.weight || 1), 0);
-
-    return totalPaths > 0 ? totalDistance / totalPaths : 0;
-  }, []);
-
-  const calculateModularity = useCallback((inputNodes: Node[], inputLinks: Link[]): number => {
-    const layerGroups = new Map<string, Node[]>();
-
-    inputNodes.forEach((node) => {
-      if (node.layer) {
-        if (!layerGroups.has(node.layer)) {
-          layerGroups.set(node.layer, []);
-        }
-        layerGroups.get(node.layer)?.push(node);
-      }
-    });
-
-    const totalLinks = inputLinks.length;
-    if (totalLinks === 0 || inputNodes.length === 0) {
-      return 0;
-    }
-
-    let modularity = 0;
-
-    layerGroups.forEach((groupNodes) => {
-      const groupNodeIds = new Set(groupNodes.map((node) => node.id));
-      const internalLinks = inputLinks.filter((link) =>
-        groupNodeIds.has(link.source) && groupNodeIds.has(link.target)
-      ).length;
-
-      const groupSize = groupNodes.length;
-      const expectedLinks = (groupSize * (groupSize - 1)) / 2;
-
-      if (expectedLinks > 0) {
-        modularity += (internalLinks / totalLinks) - Math.pow(groupSize / inputNodes.length, 2);
-      }
-    });
-
-    return modularity;
-  }, []);
-
-  const calculateCouplingScore = useCallback((inputNodes: Node[], inputLinks: Link[]): number => {
-    let crossLayerLinks = 0;
-    const totalLinks = inputLinks.length;
-
-    inputLinks.forEach((link) => {
-      const sourceNode = inputNodes.find((node) => node.id === link.source);
-      const targetNode = inputNodes.find((node) => node.id === link.target);
-
-      if (sourceNode?.layer && targetNode?.layer && sourceNode.layer !== targetNode.layer) {
-        crossLayerLinks++;
-      }
-    });
-
-    return totalLinks > 0 ? (crossLayerLinks / totalLinks) * 100 : 0;
-  }, []);
-
-  const calculateGraphStats = useCallback((inputNodes: Node[], inputLinks: Link[]) => {
-    setGraphStats({
-      clusteringCoefficient: calculateClusteringCoefficient(inputNodes, inputLinks),
-      averagePathLength: calculateAveragePathLength(inputNodes, inputLinks),
-      modularity: calculateModularity(inputNodes, inputLinks),
-      couplingScore: calculateCouplingScore(inputNodes, inputLinks),
-    });
-  }, [
-    calculateAveragePathLength,
-    calculateClusteringCoefficient,
-    calculateCouplingScore,
-    calculateModularity,
-  ]);
-
   // Update local state when API data changes
   useEffect(() => {
     if (apiNodes.length > 0) {
@@ -289,7 +189,127 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
       setGraphData({ nodes: apiNodes, links: apiLinks });
       calculateGraphStats(apiNodes, apiLinks);
     }
-  }, [apiLinks, apiNodes, calculateGraphStats]);
+  }, [apiNodes, apiLinks]);
+
+  const calculateGraphStats = (nodes: Node[], links: Link[]) => {
+    // Calculate clustering coefficient
+    const clusteringCoefficient = calculateClusteringCoefficient(nodes, links);
+    
+    // Calculate average path length
+    const averagePathLength = calculateAveragePathLength(nodes, links);
+    
+    // Calculate modularity (simplified)
+    const modularity = calculateModularity(nodes, links);
+    
+    // Calculate coupling score
+    const couplingScore = calculateCouplingScore(nodes, links);
+
+    setGraphStats({
+      clusteringCoefficient,
+      averagePathLength,
+      modularity,
+      couplingScore
+    });
+  };
+
+  const calculateClusteringCoefficient = (nodes: Node[], links: Link[]): number => {
+    // Simplified clustering coefficient calculation
+    const nodeLinks: { [key: string]: string[] } = {};
+    
+    links.forEach(link => {
+      if (!nodeLinks[link.source]) nodeLinks[link.source] = [];
+      if (!nodeLinks[link.target]) nodeLinks[link.target] = [];
+      
+      nodeLinks[link.source].push(link.target);
+      nodeLinks[link.target].push(link.source);
+    });
+
+    let totalCoefficient = 0;
+    let nodeCount = 0;
+
+    nodes.forEach(node => {
+      const neighbors = nodeLinks[node.id] || [];
+      if (neighbors.length < 2) return;
+
+      let connections = 0;
+      for (let i = 0; i < neighbors.length; i++) {
+        for (let j = i + 1; j < neighbors.length; j++) {
+          if (links.some(l => 
+            (l.source === neighbors[i] && l.target === neighbors[j]) ||
+            (l.source === neighbors[j] && l.target === neighbors[i])
+          )) {
+            connections++;
+          }
+        }
+      }
+
+      const maxConnections = (neighbors.length * (neighbors.length - 1)) / 2;
+      const coefficient = maxConnections > 0 ? connections / maxConnections : 0;
+      totalCoefficient += coefficient;
+      nodeCount++;
+    });
+
+    return nodeCount > 0 ? totalCoefficient / nodeCount : 0;
+  };
+
+  const calculateAveragePathLength = (nodes: Node[], links: Link[]): number => {
+    // Simplified average path length calculation
+    // In a real implementation, this would use Dijkstra's algorithm
+    const totalPaths = links.length;
+    const totalDistance = links.reduce((sum, link) => sum + (link.weight || 1), 0);
+    
+    return totalPaths > 0 ? totalDistance / totalPaths : 0;
+  };
+
+  const calculateModularity = (nodes: Node[], links: Link[]): number => {
+    // Simplified modularity calculation
+    const layerGroups = new Map<string, Node[]>();
+    
+    nodes.forEach(node => {
+      if (node.layer) {
+        if (!layerGroups.has(node.layer)) {
+          layerGroups.set(node.layer, []);
+        }
+        layerGroups.get(node.layer)!.push(node);
+      }
+    });
+
+    let modularity = 0;
+    const totalLinks = links.length;
+
+    layerGroups.forEach((groupNodes, layer) => {
+      const groupNodeIds = new Set(groupNodes.map(n => n.id));
+      const internalLinks = links.filter(l => 
+        groupNodeIds.has(l.source) && groupNodeIds.has(l.target)
+      ).length;
+      
+      const groupSize = groupNodes.length;
+      const expectedLinks = (groupSize * (groupSize - 1)) / 2;
+      
+      if (expectedLinks > 0) {
+        modularity += (internalLinks / totalLinks) - Math.pow(groupSize / nodes.length, 2);
+      }
+    });
+
+    return modularity;
+  };
+
+  const calculateCouplingScore = (nodes: Node[], links: Link[]): number => {
+    // Calculate coupling based on cross-layer dependencies
+    let crossLayerLinks = 0;
+    let totalLinks = links.length;
+
+    links.forEach(link => {
+      const sourceNode = nodes.find(n => n.id === link.source);
+      const targetNode = nodes.find(n => n.id === link.target);
+      
+      if (sourceNode && targetNode && sourceNode.layer && targetNode.layer && sourceNode.layer !== targetNode.layer) {
+        crossLayerLinks++;
+      }
+    });
+
+    return totalLinks > 0 ? (crossLayerLinks / totalLinks) * 100 : 0;
+  };
 
   const filteredNodes = nodes.filter(node => {
     // Filter by type
@@ -392,7 +412,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return 'low';
   };
 
-  const handleNodeClick = (node: Node) => {
+  const handleNodeClick = (node: any) => {
     setSelectedNode(selectedNode === node.id ? null : node.id);
   };
 
@@ -422,7 +442,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
           calculateGraphStats(data.nodes, data.links);
         }
       } catch (err) {
-        ErrorHandler.logError(ErrorHandler.handleError(err));
+        console.error('Failed to parse imported graph data:', err);
       }
     };
     reader.readAsText(file);
@@ -436,12 +456,9 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
 
   const applyForceLayout = () => {
     if (forceGraphRef.current) {
-      const forceGraph = forceGraphRef.current as ForceGraphMethods & {
-        d3Force?: (name: string) => { distance?: (value: number) => void; strength?: (value: number) => void } | undefined;
-      };
-      forceGraph.d3Force?.('link')?.distance?.(100);
-      forceGraph.d3Force?.('charge')?.strength?.(-300);
-      forceGraph.d3Force?.('center')?.strength?.(0.1);
+      forceGraphRef.current.d3Force('link').distance(100);
+      forceGraphRef.current.d3Force('charge').strength(-300);
+      forceGraphRef.current.d3Force('center').strength(0.1);
     }
   };
 
@@ -701,7 +718,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
                 min="0"
                 max="20"
                 value={filters.minComplexity}
-                onChange={(e) => setFilters({...filters, minComplexity: parseInt(e.target.value, 10)})}
+                onChange={(e) => setFilters({...filters, minComplexity: parseInt(e.target.value)})}
                 className="flex-1"
               />
               <Input
@@ -709,7 +726,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
                 min="0"
                 max="20"
                 value={filters.maxComplexity}
-                onChange={(e) => setFilters({...filters, maxComplexity: parseInt(e.target.value, 10)})}
+                onChange={(e) => setFilters({...filters, maxComplexity: parseInt(e.target.value)})}
                 className="flex-1"
               />
             </div>
@@ -849,9 +866,9 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
               graphData={{ nodes: filteredNodes, links: filteredLinks }}
               nodeLabel="name"
               nodeColor={getNodeTypeColor}
-              nodeVal={(node: unknown) => getNodeSize(node as Node)}
+              nodeVal={(node: any) => getNodeSize(node)}
               linkColor={getLinkColor}
-              linkWidth={(link: unknown) => ((link as Link).weight || 1) * 2}
+              linkWidth={(link: any) => (link.weight || 1) * 2}
               linkDirectionalArrowLength={6}
               linkDirectionalArrowRelPos={1}
               onNodeClick={handleNodeClick}

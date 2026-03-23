@@ -4,7 +4,7 @@
  * Register Form Component with password strength indicator
  */
 import { useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader2, Check } from 'lucide-react';
@@ -17,29 +17,6 @@ import {
 } from '@/lib/validations/auth';
 import { useRegister } from '@/hooks/useAuth';
 
-function getRegisterErrorMessage(error: unknown) {
-    if (
-        error &&
-        typeof error === 'object' &&
-        'response' in error &&
-        error.response &&
-        typeof error.response === 'object' &&
-        'data' in error.response &&
-        error.response.data &&
-        typeof error.response.data === 'object' &&
-        'detail' in error.response.data &&
-        typeof error.response.data.detail === 'string'
-    ) {
-        return error.response.data.detail;
-    }
-
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-
-    return 'Registration failed. Please try again.';
-}
-
 export default function RegisterForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -48,7 +25,7 @@ export default function RegisterForm() {
     const {
         register: registerField,
         handleSubmit,
-        control,
+        watch,
         formState: { errors },
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -57,10 +34,7 @@ export default function RegisterForm() {
         },
     });
 
-    const password = useWatch({
-        control,
-        name: 'password',
-    });
+    const password = watch('password');
     const passwordStrength = password ? calculatePasswordStrength(password) : 0;
 
     const onSubmit = (data: RegisterFormData) => {
@@ -82,7 +56,7 @@ export default function RegisterForm() {
                 {error && (
                     <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
                         <p className="text-sm text-red-800 dark:text-red-200">
-                            {getRegisterErrorMessage(error)}
+                            {(error as any)?.response?.data?.detail || 'Registration failed. Please try again.'}
                         </p>
                     </div>
                 )}

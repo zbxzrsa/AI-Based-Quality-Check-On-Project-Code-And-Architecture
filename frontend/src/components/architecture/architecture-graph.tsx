@@ -2,13 +2,13 @@
 
 import { useCallback } from 'react';
 import ReactFlow, {
-  Node as FlowNode,
+  Node,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection as FlowConnection,
+  Connection,
   MiniMap,
   BackgroundVariant,
   NodeTypes,
@@ -17,15 +17,8 @@ import 'reactflow/dist/style.css';
 import { Card } from '@/components/ui/card';
 import type { GraphNode, GraphEdge } from '@/hooks/useProjects';
 
-interface CustomNodeData {
-  label: string;
-  type?: string;
-  health?: string;
-  complexity?: number;
-}
-
 // Custom node component
-function CustomNode({ data }: { data: CustomNodeData }) {
+function CustomNode({ data }: { data: any }) {
   const getHealthColor = (health: string) => {
     switch (health) {
       case 'healthy':
@@ -110,12 +103,12 @@ export default function ArchitectureGraph({
   );
 
   const onConnect = useCallback(
-    (params: FlowConnection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: FlowNode) => {
+    (_event: React.MouseEvent, node: Node) => {
       const originalNode = initialNodes.find((n) => n.id === node.id);
       if (originalNode && onNodeClick) {
         onNodeClick(originalNode);

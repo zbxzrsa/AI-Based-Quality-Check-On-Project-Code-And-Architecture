@@ -10,23 +10,60 @@ import { useMemo } from 'react';
 
 // Role-Permission mapping
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  // ADMIN: Full system control - all permissions
   [Role.ADMIN]: [
     Permission.CREATE_USER,
     Permission.DELETE_USER,
-    Permission.MODIFY_USER,
-    Permission.VIEW_USERS,
+    Permission.UPDATE_USER,
+    Permission.VIEW_USER,
     Permission.CREATE_PROJECT,
     Permission.DELETE_PROJECT,
-    Permission.MODIFY_PROJECT,
-    Permission.VIEW_PROJECTS,
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
     Permission.MODIFY_CONFIG,
-    Permission.VIEW_REVIEWS,
-    Permission.CREATE_REVIEW,
-    Permission.MODIFY_REVIEW,
+    Permission.VIEW_CONFIG,
+    Permission.EXPORT_REPORT,
   ],
-  [Role.USER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
+  // MANAGER: Project oversight & ROI
+  [Role.MANAGER]: [
+    Permission.VIEW_USER,
+    Permission.CREATE_PROJECT,
+    Permission.DELETE_PROJECT,
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+    Permission.EXPORT_REPORT,
+  ],
+  // REVIEWER: Read/Write analysis
+  [Role.REVIEWER]: [
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+    Permission.EXPORT_REPORT,
+  ],
+  // PROGRAMMER: CRUD own branch
+  [Role.PROGRAMMER]: [
+    Permission.CREATE_PROJECT,
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+    Permission.EXPORT_REPORT,
+  ],
+  // DEVELOPER: Developer role
+  [Role.DEVELOPER]: [
+    Permission.CREATE_PROJECT,
+    Permission.UPDATE_PROJECT,
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+  ],
+  // COMPLIANCE_OFFICER: Compliance officer role
+  [Role.COMPLIANCE_OFFICER]: [
+    Permission.VIEW_PROJECT,
+    Permission.VIEW_CONFIG,
+  ],
+  // VISITOR: Read-only grants
+  [Role.VISITOR]: [
+    Permission.VIEW_PROJECT,
   ],
 };
 

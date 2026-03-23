@@ -3,30 +3,34 @@
  */
 
 export enum Role {
-  ADMIN = 'admin',
-  USER = 'user',
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  REVIEWER = 'REVIEWER',
+  PROGRAMMER = 'PROGRAMMER',
+  DEVELOPER = 'DEVELOPER',
+  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',
+  VISITOR = 'VISITOR',
 }
 
 export enum Permission {
-  VIEW_PROJECTS = 'view_projects',
-  CREATE_PROJECT = 'create_project',
-  MODIFY_PROJECT = 'modify_project',
-  DELETE_PROJECT = 'delete_project',
-  VIEW_USERS = 'view_users',
-  CREATE_USER = 'create_user',
-  MODIFY_USER = 'modify_user',
-  DELETE_USER = 'delete_user',
-  VIEW_REVIEWS = 'view_reviews',
-  CREATE_REVIEW = 'create_review',
-  MODIFY_REVIEW = 'modify_review',
-  MODIFY_CONFIG = 'modify_config',
-}
-
-export type UserRole = Role;
-
-export interface ProjectAccess {
-  projectId: string;
-  permissions: Permission[];
+  CREATE_USER = 'CREATE_USER',
+  DELETE_USER = 'DELETE_USER',
+  UPDATE_USER = 'UPDATE_USER',
+  VIEW_USER = 'VIEW_USER',
+  MODIFY_USER = 'MODIFY_USER',
+  VIEW_USERS = 'VIEW_USERS',
+  CREATE_PROJECT = 'CREATE_PROJECT',
+  DELETE_PROJECT = 'DELETE_PROJECT',
+  UPDATE_PROJECT = 'UPDATE_PROJECT',
+  VIEW_PROJECT = 'VIEW_PROJECT',
+  VIEW_PROJECTS = 'VIEW_PROJECTS',
+  MODIFY_PROJECT = 'MODIFY_PROJECT',
+  VIEW_REVIEWS = 'VIEW_REVIEWS',
+  CREATE_REVIEW = 'CREATE_REVIEW',
+  MODIFY_REVIEW = 'MODIFY_REVIEW',
+  MODIFY_CONFIG = 'MODIFY_CONFIG',
+  VIEW_CONFIG = 'VIEW_CONFIG',
+  EXPORT_REPORT = 'EXPORT_REPORT',
 }
 
 export interface RBACUser {

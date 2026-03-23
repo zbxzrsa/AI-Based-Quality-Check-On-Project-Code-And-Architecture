@@ -9,6 +9,8 @@ import {
   GitPullRequest,
   Network,
   Activity,
+  Settings,
+  Users,
   TrendingUp,
 } from 'lucide-react'
 
@@ -31,7 +33,7 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-full w-64 flex-col border-r bg-background',
+        'flex h-full w-64 shrink-0 flex-col border-r bg-background',
         className
       )}
     >

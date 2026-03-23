@@ -13,7 +13,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { featureFlagsService, FeatureFlag, FlagChangeLog } from '@/lib/feature-flags';
 
 interface FeatureFlagsManagerProps {
@@ -21,15 +21,17 @@ interface FeatureFlagsManagerProps {
 }
 
 export function FeatureFlagsManager({ className = '' }: FeatureFlagsManagerProps) {
-  const [flags, setFlags] = useState<Record<string, FeatureFlag>>(
-    () => featureFlagsService.getAllFlags()
-  );
-  const [auditLogs, setAuditLogs] = useState<FlagChangeLog[]>(
-    () => featureFlagsService.getAuditLogs()
-  );
+  const [flags, setFlags] = useState<Record<string, FeatureFlag>>({});
+  const [auditLogs, setAuditLogs] = useState<FlagChangeLog[]>([]);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [editingRollout, setEditingRollout] = useState<string | null>(null);
   const [rolloutValue, setRolloutValue] = useState<number>(0);
+
+  // Load flags on mount
+  useEffect(() => {
+    loadFlags();
+    loadAuditLogs();
+  }, []);
 
   const loadFlags = () => {
     const allFlags = featureFlagsService.getAllFlags();

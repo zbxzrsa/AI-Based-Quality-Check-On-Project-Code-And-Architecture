@@ -3,79 +3,39 @@ Code Review API Endpoint
 
 Provides code review feature using user-configured API key.
 """
-
-import re
-import logging
-from uuid import UUID
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, status
+from typing import Optional, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Path
 from pydantic import BaseModel, Field, validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+import re
 
-from app.auth import TokenPayload, get_current_user
 from app.database.postgresql import get_db
-from app.models.code_review import CodeReview, PullRequest, ReviewComment
+from app.auth import TokenPayload, get_current_user
 from app.services.ai_pr_reviewer_service import AIReviewService, ReviewRequest
+from app.models.code_review import PullRequest
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 # API version constant
 API_VERSION = "1.0.0"
 
 
-def _safe_log_value(value: object, max_length: int = 64) -> str:
-    """Sanitize arbitrary values before logging."""
-    sanitized = str(value).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    if len(sanitized) > max_length:
-        return sanitized[:max_length] + "...[truncated]"
-    return sanitized
-
-
 def is_valid_uuid(uuid_string: str) -> bool:
     """Verify UUID format."""
-    uuid_pattern = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
-    return bool(uuid_pattern.match(uuid_string))
-
-
-def _parse_uuid_or_422(raw_id: str) -> UUID:
-    """Parse UUID and return 422 with consistent error message on failure."""
-    if not is_valid_uuid(raw_id):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid UUID format: {raw_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        )
-    try:
-        return UUID(raw_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid UUID format: {raw_id}",
-        )
-
-
-def _to_comment_model(comment: ReviewComment) -> "CodeReviewComment":
-    """Convert ReviewComment ORM record to API response model."""
-    return CodeReviewComment(
-        id=str(comment.id),
-        file_path=comment.file_path or "unknown",
-        line_number=comment.line_number or 1,
-        severity=comment.severity or "info",
-        category=comment.category or "general",
-        message=comment.message or "",
-        suggestion=comment.suggested_fix,
-        code_snippet=None,
+    uuid_pattern = re.compile(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        re.IGNORECASE
     )
+    return bool(uuid_pattern.match(uuid_string))
 
 
 class TriggerReviewRequest(BaseModel):
     """Trigger review request model."""
-
     pr_id: str = Field(..., description="Pull request UUID")
     force: bool = Field(default=False, description="Force re-review even if already reviewed")
 
-    @validator("pr_id")
+    @validator('pr_id')
     def validate_pr_id(cls, v):
         """Verify PR ID format."""
         if not is_valid_uuid(v):
@@ -85,11 +45,10 @@ class TriggerReviewRequest(BaseModel):
 
 class ReviewStatusResponse(BaseModel):
     """Review status response model."""
-
     pr_id: str
     status: str
     message: str
-    review_id: str | None = None
+    review_id: Optional[str] = None
     api_version: str = Field(default=API_VERSION, description="API version for backward compatibility")
 
 
@@ -98,7 +57,7 @@ async def trigger_code_review(
     request: TriggerReviewRequest,
     background_tasks: BackgroundTasks,
     current_user: TokenPayload = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Trigger code review.
@@ -127,14 +86,26 @@ async def trigger_code_review(
     """
     # Input validation is completed in Pydantic model
 
-    pr_uuid = _parse_uuid_or_422(request.pr_id)
+    # Get PR info
+    from sqlalchemy import select
 
-    result = await db.execute(select(PullRequest).filter(PullRequest.id == pr_uuid))
+    try:
+        pr_uuid = UUID(request.pr_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {request.pr_id}"
+        )
+
+    result = await db.execute(
+        select(PullRequest).filter(PullRequest.id == pr_uuid)
+    )
     pr = result.scalar_one_or_none()
 
     if not pr:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Pull request with id {request.pr_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Pull request with id {request.pr_id} not found"
         )
 
     # Check if user has permission to access the project
@@ -142,7 +113,10 @@ async def trigger_code_review(
 
     try:
         # Create AI review service instance (using user's API config)
-        review_service = AIReviewService(db=db, user_id=current_user.user_id)
+        review_service = AIReviewService(
+            db=db,
+            user_id=current_user.user_id
+        )
 
         # Build review request
         review_request = ReviewRequest(
@@ -150,28 +124,38 @@ async def trigger_code_review(
             design_standards=None,
             project_id=str(pr.project_id),
             pr_id=str(pr.id),
-            reviewer_id=current_user.user_id,
+            reviewer_id=current_user.user_id
         )
 
         # Execute review in background
-        background_tasks.add_task(perform_review_task, review_service, review_request, db)
+        background_tasks.add_task(
+            perform_review_task,
+            review_service,
+            review_request,
+            db
+        )
 
         return ReviewStatusResponse(
             pr_id=str(pr.id),
             status="queued",
             message="Code review has been queued and will be processed shortly",
             review_id=None,
-            api_version=API_VERSION,
+            api_version=API_VERSION
         )
 
     except Exception as e:
         logger.error(f"Failed to trigger code review for PR {request.pr_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to trigger code review: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger code review: {str(e)}"
         )
 
 
-async def perform_review_task(review_service: AIReviewService, review_request: ReviewRequest, db: AsyncSession):
+async def perform_review_task(
+    review_service: AIReviewService,
+    review_request: ReviewRequest,
+    db: AsyncSession
+):
     """
     Execute review task (background task).
     """
@@ -197,7 +181,7 @@ async def perform_review_task(review_service: AIReviewService, review_request: R
 async def get_review_status(
     pr_id: str = Path(..., description="Pull request UUID"),
     current_user: TokenPayload = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get review status.
@@ -220,7 +204,23 @@ async def get_review_status(
         HTTPException 422: Invalid UUID format
         HTTPException 404: Pull request not found
     """
-    pr_uuid = _parse_uuid_or_422(pr_id)
+    # Input validation: verify UUID format (Requirement 3.6)
+    if not is_valid_uuid(pr_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {pr_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        )
+
+    try:
+        pr_uuid = UUID(pr_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {pr_id}"
+        )
+
+    from sqlalchemy import select
+    from app.models.code_review import CodeReview
 
     try:
         # Get latest review record
@@ -237,7 +237,7 @@ async def get_review_status(
                 "pr_id": pr_id,
                 "status": "not_started",
                 "message": "No review has been started for this PR",
-                "api_version": API_VERSION,
+                "api_version": API_VERSION
             }
 
         return {
@@ -247,65 +247,63 @@ async def get_review_status(
             "started_at": review.started_at.isoformat() if review.started_at else None,
             "completed_at": review.completed_at.isoformat() if review.completed_at else None,
             "summary": review.summary,
-            "api_version": API_VERSION,
+            "api_version": API_VERSION
         }
 
     except Exception as e:
         logger.error(f"Failed to get review status for PR {pr_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get review status: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get review status: {str(e)}"
         )
 
 
 class CodeReviewComment(BaseModel):
     """Code review comment model."""
-
     id: str
     file_path: str
     line_number: int = Field(..., ge=1, description="Line number must be positive")
     severity: str = Field(..., description="Severity: info, warning, error, critical")
     category: str
     message: str
-    suggestion: str | None = None
-    code_snippet: str | None = None
+    suggestion: Optional[str] = None
+    code_snippet: Optional[str] = None
 
-    @validator("severity")
+    @validator('severity')
     def validate_severity(cls, v):
         """Verify severity value."""
-        valid_severities = ["info", "warning", "error", "critical"]
+        valid_severities = ['info', 'warning', 'error', 'critical']
         if v.lower() not in valid_severities:
-            raise ValueError(f"Severity must be one of {valid_severities}")
+            raise ValueError(f'Severity must be one of {valid_severities}')
         return v.lower()
 
 
 class CodeReviewSummary(BaseModel):
     """Code review summary model."""
-
     total_files: int = Field(ge=0)
     total_comments: int = Field(ge=0)
-    severity_counts: dict[str, int]
-    categories: list[str]
+    severity_counts: Dict[str, int]
+    categories: List[str]
 
 
 class CodeReviewResponse(BaseModel):
     """Code review response model - meets production requirements."""
-
     id: str
     project_id: str
     pr_number: int
     status: str = Field(..., description="Review status: pending, in_progress, completed, failed")
-    comments: list[CodeReviewComment]
+    comments: List[CodeReviewComment]
     summary: CodeReviewSummary
     created_at: str
-    completed_at: str | None = None
+    completed_at: Optional[str] = None
     api_version: str = Field(default=API_VERSION, description="API version for backward compatibility")
 
-    @validator("status")
+    @validator('status')
     def validate_status(cls, v):
         """Verify status value."""
-        valid_statuses = ["pending", "in_progress", "completed", "failed"]
+        valid_statuses = ['pending', 'in_progress', 'completed', 'failed']
         if v not in valid_statuses:
-            raise ValueError(f"Status must be one of {valid_statuses}")
+            raise ValueError(f'Status must be one of {valid_statuses}')
         return v
 
 
@@ -313,7 +311,7 @@ class CodeReviewResponse(BaseModel):
 async def get_code_review(
     review_id: str = Path(..., description="Code review UUID"),
     current_user: TokenPayload = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get code review details.
@@ -337,41 +335,74 @@ async def get_code_review(
         HTTPException 404: Code review not found
         HTTPException 403: No permission to access
     """
-    review_uuid = _parse_uuid_or_422(review_id)
+    # Input validation: verify UUID format (Requirement 3.6)
+    if not is_valid_uuid(review_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {review_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        )
+
+    try:
+        review_uuid = UUID(review_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {review_id}"
+        )
+
+    from sqlalchemy import select
+    from app.models.code_review import CodeReview, ReviewComment
 
     try:
         # Query code review
-        review_result = await db.execute(select(CodeReview).filter(CodeReview.id == review_uuid))
+        review_result = await db.execute(
+            select(CodeReview).filter(CodeReview.id == review_uuid)
+        )
         review = review_result.scalar_one_or_none()
 
         if not review:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Code review with id {review_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Code review with id {review_id} not found"
             )
 
         # Get associated PR
-        pr_result = await db.execute(select(PullRequest).filter(PullRequest.id == review.pull_request_id))
+        pr_result = await db.execute(
+            select(PullRequest).filter(PullRequest.id == review.pull_request_id)
+        )
         pr = pr_result.scalar_one_or_none()
 
         if not pr:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Pull request for review {review_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pull request for review {review_id} not found"
             )
 
         # Get review comments
-        comments_result = await db.execute(select(ReviewComment).filter(ReviewComment.review_id == review_uuid))
+        comments_result = await db.execute(
+            select(ReviewComment).filter(ReviewComment.review_id == review_uuid)
+        )
         comments = comments_result.scalars().all()
 
         # Build comment list
         comment_list = []
-        severity_counts = {"info": 0, "warning": 0, "error": 0, "critical": 0}
+        severity_counts = {'info': 0, 'warning': 0, 'error': 0, 'critical': 0}
         categories_set = set()
 
         for comment in comments:
-            comment_list.append(_to_comment_model(comment))
+            comment_list.append(CodeReviewComment(
+                id=str(comment.id),
+                file_path=comment.file_path or 'unknown',
+                line_number=comment.line_number or 1,
+                severity=comment.severity or 'info',
+                category=comment.category or 'general',
+                message=comment.message or '',
+                suggestion=comment.suggested_fix,
+                code_snippet=None  # Can be extracted from file
+            ))
 
             # Count severity
-            severity = (comment.severity or "info").lower()
+            severity = (comment.severity or 'info').lower()
             if severity in severity_counts:
                 severity_counts[severity] += 1
 
@@ -384,17 +415,17 @@ async def get_code_review(
             total_files=pr.files_changed or 0,
             total_comments=len(comment_list),
             severity_counts=severity_counts,
-            categories=sorted(categories_set),
+            categories=sorted(list(categories_set))
         )
 
         # Determine status
         status_mapping = {
-            "pending": "pending",
-            "in_progress": "in_progress",
-            "completed": "completed",
-            "failed": "failed",
+            'pending': 'pending',
+            'in_progress': 'in_progress',
+            'completed': 'completed',
+            'failed': 'failed'
         }
-        review_status = status_mapping.get(review.status.value, "pending")
+        review_status = status_mapping.get(review.status.value, 'pending')
 
         # Build response (contains API version info - Requirement 3.4)
         response = CodeReviewResponse(
@@ -404,32 +435,30 @@ async def get_code_review(
             status=review_status,
             comments=comment_list,
             summary=summary,
-            created_at=review.started_at.isoformat() if review.started_at else "",
+            created_at=review.started_at.isoformat() if review.started_at else '',
             completed_at=review.completed_at.isoformat() if review.completed_at else None,
-            api_version=API_VERSION,
+            api_version=API_VERSION
         )
 
         return response
 
     except HTTPException:
         raise
-    except Exception:
-        logger.error(
-            "Failed to get code review",
-            extra={"review_id": _safe_log_value(review_id), "operation": "get_code_review"},
-        )
+    except Exception as e:
+        logger.error(f"Failed to get code review {review_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get code review"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get code review: {str(e)}"
         )
 
 
-@router.get("/{review_id}/comments", response_model=list[CodeReviewComment])
+@router.get("/{review_id}/comments", response_model=List[CodeReviewComment])
 async def get_review_comments(
     review_id: str = Path(..., description="Code review UUID"),
-    severity: str | None = None,
-    category: str | None = None,
+    severity: Optional[str] = None,
+    category: Optional[str] = None,
     current_user: TokenPayload = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get comment list for code review.
@@ -456,25 +485,44 @@ async def get_review_comments(
         HTTPException 422: Invalid UUID format or parameter
         HTTPException 404: Code review not found
     """
-    review_uuid = _parse_uuid_or_422(review_id)
+    # Input validation: verify UUID format (Requirement 3.6)
+    if not is_valid_uuid(review_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {review_id}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        )
 
     # Verify severity parameter
     if severity:
-        valid_severities = ["info", "warning", "error", "critical"]
+        valid_severities = ['info', 'warning', 'error', 'critical']
         if severity.lower() not in valid_severities:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid severity: {severity}. Must be one of {valid_severities}",
+                detail=f"Invalid severity: {severity}. Must be one of {valid_severities}"
             )
 
     try:
+        review_uuid = UUID(review_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid UUID format: {review_id}"
+        )
+
+    from sqlalchemy import select
+    from app.models.code_review import CodeReview, ReviewComment
+
+    try:
         # Verify review exists
-        review_result = await db.execute(select(CodeReview).filter(CodeReview.id == review_uuid))
+        review_result = await db.execute(
+            select(CodeReview).filter(CodeReview.id == review_uuid)
+        )
         review = review_result.scalar_one_or_none()
 
         if not review:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Code review with id {review_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Code review with id {review_id} not found"
             )
 
         # Build query
@@ -493,17 +541,28 @@ async def get_review_comments(
         # Build comment list
         comment_list = []
         for comment in comments:
-            comment_list.append(_to_comment_model(comment))
+            comment_list.append(CodeReviewComment(
+                id=str(comment.id),
+                file_path=comment.file_path or 'unknown',
+                line_number=comment.line_number or 1,
+                severity=comment.severity or 'info',
+                category=comment.category or 'general',
+                message=comment.message or '',
+                suggestion=comment.suggested_fix,
+                code_snippet=None
+            ))
 
         return comment_list
 
     except HTTPException:
         raise
-    except Exception:
-        logger.error(
-            "Failed to get comments for review",
-            extra={"review_id": _safe_log_value(review_id), "operation": "get_review_comments"},
-        )
+    except Exception as e:
+        logger.error(f"Failed to get comments for review {review_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get review comments"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get review comments: {str(e)}"
         )
+
+
+import logging
+logger = logging.getLogger(__name__)

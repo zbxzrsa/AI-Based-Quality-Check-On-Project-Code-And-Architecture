@@ -1,7 +1,6 @@
 """
 Database testing and management endpoints
 """
-
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -11,7 +10,7 @@ router = APIRouter()
 async def test_postgres():
     """Test PostgreSQL connection"""
     from app.database.postgresql import test_postgres_connection
-
+    
     success = await test_postgres_connection()
     return {
         "database": "PostgreSQL",
@@ -24,7 +23,7 @@ async def test_postgres():
 async def test_neo4j():
     """Test Neo4j connection"""
     from app.database.neo4j_db import test_neo4j_connection
-
+    
     success = await test_neo4j_connection()
     return {
         "database": "Neo4j",
@@ -37,7 +36,7 @@ async def test_neo4j():
 async def test_redis():
     """Test Redis connection"""
     from app.database.redis_db import test_redis_connection
-
+    
     success = await test_redis_connection()
     return {
         "database": "Redis",
@@ -49,14 +48,14 @@ async def test_redis():
 @router.get("/test/all")
 async def test_all_databases():
     """Test all database connections"""
-    from app.database.neo4j_db import test_neo4j_connection
     from app.database.postgresql import test_postgres_connection
+    from app.database.neo4j_db import test_neo4j_connection
     from app.database.redis_db import test_redis_connection
-
+    
     postgres = await test_postgres_connection()
     neo4j = await test_neo4j_connection()
     redis = await test_redis_connection()
-
+    
     return {
         "databases": {
             "postgresql": {

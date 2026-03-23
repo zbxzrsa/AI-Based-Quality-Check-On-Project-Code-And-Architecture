@@ -36,26 +36,6 @@ export interface PullRequest {
   analyzed_at: string | null;
 }
 
-interface ProjectPullRequestsResponse {
-  project_id: string;
-  total: number;
-  pull_requests: Array<{
-    id: string;
-    number: number;
-    title: string;
-    status: string;
-    risk_score: number | null;
-    created_at: string;
-    description?: string | null;
-    branch_name?: string | null;
-    commit_sha?: string | null;
-    files_changed?: number;
-    lines_added?: number;
-    lines_deleted?: number;
-    analyzed_at?: string | null;
-  }>;
-}
-
 export interface ProjectMetrics {
   code_quality: number;
   security_rating: number;
@@ -153,26 +133,12 @@ export function useProjectPullRequests(projectId: string, state: string = 'all')
   return useQuery({
     queryKey: ['projects', projectId, 'pulls', state],
     queryFn: async () => {
-      const response = await apiClient.get<ProjectPullRequestsResponse>(`/github/projects/${projectId}/pulls`, {
+      // Always skip the API client cache for PR lists so we can see
+      // real-time status changes (pending → analyzing → reviewed)
+      return apiClient.get(`/github/projects/${projectId}/pulls`, {
         params: { state },
+        skipCache: true,
       });
-
-      return response.pull_requests.map((pr) => ({
-        id: pr.id,
-        project_id: response.project_id,
-        github_pr_number: pr.number,
-        title: pr.title,
-        description: pr.description ?? null,
-        branch_name: pr.branch_name ?? 'unknown',
-        commit_sha: pr.commit_sha ?? '',
-        status: pr.status,
-        risk_score: pr.risk_score,
-        files_changed: pr.files_changed ?? 0,
-        lines_added: pr.lines_added ?? 0,
-        lines_deleted: pr.lines_deleted ?? 0,
-        created_at: pr.created_at,
-        analyzed_at: pr.analyzed_at ?? null,
-      })) satisfies PullRequest[];
     },
     enabled: !!projectId,
   });
@@ -201,31 +167,15 @@ export function useSyncProject() {
     mutationFn: async (projectId: string) => {
       return apiClient.post(`/github/projects/${projectId}/sync`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['architecture'], exact: false });
-    },
-  });
-}
-
-export function useAnalyzePullRequest() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ prId, projectId: _projectId }: { prId: string; projectId: string }) => {
-      return apiClient.post(`/github/pr/${prId}/analyze`);
-    },
-    onSuccess: (_, { projectId }) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'pulls'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'analytics'] });
+    onSuccess: (_, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
     },
   });
 }
 
 /**
  * Create new project with GitHub connection options
+ * Uses the /api/projects/create route to ensure github_repo_url is properly forwarded
  */
 export function useCreateProject() {
   const queryClient = useQueryClient();
@@ -240,7 +190,22 @@ export function useCreateProject() {
       github_cli_token?: string;
       language?: string;
     }) => {
-      return apiClient.post<Project>('/rbac/projects', data);
+      // Use our Next.js API route which properly forwards all data to backend
+      const response = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Includes cookies for auth
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to create project' }));
+        throw new Error(error.detail || 'Failed to create project');
+      }
+
+      return response.json() as Promise<Project>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -423,3 +388,63 @@ export interface BranchArchitecture {
     high_violations: number;
   };
 }
+
+// Architecture Overview types
+export interface ArchOverviewNode {
+  id: string;
+  label: string;
+  type: string;
+  group: string;
+  health: string;
+  description: string;
+  position: { x: number; y: number };
+  style?: { background: string; borderColor: string };
+}
+
+export interface ArchOverviewEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  type: string;
+}
+
+export interface ArchOverviewGroup {
+  id: string;
+  label: string;
+  color: string;
+  borderColor: string;
+}
+
+export interface ArchitectureOverview {
+  project_id: string;
+  project_name: string;
+  nodes: ArchOverviewNode[];
+  edges: ArchOverviewEdge[];
+  groups: ArchOverviewGroup[];
+  health_summary: {
+    overall: string;
+    total_components: number;
+    healthy_components: number;
+    warning_components: number;
+    critical_components: number;
+    total_violations: number;
+    has_analysis: boolean;
+  };
+}
+
+/**
+ * Fetch system-level architecture overview for a project
+ */
+export function useArchitectureOverview(projectId: string) {
+  return useQuery({
+    queryKey: ['architecture', projectId, 'overview'],
+    queryFn: async () => {
+      return apiClient.get<ArchitectureOverview>(
+        `/architecture/overview/${projectId}`
+      );
+    },
+    enabled: !!projectId,
+  });
+}
+

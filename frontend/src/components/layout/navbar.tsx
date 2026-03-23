@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
 import { Bell, User, LogOut, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,15 +15,24 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import NotificationCenter from '@/components/notifications/notification-center'
-import { useAuth } from '@/contexts/AuthContext'
 
 export function Navbar() {
-  const { user, logout } = useAuth()
+  const { data: session } = useSession()
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   const handleLogout = async () => {
     try {
-      await logout()
+      // Call our logout API to clear httpOnly cookies
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      
+      // Also sign out from NextAuth
+      await signOut({ redirect: false })
+      
+      // Redirect to login page
+      window.location.href = '/login'
     } catch (error) {
       console.error('Logout error:', error)
       // Force redirect even on error
@@ -79,10 +89,10 @@ export function Navbar() {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user?.full_name || user?.email || 'User'}
+                    {session?.user?.name || 'User'}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email}
+                    {session?.user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -91,12 +101,6 @@ export function Navbar() {
                 <Link href="/profile">
                   <User className="mr-2 h-4 w-4" />
                   Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

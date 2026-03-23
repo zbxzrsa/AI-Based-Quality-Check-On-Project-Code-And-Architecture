@@ -8,11 +8,11 @@ A refactored, modular error reporting system with:
 - Alerting capabilities
 """
 
-from .masking import MASKING_RULES, MaskingRule, mask_sensitive_data
-from .reporter import ErrorReporter, error_reporter
+from .types import DatabaseErrorCategory, DatabaseErrorInfo
+from .masking import MaskingRule, mask_sensitive_data, MASKING_RULES
 from .statistics import ErrorStatistics
 from .statistics_manager import ErrorStatisticsManager, error_stats
-from .types import DatabaseErrorCategory, DatabaseErrorInfo
+from .reporter import ErrorReporter, error_reporter
 
 __all__ = [
     "DatabaseErrorCategory",

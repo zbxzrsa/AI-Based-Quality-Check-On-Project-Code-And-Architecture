@@ -1,13 +1,13 @@
 /**
- * PullRequests Page Component
+ * PullRequests页面component
  * 
- * Features:
- * - Display Pull Request list
- * - Integrate CodeDiff component to show code differences
- * - Support viewing PR details and code changes
- * - Wrapped with ErrorBoundary
+ * feature:
+ * - 展示Pull Request列表
+ * - integrationCodeDiffcomponentshowcode差异
+ * - supportviewPRdetailandcode变更
+ * - useErrorBoundary包裹
  * 
- * Verification Requirement: 3.1
+ * verifyRequirement: 3.1
  */
 
 'use client';
@@ -22,7 +22,7 @@ import type { Comment } from '../components/CodeDiff';
 import '../styles/responsive.css';
 
 /**
- * PullRequests Page Main Component
+ * PullRequests页面主component
  */
 export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs = [] }) => {
   const [pullRequests, setPullRequests] = useState<PullRequest[]>(initialPRs);
@@ -73,38 +73,17 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
     
     // Update the selected PR
     setSelectedPR(updatedPR);
+
+    console.log(`PR ${selectedPR.number} ${decision}:`, comment);
   }, [selectedPR]);
 
   // Handle add comment
-  const handleAddComment = useCallback(
-    (fileName: string, lineNumber: number, content: string, parentId?: string) => {
+  const handleAddComment = useCallback((comment: Comment) => {
     if (!selectedPR) return;
-
-    const newComment: Comment = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      author: 'Current User',
-      content,
-      createdAt: new Date(),
-      lineNumber,
-      fileName,
-      parentId,
-    };
-
-    const comments = parentId
-      ? selectedPR.comments.map((existing) => {
-          if (existing.id !== parentId) {
-            return existing;
-          }
-          return {
-            ...existing,
-            replies: [...(existing.replies || []), newComment],
-          };
-        })
-      : [...selectedPR.comments, newComment];
 
     const updatedPR = {
       ...selectedPR,
-      comments,
+      comments: [...selectedPR.comments, comment],
       updatedAt: new Date(),
     };
 
@@ -115,9 +94,7 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
     
     // Update the selected PR
     setSelectedPR(updatedPR);
-    },
-    [selectedPR]
-  );
+  }, [selectedPR]);
 
   if (loading) {
     return <LoadingState message="Loading pull requests..." />;

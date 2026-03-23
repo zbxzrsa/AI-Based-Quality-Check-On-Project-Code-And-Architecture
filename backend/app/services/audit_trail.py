@@ -1,83 +1,79 @@
 """
 Immutable Audit Trail System
 """
-
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from sqlalchemy import Column, String, DateTime, JSON, Text, Index
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 import hashlib
 import json
-import uuid
-from datetime import datetime, timezone
-from typing import Any
-
-from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text, func, select
-from sqlalchemy.dialects.postgresql import UUID
-
 from app.database.postgresql import Base
 
 
 class AuditLog(Base):
     """
     Immutable audit log table
-
+    
     Features:
     - Cryptographic hash chain for immutability
     - Complete action context
     - User and IP tracking
     - Searchable metadata
     """
-
     __tablename__ = "audit_logs"
-
+    
     # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
+    
     # Chain hash (links to previous log entry)
     previous_hash = Column(String(64), nullable=True)
     current_hash = Column(String(64), nullable=False)
-
+    
     # Event details
     timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     event_type = Column(String(50), nullable=False)  # create, update, delete, access, etc.
     resource_type = Column(String(50), nullable=False)  # user, project, pr, etc.
     resource_id = Column(String(100), nullable=False)
-
+    
     # Actor details
     user_id = Column(UUID(as_uuid=True), nullable=True)
     user_email = Column(String(255), nullable=True)
     user_role = Column(String(50), nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-
+    
     # Action details
     action = Column(String(100), nullable=False)  # e.g., "login", "create_project"
     description = Column(Text, nullable=False)
-
+    
     # Before/after state
     previous_state = Column(JSON, nullable=True)
     new_state = Column(JSON, nullable=True)
-
+    
     # Additional context
     metadata = Column(JSON, nullable=True)
-
+    
     # Compliance
     compliance_frameworks = Column(JSON, nullable=True)  # ["PCI-DSS", "HIPAA"]
     retention_period_days = Column(Integer, default=2555)  # 7 years default
-
+    
     # Indexes
     __table_args__ = (
-        Index("idx_audit_trail_timestamp", "timestamp"),
-        Index("idx_audit_trail_user", "user_id"),
-        Index("idx_audit_trail_resource", "resource_type", "resource_id"),
-        Index("idx_audit_trail_event_type", "event_type"),
-        Index("idx_audit_trail_action", "action"),
+        Index('idx_audit_trail_timestamp', 'timestamp'),
+        Index('idx_audit_trail_user', 'user_id'),
+        Index('idx_audit_trail_resource', 'resource_type', 'resource_id'),
+        Index('idx_audit_trail_event_type', 'event_type'),
+        Index('idx_audit_trail_action', 'action'),
     )
 
 
 class AuditTrailService:
     """Service for managing immutable audit trail"""
-
+    
     def __init__(self, db_session):
         self.db = db_session
-
+    
     async def log_event(
         self,
         event_type: str,
@@ -85,19 +81,19 @@ class AuditTrailService:
         resource_id: str,
         action: str,
         description: str,
-        user_id: str | None = None,
-        user_email: str | None = None,
-        user_role: str | None = None,
-        ip_address: str | None = None,
-        user_agent: str | None = None,
-        previous_state: dict[str, Any] | None = None,
-        new_state: dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
-        compliance_frameworks: list | None = None,
+        user_id: Optional[str] = None,
+        user_email: Optional[str] = None,
+        user_role: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        previous_state: Optional[Dict[str, Any]] = None,
+        new_state: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        compliance_frameworks: Optional[list] = None,
     ) -> AuditLog:
         """
         Create immutable audit log entry
-
+        
         Args:
             event_type: Type of event (create, update, delete, access)
             resource_type: Type of resource (user, project, pr)
@@ -113,14 +109,14 @@ class AuditTrailService:
             new_state: State after action
             metadata: Additional context
             compliance_frameworks: Applicable frameworks
-
+            
         Returns:
             Created audit log entry
         """
         # Get previous log entry for hash chain
         previous_log = await self._get_latest_log()
         previous_hash = previous_log.current_hash if previous_log else None
-
+        
         # Create log entry
         log_entry = AuditLog(
             previous_hash=previous_hash,
@@ -140,21 +136,21 @@ class AuditTrailService:
             metadata=metadata,
             compliance_frameworks=compliance_frameworks,
         )
-
+        
         # Generate hash
         log_entry.current_hash = self._generate_hash(log_entry)
-
+        
         # Save to database
         self.db.add(log_entry)
         await self.db.commit()
         await self.db.refresh(log_entry)
-
+        
         return log_entry
-
+    
     def _generate_hash(self, log_entry: AuditLog) -> str:
         """
         Generate cryptographic hash for audit log entry
-
+        
         Creates SHA-256 hash of:
         - Previous hash (for chain)
         - Timestamp
@@ -172,90 +168,90 @@ class AuditTrailService:
             "action": log_entry.action,
             "description": log_entry.description,
         }
-
+        
         # Create deterministic JSON string
         hash_string = json.dumps(hash_data, sort_keys=True)
-
+        
         # Generate SHA-256 hash
         return hashlib.sha256(hash_string.encode()).hexdigest()
-
-    async def _get_latest_log(self) -> AuditLog | None:
+    
+    async def _get_latest_log(self) -> Optional[AuditLog]:
         """Get the most recent audit log entry"""
         from sqlalchemy import desc
-
-        result = await self.db.execute(select(AuditLog).order_by(desc(AuditLog.timestamp)).limit(1))
+        
+        result = await self.db.execute(
+            select(AuditLog).order_by(desc(AuditLog.timestamp)).limit(1)
+        )
         return result.scalar_one_or_none()
-
-    async def verify_chain_integrity(self) -> dict[str, Any]:
+    
+    async def verify_chain_integrity(self) -> Dict[str, Any]:
         """
         Verify integrity of audit trail hash chain
-
+        
         Returns:
             Verification result with status and any breaks
         """
         from sqlalchemy import select
-
+        
         # Get all logs in chronological order
-        result = await self.db.execute(select(AuditLog).order_by(AuditLog.timestamp))
+        result = await self.db.execute(
+            select(AuditLog).order_by(AuditLog.timestamp)
+        )
         logs = result.scalars().all()
-
+        
         breaks = []
         previous_hash = None
-
+        
         for log in logs:
             # Verify hash matches
             expected_hash = self._generate_hash(log)
             if log.current_hash != expected_hash:
-                breaks.append(
-                    {
-                        "log_id": str(log.id),
-                        "timestamp": log.timestamp.isoformat(),
-                        "reason": "Hash mismatch",
-                    }
-                )
-
+                breaks.append({
+                    "log_id": str(log.id),
+                    "timestamp": log.timestamp.isoformat(),
+                    "reason": "Hash mismatch",
+                })
+            
             # Verify chain
             if log.previous_hash != previous_hash:
-                breaks.append(
-                    {
-                        "log_id": str(log.id),
-                        "timestamp": log.timestamp.isoformat(),
-                        "reason": "Chain break",
-                    }
-                )
-
+                breaks.append({
+                    "log_id": str(log.id),
+                    "timestamp": log.timestamp.isoformat(),
+                    "reason": "Chain break",
+                })
+            
             previous_hash = log.current_hash
-
+        
         return {
             "total_logs": len(logs),
             "verified": len(breaks) == 0,
             "breaks": breaks,
             "verified_at": datetime.now(timezone.utc).isoformat(),
         }
-
+    
     async def search_logs(
         self,
-        user_id: str | None = None,
-        resource_type: str | None = None,
-        resource_id: str | None = None,
-        event_type: str | None = None,
-        action: str | None = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
+        user_id: Optional[str] = None,
+        resource_type: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        action: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Search audit logs with filters
-
+        
         Returns:
             Matching audit log entries
         """
-        from sqlalchemy import and_, select
-
+        from sqlalchemy import select, and_
+        
         query = select(AuditLog)
         filters = []
-
+        
         if user_id:
             filters.append(AuditLog.user_id == user_id)
         if resource_type:
@@ -270,29 +266,31 @@ class AuditTrailService:
             filters.append(AuditLog.timestamp >= start_date)
         if end_date:
             filters.append(AuditLog.timestamp <= end_date)
-
+        
         if filters:
             query = query.where(and_(*filters))
-
+        
         # Get total count
-        count_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
+        count_result = await self.db.execute(
+            select(func.count()).select_from(query.subquery())
+        )
         total = count_result.scalar()
-
+        
         # Apply pagination
         query = query.order_by(AuditLog.timestamp.desc()).limit(limit).offset(offset)
-
+        
         # Execute query
         result = await self.db.execute(query)
         logs = result.scalars().all()
-
+        
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
             "items": [self._log_to_dict(log) for log in logs],
         }
-
-    def _log_to_dict(self, log: AuditLog) -> dict[str, Any]:
+    
+    def _log_to_dict(self, log: AuditLog) -> Dict[str, Any]:
         """Convert audit log to dictionary"""
         return {
             "id": str(log.id),

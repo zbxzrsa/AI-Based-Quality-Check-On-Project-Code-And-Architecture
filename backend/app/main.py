@@ -1,25 +1,22 @@
 """
 Main FastAPI application entry point
 """
-
-import asyncio
-import logging
 import os
-from contextlib import asynccontextmanager
-
+import logging
+import asyncio
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 
-from app.api.exception_handlers import register_exception_handlers
-from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.logging_config import log_request, setup_logging
-from app.database.neo4j_db import close_neo4j, init_neo4j
-from app.database.postgresql import close_postgres, get_db, init_postgres
-from app.database.redis_db import close_redis, init_redis
-from app.services.health_service import get_health_service
+from app.core.logging_config import setup_logging, log_request
+from app.api.v1.router import api_router
+from app.api.exception_handlers import register_exception_handlers
+from app.database.postgresql import init_postgres, close_postgres, get_db
+from app.database.neo4j_db import init_neo4j, close_neo4j
+from app.database.redis_db import init_redis, close_redis
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +25,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    setup_logging(level=settings.LOG_LEVEL, enable_json=True)  # noqa: F823
-
-    # Initialize OpenTelemetry tracing if enabled (Requirement 18.1)
-    if settings.is_tracing_enabled():
+    setup_logging(level=settings.LOG_LEVEL, enable_json=True)
+    
+    # Skip database initialization during testing as it's handled by fixtures
+    testing = os.environ.get("TESTING") == "true"
+    
+    # Initialize OpenTelemetry tracing if enabled (Requirement 18.1) - skip in testing
+    if not testing and settings.is_tracing_enabled():
         from app.core.tracing import setup_tracing
-
         tracing_config = setup_tracing(
             service_name=settings.PROJECT_NAME,
             service_version=settings.VERSION,
@@ -45,21 +44,18 @@ async def lifespan(app: FastAPI):
         # Instrument HTTP clients
         tracing_config.instrument_httpx()
         tracing_config.instrument_redis()
-
+    
     # Setup graceful shutdown handler (Requirement 12.10)
     from app.services.graceful_shutdown import setup_graceful_shutdown
-
-    setup_graceful_shutdown(shutdown_timeout=30)
-
-    # Skip database initialization during testing as it's handled by fixtures
-    testing = os.environ.get("TESTING") == "true"
-
+    shutdown_handler = setup_graceful_shutdown(shutdown_timeout=30)
+    
+    # testing flag already set above
+    
     # Run security validation first (Critical)
     if not testing:
         logger.info("Running security validation...")
         try:
             from app.core.security_validator import SecurityValidator
-
             SecurityValidator.validate_startup()
             logger.info("✅ Security validation passed")
         except Exception as e:
@@ -69,13 +65,12 @@ async def lifespan(app: FastAPI):
                 raise e
             else:
                 logger.warning("Continuing in development mode despite security issues")
-
+    
     # Run comprehensive startup validation (Requirement 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7)
     if not testing:
         logger.info("Running startup validation...")
         try:
             from app.services.startup_validation import run_startup_validation
-
             validation_result = await run_startup_validation()
             if validation_result and not validation_result.is_valid:
                 logger.warning("Startup validation failed but continuing: %s", validation_result.errors)
@@ -85,11 +80,11 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Testing mode: Skipping startup validation")
         validation_result = None
-
+    
     # Initialize databases with timeout and graceful degradation
     db_status = {}
     postgres_available = False
-
+    
     if not testing:
         # PostgreSQL - Critical for application (增加重试机制)
         postgres_retries = 3
@@ -103,23 +98,19 @@ async def lifespan(app: FastAPI):
                 break
             except asyncio.TimeoutError:
                 if attempt < postgres_retries - 1:
-                    logger.warning(
-                        f"⚠️ PostgreSQL connection timeout (attempt {attempt + 1}/{postgres_retries}), retrying..."
-                    )
+                    logger.warning(f"⚠️ PostgreSQL connection timeout (attempt {attempt + 1}/{postgres_retries}), retrying...")
                     await asyncio.sleep(5)  # 等待5秒后重试
                 else:
                     db_status["PostgreSQL"] = {"is_connected": False, "error": "Connection timeout after retries"}
                     logger.error("❌ PostgreSQL connection timeout after all retries - backend will be degraded")
             except Exception as e:
                 if attempt < postgres_retries - 1:
-                    logger.warning(
-                        f"⚠️ PostgreSQL connection failed (attempt {attempt + 1}/{postgres_retries}): {str(e)[:100]}, retrying..."
-                    )
+                    logger.warning(f"⚠️ PostgreSQL connection failed (attempt {attempt + 1}/{postgres_retries}): {str(e)[:100]}, retrying...")
                     await asyncio.sleep(5)
                 else:
                     db_status["PostgreSQL"] = {"is_connected": False, "error": str(e)[:50]}
                     logger.error("❌ PostgreSQL connection failed after all retries: %s", str(e)[:100])
-
+        
         # Redis - Optional for caching (移到Neo4j之前，因为更重要)
         try:
             await asyncio.wait_for(init_redis(), timeout=15)
@@ -131,7 +122,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             db_status["Redis"] = {"is_connected": False, "error": str(e)[:50]}
             logger.warning("⚠️ Redis not available: %s", str(e)[:100])
-
+        
         # Neo4j - Optional for graph features
         try:
             await asyncio.wait_for(init_neo4j(), timeout=30)
@@ -145,24 +136,23 @@ async def lifespan(app: FastAPI):
             logger.warning("⚠️ Neo4j not available: %s", str(e)[:100])
     else:
         logger.info("Testing mode: Skipping database initialization in lifespan")
-        postgres_available = True  # Assume available as it's handled by fixtures
-
-    # Apply database migrations if PostgreSQL is available
-    if postgres_available:
+        postgres_available = True # Assume available as it's handled by fixtures
+    
+    # Apply database migrations if PostgreSQL is available (skip in testing)
+    if postgres_available and not testing:
         try:
             from app.database.migration_manager import get_migration_manager
-
             migration_manager = get_migration_manager()
-
+            
             logger.info("Checking for pending migrations...")
             migration_status = await migration_manager.get_migration_status()
             logger.info("Migration status: %s", str(migration_status))
-
+            
             if migration_status.pending_count > 0:
                 logger.info("Applying %d pending migration(s)...", migration_status.pending_count)
                 migration_status = await migration_manager.apply_pending_migrations()
                 logger.info("Migration result: %s", str(migration_status))
-
+                
                 if migration_status.errors:
                     logger.error("Migration errors: %s", migration_status.errors)
                     for error in migration_status.errors:
@@ -172,108 +162,61 @@ async def lifespan(app: FastAPI):
                 logger.info("Database is up to date")
         except Exception as e:
             logger.warning("Error during migration: %s", str(e), exc_info=True)
-
-    # Normalize any legacy user roles so the application only persists admin/user going forward.
+    
+    # Create default test user if not exists
     if postgres_available and not testing:
         try:
-            from sqlalchemy import text
-
+            from sqlalchemy import select
+            from app.models import User, UserRole
+            from app.utils.password import hash_password
+            import uuid
+            
             async for db in get_db():
-                result = await db.execute(
-                    text(
-                        """
-                        UPDATE users
-                        SET role = 'user'::user_role
-                        WHERE LOWER(role::text) NOT IN ('admin', 'user')
-                        """
+                stmt = select(User).where(User.email == "admin@example.com")
+                result = await db.execute(stmt)
+                existing_user = result.scalar_one_or_none()
+                
+                if not existing_user:
+                    default_user = User(
+                        id=uuid.uuid4(),
+                        email="admin@example.com",
+                        password_hash=hash_password("Admin123!"),
+                        role=UserRole.ADMIN,
+                        full_name="Admin User",
+                        is_active=True
                     )
-                )
-                if result.rowcount:
+                    db.add(default_user)
                     await db.commit()
-                    logger.info("Normalized %s legacy user role record(s) to USER", result.rowcount)
+                    logger.info("Default test user created: admin@example.com / Admin123!")
+                else:
+                    logger.info("Default test user already exists")
                 break
         except Exception as e:
-            logger.warning("Could not normalize legacy user roles: %s", str(e))
-
-    # Create default admin user in non-production when explicitly configured
-    if postgres_available and not testing and settings.ENVIRONMENT != "production":
-        try:
-            import uuid
-
-            from sqlalchemy import select
-
-            from app.models import User, UserRole
-            from app.utils.password import hash_password, verify_password
-
-            default_admin_email = os.environ.get("DEFAULT_ADMIN_EMAIL")
-            default_admin_password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
-
-            if not default_admin_email or not default_admin_password:
-                logger.info("Default admin creation skipped (DEFAULT_ADMIN_EMAIL/PASSWORD not set)")
-            else:
-                async for db in get_db():
-                    stmt = select(User).where(User.email == default_admin_email)
-                    result = await db.execute(stmt)
-                    existing_user = result.scalar_one_or_none()
-
-                    if not existing_user:
-                        default_user = User(
-                            id=uuid.uuid4(),
-                            email=default_admin_email,
-                            password_hash=hash_password(default_admin_password),
-                            role=UserRole.USER,
-                            full_name="Admin User",
-                            is_active=True,
-                        )
-                        db.add(default_user)
-                        await db.commit()
-                        logger.info("Default admin user created")
-                    else:
-                        updated = False
-                        # Keep development credentials deterministic so local login always works.
-                        if not verify_password(default_admin_password, existing_user.password_hash):
-                            existing_user.password_hash = hash_password(default_admin_password)
-                            updated = True
-
-                        if existing_user.role != UserRole.USER:
-                            existing_user.role = UserRole.USER
-                            updated = True
-
-                        if not existing_user.is_active:
-                            existing_user.is_active = True
-                            updated = True
-
-                        if updated:
-                            await db.commit()
-                            logger.info("Default admin user normalized")
-                        else:
-                            logger.info("Default test user already exists")
-                    break
-        except Exception as e:
             logger.warning("Could not create default user: %s", str(e))
-
-    # Initialize authentication system
+    
+    # Authentication system uses module-level settings import
     try:
         logger.info("Authentication initialized (JWT expiry: %d hours)", settings.JWT_EXPIRATION_HOURS)
     except Exception as e:
         logger.warning("Authentication initialization warning: %s", str(e))
-
+    
     # Log startup summary (Requirement 11.1, 11.2, 11.3, 11.4, 11.5, 11.6)
-    from app.core.logging_config import log_database_status, log_startup_summary
-
+    from app.core.logging_config import log_startup_summary, log_database_status
+    
     # Log database status with masking
     log_database_status(db_status, logger)
-
+    
     features_enabled = {
         "GitHub Integration": settings.is_github_integration_enabled(),
+        "DeepSeek AI": settings.is_deepseek_enabled(),
         "OpenAI": settings.is_openai_enabled(),
         "Anthropic": settings.is_anthropic_enabled(),
         "Ollama Local LLM": settings.is_ollama_enabled(),
         "Celery": settings.is_celery_enabled(),
     }
-
+    
     security_warnings = settings.validate_security_settings()
-
+    
     log_startup_summary(
         app_name=settings.PROJECT_NAME,
         version=settings.VERSION,
@@ -281,35 +224,35 @@ async def lifespan(app: FastAPI):
         config_file=".env",
         database_status=db_status,
         features_enabled=features_enabled,
-        security_warnings=security_warnings if security_warnings else None,
+        security_warnings=security_warnings if security_warnings else None
     )
-
+    
     yield
-
+    
     logger.info("Application shutdown initiated...")
-
+    
     # The graceful shutdown handler will handle:
     # - Completing in-flight requests
     # - Closing database connections cleanly
     # - Stopping background tasks
-
+    
     # Close database connections (gracefully handled if connections weren't established)
     if not testing:
         try:
             await close_postgres()
         except Exception as e:
             logger.warning(f"Error closing PostgreSQL: {e}")
-
+        
         try:
             await close_neo4j()
         except Exception as e:
             logger.warning(f"Error closing Neo4j: {e}")
-
+        
         try:
             await close_redis()
         except Exception as e:
             logger.warning(f"Error closing Redis: {e}")
-
+    
     logger.info("Shutdown complete")
 
 
@@ -349,7 +292,7 @@ Authorization: Bearer <your_jwt_token>
      -H "Content-Type: application/json" \\
      -d '{
        "email": "user@example.com",
-       "password": "your-strong-password",
+       "password": "SecurePassword123!",
        "full_name": "John Doe"
      }'
    ```
@@ -360,7 +303,7 @@ Authorization: Bearer <your_jwt_token>
      -H "Content-Type: application/json" \\
      -d '{
        "email": "user@example.com",
-       "password": "your-strong-password"
+       "password": "SecurePassword123!"
      }'
    ```
 
@@ -438,65 +381,90 @@ Common HTTP status codes:
         "url": "https://opensource.org/licenses/MIT",
     },
     openapi_tags=[
-        {"name": "Health", "description": "Health check endpoints for monitoring service status and readiness"},
+        {
+            "name": "Health",
+            "description": "Health check endpoints for monitoring service status and readiness"
+        },
         {
             "name": "Authentication",
-            "description": "User authentication endpoints (register, login, logout, token refresh)",
+            "description": "User authentication endpoints (register, login, logout, token refresh)"
         },
         {
             "name": "RBAC Authentication",
-            "description": "Role-Based Access Control authentication with enterprise features",
+            "description": "Role-Based Access Control authentication with enterprise features"
         },
-        {"name": "RBAC User Management", "description": "User management with role-based permissions"},
-        {"name": "RBAC Project Management", "description": "Project management with access control"},
-        {"name": "RBAC Audit Logs", "description": "Audit log queries for RBAC operations"},
-        {"name": "Webhooks", "description": "GitHub webhook handlers for automated PR analysis"},
-        {"name": "GitHub Integration", "description": "GitHub API integration for repository and PR management"},
-        {"name": "Code Review", "description": "Automated code review endpoints"},
-        {"name": "PR Analysis", "description": "Pull request analysis and review generation"},
-        {"name": "Architecture Analysis", "description": "Repository architecture analysis and pattern detection"},
-        {"name": "Local LLM", "description": "Local LLM (Ollama) integration for code analysis"},
-        {"name": "Library Management", "description": "Manage code libraries and dependencies"},
-        {"name": "Repository Management", "description": "Repository CRUD operations and management"},
-        {"name": "Audit Logs", "description": "System-wide audit log queries and compliance reporting"},
-        {"name": "User Data Management", "description": "User data export and deletion (GDPR compliance)"},
-        {"name": "Metrics", "description": "Prometheus metrics endpoint for monitoring"},
-        {"name": "Database", "description": "Database management and migration endpoints"},
+        {
+            "name": "RBAC User Management",
+            "description": "User management with role-based permissions"
+        },
+        {
+            "name": "RBAC Project Management",
+            "description": "Project management with access control"
+        },
+        {
+            "name": "RBAC Audit Logs",
+            "description": "Audit log queries for RBAC operations"
+        },
+        {
+            "name": "Webhooks",
+            "description": "GitHub webhook handlers for automated PR analysis"
+        },
+        {
+            "name": "GitHub Integration",
+            "description": "GitHub API integration for repository and PR management"
+        },
+        {
+            "name": "Code Review",
+            "description": "Automated code review endpoints"
+        },
+        {
+            "name": "PR Analysis",
+            "description": "Pull request analysis and review generation"
+        },
+        {
+            "name": "Architecture Analysis",
+            "description": "Repository architecture analysis and pattern detection"
+        },
+        {
+            "name": "Local LLM",
+            "description": "Local LLM (Ollama) integration for code analysis"
+        },
+        {
+            "name": "Library Management",
+            "description": "Manage code libraries and dependencies"
+        },
+        {
+            "name": "Repository Management",
+            "description": "Repository CRUD operations and management"
+        },
+        {
+            "name": "Audit Logs",
+            "description": "System-wide audit log queries and compliance reporting"
+        },
+        {
+            "name": "User Data Management",
+            "description": "User data export and deletion (GDPR compliance)"
+        },
+        {
+            "name": "Metrics",
+            "description": "Prometheus metrics endpoint for monitoring"
+        },
+        {
+            "name": "Database",
+            "description": "Database management and migration endpoints"
+        },
     ],
 )
 
 # Instrument FastAPI for OpenTelemetry tracing (Requirement 18.1)
 if settings.is_tracing_enabled():
     from app.core.tracing import get_tracing_config
-
     tracing_config = get_tracing_config()
     if tracing_config:
         tracing_config.instrument_fastapi(app)
 
 # Compression middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# Security headers middleware (Requirement 8.5)
-# Add security response headers to protect against common vulnerabilities
-from app.middleware.security_headers import configure_security_headers
-
-configure_security_headers(
-    app,
-    enable_hsts=settings.ENABLE_HSTS,
-    hsts_max_age=settings.HSTS_MAX_AGE,
-    enable_csp=settings.ENABLE_CSP,
-    environment=settings.ENVIRONMENT,
-)
-
-# Rate limiting middleware (Requirement 8.3)
-from app.middleware.rate_limiting import configure_rate_limiting
-
-configure_rate_limiting(app)
-
-# Prometheus metrics middleware (Requirement 7.3)
-from app.middleware.prometheus_middleware import configure_prometheus_middleware
-
-configure_prometheus_middleware(app)
 
 # CORS middleware - must be last in middleware chain (Requirement 8.5)
 # Configure CORS to restrict allowed origins based on environment
@@ -511,10 +479,29 @@ app.add_middleware(
     max_age=settings.CORS_MAX_AGE,
 )
 
+# Security headers middleware (Requirement 8.5)
+# Add security response headers to protect against common vulnerabilities
+from app.middleware.security_headers import configure_security_headers
+configure_security_headers(
+    app,
+    enable_hsts=settings.ENABLE_HSTS,
+    hsts_max_age=settings.HSTS_MAX_AGE,
+    enable_csp=settings.ENABLE_CSP,
+    environment=settings.ENVIRONMENT,
+)
+
+# Rate limiting middleware (Requirement 8.3)
+from app.middleware.rate_limiting import configure_rate_limiting
+configure_rate_limiting(app)
+
+# Prometheus metrics middleware (Requirement 7.3)
+from app.middleware.prometheus_middleware import configure_prometheus_middleware
+configure_prometheus_middleware(app)
+
 # Initialize application info metric
 from app.core.prometheus_metrics import set_app_info
-
 set_app_info(version=settings.VERSION, environment=settings.ENVIRONMENT)
+
 
 # Request Logging Middleware
 app.middleware("http")(log_request)
@@ -540,60 +527,71 @@ async def root():
 async def health_check():
     """
     Health check endpoint - returns overall health status.
-
+    
     Returns 200 with health status (healthy, degraded, unhealthy).
     Includes database and service status information.
-
+    
     Validates Requirements: 1.1, 1.2, 1.4, 1.5, 1.6
     """
     from app.services.health_service import get_health_service
-
+    
     health_service = get_health_service()
     health_status = await health_service.get_health_status()
-
+    
     # Return appropriate status code based on health
     status_code = 200 if health_status.status == "healthy" else 503
-
+    
     response_content = health_status.to_dict()
     if status_code == 503:
         # Add basic diagnosis if not healthy
         response_content["detail"] = "One or more critical dependencies are unhealthy"
-
-    return JSONResponse(status_code=status_code, content=response_content)
+    
+    return JSONResponse(
+        status_code=status_code,
+        content=response_content
+    )
 
 
 @app.get("/health/ready")
 async def readiness_check():
     """
     Readiness probe endpoint - Kubernetes readiness probe.
-
+    
     Returns 200 only if all required dependencies are ready:
     - PostgreSQL connected
     - Migrations applied
-
+    
     Validates Requirements: 1.1, 1.2, 2.1, 2.4, 2.5
     """
-
+    
+    from app.services.health_service import get_health_service
     health_service = get_health_service()
     readiness_status = await health_service.get_readiness_status()
-
+    
     status_code = 200 if readiness_status.ready else 503
-
-    return JSONResponse(status_code=status_code, content=readiness_status.to_dict())
+    
+    return JSONResponse(
+        status_code=status_code,
+        content=readiness_status.to_dict()
+    )
 
 
 @app.get("/health/live")
 async def liveness_check():
     """
     Liveness probe endpoint - Kubernetes liveness probe.
-
+    
     Returns 200 if the application process is running.
     This is a simple check that doesn't verify dependencies.
-
+    
     Validates Requirements: 1.1, 1.2, 2.5
     """
-
+    
+    from app.services.health_service import get_health_service
     health_service = get_health_service()
     liveness_status = await health_service.get_liveness_status()
-
-    return JSONResponse(status_code=200, content=liveness_status.to_dict())
+    
+    return JSONResponse(
+        status_code=200,
+        content=liveness_status.to_dict()
+    )

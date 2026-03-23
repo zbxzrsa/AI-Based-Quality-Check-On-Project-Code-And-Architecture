@@ -55,10 +55,10 @@ describe('usePermission', () => {
     });
   });
 
-  describe('User role', () => {
+  describe('Programmer role', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({
-        user: { id: '2', email: 'user@test.com', role: Role.USER, name: 'User' },
+        user: { id: '2', email: 'dev@test.com', role: Role.PROGRAMMER, name: 'Developer' },
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
@@ -67,20 +67,20 @@ describe('usePermission', () => {
       });
     });
 
-    it('should only have read permissions', () => {
+    it('should have project and review permissions', () => {
       const { result } = renderHook(() => usePermission());
 
       expect(result.current.hasPermission(Permission.VIEW_PROJECTS)).toBe(true);
+      expect(result.current.hasPermission(Permission.CREATE_PROJECT)).toBe(true);
+      expect(result.current.hasPermission(Permission.MODIFY_PROJECT)).toBe(true);
       expect(result.current.hasPermission(Permission.VIEW_REVIEWS)).toBe(true);
+      expect(result.current.hasPermission(Permission.CREATE_REVIEW)).toBe(true);
+      expect(result.current.hasPermission(Permission.MODIFY_REVIEW)).toBe(true);
     });
 
-    it('should not have write or admin permissions', () => {
+    it('should not have user management permissions', () => {
       const { result } = renderHook(() => usePermission());
 
-      expect(result.current.hasPermission(Permission.CREATE_PROJECT)).toBe(false);
-      expect(result.current.hasPermission(Permission.MODIFY_PROJECT)).toBe(false);
-      expect(result.current.hasPermission(Permission.CREATE_REVIEW)).toBe(false);
-      expect(result.current.hasPermission(Permission.MODIFY_REVIEW)).toBe(false);
       expect(result.current.hasPermission(Permission.VIEW_USERS)).toBe(false);
       expect(result.current.hasPermission(Permission.CREATE_USER)).toBe(false);
       expect(result.current.hasPermission(Permission.MODIFY_USER)).toBe(false);
@@ -94,6 +94,38 @@ describe('usePermission', () => {
 
     it('should not have config modification permission', () => {
       const { result } = renderHook(() => usePermission());
+      expect(result.current.hasPermission(Permission.MODIFY_CONFIG)).toBe(false);
+    });
+  });
+
+  describe('Visitor role', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({
+        user: { id: '3', email: 'visitor@test.com', role: Role.VISITOR, name: 'Visitor' },
+        loading: false,
+        login: jest.fn(),
+        logout: jest.fn(),
+        register: jest.fn(),
+        refreshToken: jest.fn(),
+      });
+    });
+
+    it('should only have view permissions', () => {
+      const { result } = renderHook(() => usePermission());
+
+      expect(result.current.hasPermission(Permission.VIEW_PROJECTS)).toBe(true);
+      expect(result.current.hasPermission(Permission.VIEW_REVIEWS)).toBe(true);
+    });
+
+    it('should not have create/modify/delete permissions', () => {
+      const { result } = renderHook(() => usePermission());
+
+      expect(result.current.hasPermission(Permission.CREATE_PROJECT)).toBe(false);
+      expect(result.current.hasPermission(Permission.MODIFY_PROJECT)).toBe(false);
+      expect(result.current.hasPermission(Permission.DELETE_PROJECT)).toBe(false);
+      expect(result.current.hasPermission(Permission.CREATE_REVIEW)).toBe(false);
+      expect(result.current.hasPermission(Permission.MODIFY_REVIEW)).toBe(false);
+      expect(result.current.hasPermission(Permission.VIEW_USERS)).toBe(false);
       expect(result.current.hasPermission(Permission.MODIFY_CONFIG)).toBe(false);
     });
   });

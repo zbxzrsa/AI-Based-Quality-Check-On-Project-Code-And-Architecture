@@ -39,37 +39,6 @@ interface APISettings {
   default_llm_model: string | null;
 }
 
-interface APISettingsUpdatePayload {
-  default_llm_provider: string;
-  default_llm_model: string;
-  openrouter_api_key?: string;
-  openai_api_key?: string;
-  anthropic_api_key?: string;
-}
-
-function getApiErrorMessage(error: unknown, fallback: string) {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'response' in error &&
-    error.response &&
-    typeof error.response === 'object' &&
-    'data' in error.response &&
-    error.response.data &&
-    typeof error.response.data === 'object' &&
-    'detail' in error.response.data &&
-    typeof error.response.data.detail === 'string'
-  ) {
-    return error.response.data.detail;
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
 export default function ProfilePage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -97,11 +66,6 @@ export default function ProfilePage() {
   const [defaultProvider, setDefaultProvider] = useState('openrouter');
   const [defaultModel, setDefaultModel] = useState('anthropic/claude-3.5-sonnet');
 
-  // Load API settings on mount
-  useEffect(() => {
-    loadAPISettings();
-  }, []);
-
   const loadAPISettings = async () => {
     try {
       const settings = await apiClient.get<APISettings>('/user/settings/api-settings');
@@ -112,15 +76,20 @@ export default function ProfilePage() {
       if (settings.default_llm_model) {
         setDefaultModel(settings.default_llm_model);
       }
-    } catch {
-      // Keep the page usable even if settings fail to load initially.
+    } catch (error) {
+      // API settings endpoint may not exist, ignore gracefully
     }
   };
+
+  // Load API settings on mount
+  useEffect(() => {
+    loadAPISettings();
+  }, []);
 
   const handleSaveAPISettings = async () => {
     setIsLoading(true);
     try {
-      const updateData: APISettingsUpdatePayload = {
+      const updateData: any = {
         default_llm_provider: defaultProvider,
         default_llm_model: defaultModel,
       };
@@ -137,7 +106,7 @@ export default function ProfilePage() {
       }
 
       await apiClient.put('/user/settings/api-settings', updateData);
-      
+
       toast({
         title: 'Success',
         description: 'API settings saved successfully',
@@ -146,10 +115,10 @@ export default function ProfilePage() {
       // Clear input fields and reload settings
       setApiKeys({ openrouter: '', openai: '', anthropic: '' });
       await loadAPISettings();
-    } catch (error: unknown) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: getApiErrorMessage(error, 'Failed to save API settings'),
+        description: error?.response?.data?.detail || 'Failed to save API settings',
         variant: 'destructive',
       });
     } finally {
@@ -165,17 +134,17 @@ export default function ProfilePage() {
     setIsLoading(true);
     try {
       await apiClient.delete(`/user/settings/api-settings/${provider}`);
-      
+
       toast({
         title: 'Success',
         description: `${provider} API key deleted successfully`,
       });
 
       await loadAPISettings();
-    } catch (error: unknown) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: getApiErrorMessage(error, 'Failed to delete API key'),
+        description: error?.response?.data?.detail || 'Failed to delete API key',
         variant: 'destructive',
       });
     } finally {
@@ -333,8 +302,8 @@ export default function ProfilePage() {
                           activity.status === 'approved'
                             ? 'bg-green-500'
                             : activity.status === 'critical'
-                            ? 'bg-red-500'
-                            : 'bg-yellow-500'
+                              ? 'bg-red-500'
+                              : 'bg-yellow-500'
                         }
                       >
                         {activity.status.replace('_', ' ')}
@@ -352,7 +321,7 @@ export default function ProfilePage() {
                 <Key className="h-5 w-5" />
                 <h3 className="text-lg font-semibold">API Configuration</h3>
               </div>
-              
+
               <p className="text-sm text-muted-foreground mb-6">
                 Configure your personal API keys for AI code review services. Your keys are encrypted and stored securely.
               </p>
@@ -391,7 +360,7 @@ export default function ProfilePage() {
 
                 <div className="border-t pt-6">
                   <h4 className="font-semibold mb-4">API Keys</h4>
-                  
+
                   {/* OpenRouter API Key */}
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between">
@@ -582,7 +551,7 @@ export default function ProfilePage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Your Projects</h3>
               <p className="text-muted-foreground">
-                Projects you&apos;re contributing to will appear here.
+                Projects you're contributing to will appear here.
               </p>
             </Card>
           </TabsContent>

@@ -1,10 +1,10 @@
 /**
  * Dashboard Modal Component
- *
+ * 
  * Modal for creating and editing custom dashboards
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardFormData, TimeRange } from '../types/dashboard';
 
 interface DashboardModalProps {
@@ -16,36 +16,50 @@ interface DashboardModalProps {
   mode: 'create' | 'edit';
 }
 
-interface DashboardModalFormProps extends DashboardModalProps {
-  initialFormData: DashboardFormData;
-}
-
-const createInitialFormData = (
-  initialData?: Partial<DashboardFormData>
-): DashboardFormData => ({
-  name: '',
-  description: '',
-  metrics: [],
-  timeRange: {
-    type: 'relative',
-    value: 7,
-    unit: 'day',
-  },
-  refreshInterval: 30,
-  shared: false,
-  ...initialData,
-});
-
-function DashboardModalForm({
+/**
+ * Dashboard creation and editing modal
+ */
+export const DashboardModal: React.FC<DashboardModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  initialData,
   availableMetrics,
-  mode,
-  initialFormData,
-}: DashboardModalFormProps) {
-  const [formData, setFormData] = useState<DashboardFormData>(initialFormData);
+  mode
+}) => {
+  const [formData, setFormData] = useState<DashboardFormData>({
+    name: '',
+    description: '',
+    metrics: [],
+    timeRange: {
+      type: 'relative',
+      value: 7,
+      unit: 'day'
+    },
+    refreshInterval: 30,
+    shared: false,
+    ...initialData
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: '',
+        description: '',
+        metrics: [],
+        timeRange: {
+          type: 'relative',
+          value: 7,
+          unit: 'day'
+        },
+        refreshInterval: 30,
+        shared: false,
+        ...initialData
+      });
+    }
+  }, [initialData]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -68,7 +82,7 @@ function DashboardModalForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (validate()) {
       onSave(formData);
       onClose();
@@ -76,11 +90,11 @@ function DashboardModalForm({
   };
 
   const handleMetricToggle = (metricId: string) => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       metrics: prev.metrics.includes(metricId)
-        ? prev.metrics.filter((id) => id !== metricId)
-        : [...prev.metrics, metricId],
+        ? prev.metrics.filter(id => id !== metricId)
+        : [...prev.metrics, metricId]
     }));
   };
 
@@ -88,13 +102,16 @@ function DashboardModalForm({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div
+      {/* Backdrop */}
+      <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
 
+      {/* Modal */}
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+          {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
               {mode === 'create' ? 'Create Dashboard' : 'Edit Dashboard'}
@@ -104,7 +121,9 @@ function DashboardModalForm({
             </p>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit}>
+            {/* Name */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Dashboard Name *
@@ -123,6 +142,7 @@ function DashboardModalForm({
               )}
             </div>
 
+            {/* Description */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
@@ -136,16 +156,14 @@ function DashboardModalForm({
               />
             </div>
 
+            {/* Metrics Selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Metrics *
               </label>
               <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
                 {availableMetrics.map((metric) => (
-                  <label
-                    key={metric.id}
-                    className="flex items-center py-2 cursor-pointer hover:bg-gray-50"
-                  >
+                  <label key={metric.id} className="flex items-center py-2 cursor-pointer hover:bg-gray-50">
                     <input
                       type="checkbox"
                       checked={formData.metrics.includes(metric.id)}
@@ -161,6 +179,7 @@ function DashboardModalForm({
               )}
             </div>
 
+            {/* Time Range */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Default Time Range
@@ -168,15 +187,10 @@ function DashboardModalForm({
               <div className="grid grid-cols-2 gap-3">
                 <select
                   value={formData.timeRange.value || 7}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      timeRange: {
-                        ...formData.timeRange,
-                        value: parseInt(e.target.value, 10),
-                      },
-                    })
-                  }
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    timeRange: { ...formData.timeRange, value: parseInt(e.target.value) }
+                  })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={1}>1</option>
@@ -186,15 +200,10 @@ function DashboardModalForm({
                 </select>
                 <select
                   value={formData.timeRange.unit || 'day'}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      timeRange: {
-                        ...formData.timeRange,
-                        unit: e.target.value as TimeRange['unit'],
-                      },
-                    })
-                  }
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    timeRange: { ...formData.timeRange, unit: e.target.value as any }
+                  })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="hour">Hours</option>
@@ -205,6 +214,7 @@ function DashboardModalForm({
               </div>
             </div>
 
+            {/* Refresh Interval */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Refresh Interval (seconds)
@@ -213,12 +223,7 @@ function DashboardModalForm({
                 type="number"
                 min="5"
                 value={formData.refreshInterval}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    refreshInterval: parseInt(e.target.value, 10),
-                  })
-                }
+                onChange={(e) => setFormData({ ...formData, refreshInterval: parseInt(e.target.value) })}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.refreshInterval ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -228,6 +233,7 @@ function DashboardModalForm({
               )}
             </div>
 
+            {/* Shared */}
             <div className="mb-6">
               <label className="flex items-center cursor-pointer">
                 <input
@@ -236,12 +242,11 @@ function DashboardModalForm({
                   onChange={(e) => setFormData({ ...formData, shared: e.target.checked })}
                   className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="text-sm text-gray-700">
-                  Share this dashboard with others
-                </span>
+                <span className="text-sm text-gray-700">Share this dashboard with others</span>
               </label>
             </div>
 
+            {/* Actions */}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -261,40 +266,5 @@ function DashboardModalForm({
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Dashboard creation and editing modal
- */
-export const DashboardModal: React.FC<DashboardModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  initialData,
-  availableMetrics,
-  mode,
-}) => {
-  const initialFormData = useMemo(
-    () => createInitialFormData(initialData),
-    [initialData]
-  );
-
-  const formKey = useMemo(
-    () => JSON.stringify({ mode, initialData: initialData ?? null }),
-    [initialData, mode]
-  );
-
-  return (
-    <DashboardModalForm
-      key={formKey}
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={onSave}
-      initialData={initialData}
-      availableMetrics={availableMetrics}
-      mode={mode}
-      initialFormData={initialFormData}
-    />
   );
 };

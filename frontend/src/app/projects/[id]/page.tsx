@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useToast } from '@/hooks/use-toast'
 import {
   GitBranch,
   Settings,
@@ -29,19 +30,10 @@ import {
   GitPullRequest,
   Activity,
   ArrowLeft,
+  User,
   Trash2
 } from 'lucide-react'
-import {
-  useProject,
-  useProjectPullRequests,
-  useDeleteProject,
-  useProjectAnalytics,
-  useProjectArchitectureAnalysis,
-  useAnalyzePullRequest,
-  useSyncProject,
-  type PullRequest,
-  type RecentReview,
-} from '@/hooks/useProjects'
+import { useProject, useProjectPullRequests, useDeleteProject, useProjectAnalytics, useProjectArchitectureAnalysis } from '@/hooks/useProjects'
 import { useApiCall } from '@/hooks/useApiCall'
 import HealthMetrics from '@/components/projects/HealthMetrics'
 
@@ -54,12 +46,10 @@ export default function ProjectDetailPage() {
   
   const { data: project, isLoading } = useProject(projectId)
   const { data: pullRequestsData = [] } = useProjectPullRequests(projectId)
-  const { data: analytics } = useProjectAnalytics(projectId)
-  const { data: architectureAnalysis } = useProjectArchitectureAnalysis(projectId)
-  const pullRequests: PullRequest[] = Array.isArray(pullRequestsData) ? pullRequestsData as PullRequest[] : []
+  const { data: analytics, isLoading: analyticsLoading } = useProjectAnalytics(projectId)
+  const { data: architectureAnalysis, isLoading: architectureLoading } = useProjectArchitectureAnalysis(projectId)
+  const pullRequests = Array.isArray(pullRequestsData) ? pullRequestsData : []
   const deleteProject = useDeleteProject()
-  const syncProject = useSyncProject()
-  const analyzePullRequest = useAnalyzePullRequest()
 
   const handleDeleteProject = async () => {
     await execute(
@@ -78,10 +68,11 @@ export default function ProjectDetailPage() {
   const overallHealth = analytics?.metrics?.overall_health || null
 
   // get详细的analyzedata
-  const recentAnalysisReviews: RecentReview[] = analytics?.recent_reviews ?? []
-  const analyzedPullRequests = pullRequests.filter((pr) => Boolean(pr.analyzed_at))
-  const analyzingPullRequests = pullRequests.filter((pr) => pr.status === 'analyzing')
-  const pendingPullRequests = pullRequests.filter((pr) => !pr.analyzed_at && pr.status !== 'analyzing')
+  const dependencyStats = analytics?.dependency_stats || { total: 0, circular: 0, outdated: 0, dependency_issues: 0 }
+  const performanceMetrics = analytics?.performance_metrics || { avg_build_time: "0m", avg_test_time: "0m", avg_analysis_time: "0m", pr_review_time_avg: "0h" }
+  const issueStats = analytics?.issue_stats || { critical: 0, high: 0, medium: 0, low: 0, security: 0, performance: 0, code_style: 0, best_practices: 0, total: 0 }
+  const trends = analytics?.trends || { code_quality_change: 0, test_coverage_change: 0, issues_change: 0 }
+  const recentAnalysisReviews = analytics?.recent_reviews || []
 
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600'
@@ -122,12 +113,6 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const syncStatus = !project.github_repo_url
-    ? { label: 'Repository Missing', description: 'Link a GitHub repository to enable sync and review.', variant: 'destructive' as const }
-    : pullRequests.length === 0
-      ? { label: 'Ready to Sync', description: 'Sync GitHub to import pull requests from this repository.', variant: 'warning' as const }
-      : { label: 'Synced', description: 'Pull requests are available for review and architecture analysis.', variant: 'success' as const }
-
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -143,21 +128,6 @@ export default function ProjectDetailPage() {
               <Button onClick={() => router.push(`/projects/${project.id}/settings`)}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
-              </Button>
-              <Button
-                variant="outline"
-                disabled={syncProject.isPending || !project.github_repo_url}
-                onClick={() =>
-                  void execute(
-                    () => syncProject.mutateAsync(projectId),
-                    {
-                      successMessage: `"${project.name}" synced with GitHub.`,
-                    }
-                  )
-                }
-              >
-                <GitBranch className={`mr-2 h-4 w-4 ${syncProject.isPending ? 'animate-pulse' : ''}`} />
-                {syncProject.isPending ? 'Syncing GitHub...' : 'Sync GitHub'}
               </Button>
               <Button 
                 variant="destructive" 
@@ -201,17 +171,6 @@ export default function ProjectDetailPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">GitHub Sync</CardTitle>
-              <GitBranch className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <Badge variant={syncStatus.variant}>{syncStatus.label}</Badge>
-              <p className="mt-2 text-xs text-muted-foreground">{syncStatus.description}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Health</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -238,13 +197,13 @@ export default function ProjectDetailPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">PRs Analyzed</CardTitle>
+              <CardTitle className="text-sm font-medium">Pull Requests</CardTitle>
               <GitPullRequest className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyzedPullRequests.length}/{pullRequests.length}</div>
+              <div className="text-2xl font-bold">{pullRequests.length}</div>
               <p className="text-xs text-muted-foreground">
-                {analyzingPullRequests.length > 0 ? `${analyzingPullRequests.length} currently analyzing` : 'Analysis coverage'}
+                Total analyzed
               </p>
             </CardContent>
           </Card>
@@ -264,13 +223,13 @@ export default function ProjectDetailPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Analysis Queue</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Owner</CardTitle>
+              <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingPullRequests.length}</div>
+              <div className="text-sm font-medium truncate">{project.owner_id}</div>
               <p className="text-xs text-muted-foreground">
-                Waiting to be analyzed
+                Project owner
               </p>
             </CardContent>
           </Card>
@@ -352,7 +311,7 @@ export default function ProjectDetailPage() {
                 <CardContent>
                   {recentAnalysisReviews.length > 0 ? (
                     <div className="space-y-4">
-                      {recentAnalysisReviews.slice(0, 3).map((review) => (
+                      {recentAnalysisReviews.slice(0, 3).map((review: any) => (
                         <div key={review.pr_id} className="flex items-start space-x-4">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <GitPullRequest className="h-5 w-5 text-primary" />
@@ -388,7 +347,7 @@ export default function ProjectDetailPage() {
               <CardContent>
                 <div className="space-y-4">
                   {pullRequests.length > 0 ? (
-                    pullRequests.slice(0, 5).map((pr) => (
+                    pullRequests.slice(0, 5).map((pr: any) => (
                       <div key={pr.id} className="flex items-start space-x-4">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <CheckCircle className="h-5 w-5 text-primary" />
@@ -421,7 +380,7 @@ export default function ProjectDetailPage() {
               <CardContent>
                 {pullRequests.length > 0 ? (
                   <div className="space-y-4">
-                    {pullRequests.map((pr) => (
+                    {pullRequests.map((pr: any) => (
                       <Card key={pr.id} className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -430,16 +389,11 @@ export default function ProjectDetailPage() {
                               <h4 className="font-semibold">PR #{pr.github_pr_number}: {pr.title}</h4>
                               <Badge variant={
                                 pr.status === 'merged' ? 'success' : 
-                                pr.status === 'rejected' ? 'destructive' :
-                                pr.status === 'analyzing' ? 'warning' :
-                                pr.analyzed_at ? 'success' :
+                                pr.status === 'closed' ? 'destructive' : 
                                 'default'
                               }>
-                                {pr.status === 'analyzing' ? 'analyzing' : pr.analyzed_at ? 'analyzed' : pr.status}
+                                {pr.status}
                               </Badge>
-                              {!pr.analyzed_at && pr.status !== 'analyzing' && (
-                                <Badge variant="outline">pending analysis</Badge>
-                              )}
                             </div>
                             
                             {pr.description && (
@@ -464,8 +418,8 @@ export default function ProjectDetailPage() {
                               <div>
                                 <p className="text-muted-foreground">Risk Score</p>
                                 <p className={`font-medium ${
-                                  (pr.risk_score ?? 0) > 70 ? 'text-red-600' : 
-                                  (pr.risk_score ?? 0) > 40 ? 'text-yellow-600' : 
+                                  pr.risk_score > 70 ? 'text-red-600' : 
+                                  pr.risk_score > 40 ? 'text-yellow-600' : 
                                   'text-green-600'
                                 }`}>
                                   {pr.risk_score || 'N/A'}
@@ -485,29 +439,9 @@ export default function ProjectDetailPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => router.push(`/reviews/${pr.id}`)}
+                            onClick={() => router.push(`/projects/${projectId}/pulls/${pr.id}`)}
                           >
                             View Details
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              void execute(
-                                () => analyzePullRequest.mutateAsync({ prId: pr.id, projectId }),
-                                {
-                                  successMessage: `PR #${pr.github_pr_number} queued for analysis.`,
-                                }
-                              )
-                            }
-                            disabled={analyzePullRequest.isPending || pr.status === 'analyzing'}
-                          >
-                            {pr.status === 'analyzing'
-                              ? 'Analyzing...'
-                              : analyzePullRequest.isPending
-                                ? 'Queueing...'
-                                : pr.analyzed_at
-                                  ? 'Re-analyze'
-                                  : 'Analyze Now'}
                           </Button>
                         </div>
                       </Card>

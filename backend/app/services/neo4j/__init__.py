@@ -14,15 +14,15 @@ Services:
 
 from .ast_insert_service import ASTInsertService
 from .dependency_analyzer import DependencyAnalyzer
-from .drift_detector import DriftDetector
 from .metrics_calculator import MetricsCalculator
+from .drift_detector import DriftDetector
 from .service_facade import Neo4jServiceFacade, get_neo4j_service
 
 __all__ = [
-    "ASTInsertService",
-    "DependencyAnalyzer",
-    "MetricsCalculator",
-    "DriftDetector",
-    "Neo4jServiceFacade",
-    "get_neo4j_service",
+    'ASTInsertService',
+    'DependencyAnalyzer',
+    'MetricsCalculator',
+    'DriftDetector',
+    'Neo4jServiceFacade',
+    'get_neo4j_service',
 ]

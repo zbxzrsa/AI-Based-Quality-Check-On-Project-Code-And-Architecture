@@ -13,16 +13,15 @@
 
 import { AxiosError } from 'axios';
 import { ApiError } from './api-client';
-
 export enum ErrorType {
-  NETWORK_ERROR = 'network_error',
-  TIMEOUT_ERROR = 'timeout_error',
-  AUTH_ERROR = 'auth_error',
-  PERMISSION_ERROR = 'permission_error',
-  VALIDATION_ERROR = 'validation_error',
-  SERVER_ERROR = 'server_error',
-  RATE_LIMIT_ERROR = 'rate_limit_error',
-  UNKNOWN_ERROR = 'unknown_error',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+  AUTH_ERROR = 'AUTH_ERROR',
+  PERMISSION_ERROR = 'PERMISSION_ERROR',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  SERVER_ERROR = 'SERVER_ERROR',
+  RATE_LIMIT_ERROR = 'RATE_LIMIT_ERROR',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
 /**
@@ -88,7 +87,7 @@ export class ErrorHandler {
    */
   private static handleApiError(error: ApiError, timestamp: string): ErrorInfo {
     const type = this.identifyErrorType(error.status, error.code);
-    
+
     return {
       type,
       message: error.message,
@@ -252,7 +251,7 @@ export class ErrorHandler {
   private static sendToMonitoring(logData: Record<string, unknown>): void {
     // TODO: Integrate with monitoring service (Sentry, DataDog, etc.)
     // Example: Sentry.captureException(logData);
-    console.warn('[Monitoring] Error logged:', logData);
+    console.log('[Monitoring] Error logged:', logData);
   }
 
   /**
@@ -278,7 +277,7 @@ export class ErrorHandler {
     try {
       // Get API base URL
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      
+
       // Prepare error report payload
       const payload = {
         type: errorInfo.type,
@@ -335,12 +334,12 @@ export class ErrorHandler {
   static async handleErrorComplete(error: unknown): Promise<ErrorInfo> {
     const errorInfo = this.handleError(error);
     this.logError(errorInfo);
-    
+
     // Report to backend in production
     if (process.env.NODE_ENV === 'production') {
       await this.reportToBackend(errorInfo);
     }
-    
+
     return errorInfo;
   }
 
@@ -354,31 +353,31 @@ export class ErrorHandler {
   ): () => Promise<T> {
     return async () => {
       let lastError: unknown;
-      
+
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           return await fn();
         } catch (error) {
           lastError = error;
           const errorInfo = this.handleError(error);
-          
+
           // Don't retry if error is not retryable
           if (!errorInfo.retryable) {
             throw error;
           }
-          
+
           // Don't retry on last attempt
           if (attempt === maxRetries) {
             throw error;
           }
-          
+
           // Wait before retrying (exponential backoff)
           const delay = delayMs * Math.pow(2, attempt);
-          console.warn(`[Error Handler] Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          console.log(`[Error Handler] Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
-      
+
       throw lastError;
     };
   }

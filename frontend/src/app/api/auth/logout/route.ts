@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { fetchBackendWithFallback } from '@/lib/server/backend';
 
-export async function POST(_request: NextRequest) {
+// Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
+export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -10,7 +12,7 @@ export async function POST(_request: NextRequest) {
     // Call backend logout endpoint if we have a token
     if (accessToken) {
       try {
-        await fetchBackendWithFallback('/api/v1/auth/logout', {
+        await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,

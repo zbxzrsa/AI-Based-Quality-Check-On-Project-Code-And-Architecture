@@ -1,0 +1,159 @@
+"""
+Audit service for logging user actions and compliance tracking.
+"""
+import logging
+logger = logging.getLogger(__name__)
+
+import uuid
+from datetime import datetime, timezone
+from typing import Optional, List
+from sqlalchemy.ext.asyncio import AsyncSession as DBSession
+from sqlalchemy import and_
+
+from app.auth.models import AuditLog
+
+
+class AuditFilter:
+    """Filter criteria for audit log queries."""
+    def __init__(
+        self,
+        user_id: Optional[str] = None,
+        action: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        success: Optional[bool] = None,
+        limit: int = 100,
+        offset: int = 0
+    ):
+        self.user_id = user_id
+        self.action = action
+        self.start_date = start_date
+        self.end_date = end_date
+        self.success = success
+        self.limit = limit
+        self.offset = offset
+
+
+class AuditService:
+    """Service for handling audit logging operations."""
+    
+    @staticmethod
+    async def log_action(
+        db: DBSession,
+        user_id: str,
+        username: str,
+        action: str,
+        ip_address: str,
+        success: bool,
+        resource_type: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        error_message: Optional[str] = None
+    ) -> AuditLog:
+        """
+        Log a user action to the audit log.
+        
+        Args:
+            db: Database session
+            user_id: User's unique identifier
+            username: User's username
+            action: Action being performed
+            ip_address: IP address of the client
+            success: Whether the action succeeded
+            resource_type: Optional type of resource being accessed
+            resource_id: Optional ID of resource being accessed
+            user_agent: Optional user agent string
+            error_message: Optional error message if action failed
+            
+        Returns:
+            Created AuditLog entry
+        """
+        try:
+            log_entry = AuditLog(
+                id=str(uuid.uuid4()),
+                timestamp=datetime.now(timezone.utc),
+                user_id=user_id,
+                username=username,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=success,
+                error_message=error_message
+            )
+            
+            db.add(log_entry)
+            await db.commit()
+            await db.refresh(log_entry)
+            
+            return log_entry
+            
+        except Exception as e:
+            # Graceful degradation - log error but don't fail the operation
+            await db.rollback()
+            logger.warning(f"Failed to create audit log: {e}")
+            raise
+    
+    @staticmethod
+    def query_logs(db: DBSession, filter: AuditFilter) -> List[AuditLog]:
+        """
+        Query audit logs with filters.
+        
+        Args:
+            db: Database session
+            filter: Filter criteria
+            
+        Returns:
+            List of matching audit log entries
+        """
+        try:
+            query = db.query(AuditLog)
+            
+            # Apply filters
+            conditions = []
+            
+            if filter.user_id:
+                conditions.append(AuditLog.user_id == filter.user_id)
+            
+            if filter.action:
+                conditions.append(AuditLog.action == filter.action)
+            
+            if filter.start_date:
+                conditions.append(AuditLog.timestamp >= filter.start_date)
+            
+            if filter.end_date:
+                conditions.append(AuditLog.timestamp <= filter.end_date)
+            
+            if filter.success is not None:
+                conditions.append(AuditLog.success == filter.success)
+            
+            if conditions:
+                query = query.filter(and_(*conditions))
+            
+            # Order by timestamp descending (most recent first)
+            query = query.order_by(AuditLog.timestamp.desc())
+            
+            # Apply pagination
+            query = query.offset(filter.offset).limit(filter.limit)
+            
+            return query.all()
+            
+        except Exception:
+            return []
+    
+    @staticmethod
+    def get_user_logs(db: DBSession, user_id: str, limit: int = 100) -> List[AuditLog]:
+        """
+        Get audit logs for a specific user.
+        
+        Args:
+            db: Database session
+            user_id: User's unique identifier
+            limit: Maximum number of logs to return
+            
+        Returns:
+            List of audit log entries for the user
+        """
+        filter = AuditFilter(user_id=user_id, limit=limit)
+        return AuditService.query_logs(db, filter)

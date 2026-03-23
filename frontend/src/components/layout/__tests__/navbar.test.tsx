@@ -3,9 +3,9 @@
  * Tests rendering, search functionality, and user menu
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Navbar } from '../navbar';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSession, signOut } from 'next-auth/react';
 import type { ReactNode } from 'react';
 
 // Mock Next.js modules
@@ -15,8 +15,9 @@ jest.mock('next/link', () => {
   );
 });
 
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: jest.fn(),
+jest.mock('next-auth/react', () => ({
+  useSession: jest.fn(),
+  signOut: jest.fn(),
 }));
 
 jest.mock('@/components/theme-toggle', () => ({
@@ -29,28 +30,23 @@ jest.mock('@/components/notifications/notification-center', () => {
   };
 });
 
-const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
+const mockSignOut = signOut as jest.MockedFunction<typeof signOut>;
 
 describe('Navbar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({
-      user: null,
-      loading: false,
-      role: null,
-      permissions: [],
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn(),
-      refreshToken: jest.fn(),
-      isAuthenticated: false,
-    });
     delete (window as any).location;
     (window as any).location = { href: '' };
   });
 
   describe('Rendering', () => {
     it('should render logo and brand name', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       render(<Navbar />);
 
       expect(screen.getByText('AI')).toBeInTheDocument();
@@ -58,12 +54,22 @@ describe('Navbar', () => {
     });
 
     it('should render theme toggle', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       render(<Navbar />);
 
       expect(screen.getByText('Theme Toggle')).toBeInTheDocument();
     });
 
     it('should render notification bell', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       const { container } = render(<Navbar />);
 
       const bellButton = container.querySelector('button[class*="relative"]');
@@ -71,6 +77,11 @@ describe('Navbar', () => {
     });
 
     it('should render user menu button', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       const { container } = render(<Navbar />);
 
       const userButtons = container.querySelectorAll('button');
@@ -80,23 +91,15 @@ describe('Navbar', () => {
 
   describe('User Session', () => {
     it('should display user name when logged in', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John Doe',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: {
+            name: 'John Doe',
+            email: 'john@example.com',
+          },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -111,23 +114,15 @@ describe('Navbar', () => {
     });
 
     it('should display user email when logged in', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John Doe',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: {
+            name: 'John Doe',
+            email: 'john@example.com',
+          },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -141,23 +136,14 @@ describe('Navbar', () => {
     });
 
     it('should display "User" when name is not available', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: null,
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: {
+            email: 'john@example.com',
+          },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -166,13 +152,18 @@ describe('Navbar', () => {
       );
       if (userButton) {
         fireEvent.click(userButton);
-        expect(screen.getByText('john@example.com')).toBeInTheDocument();
+        expect(screen.getByText('User')).toBeInTheDocument();
       }
     });
   });
 
   describe('Notification Center', () => {
     it('should open notification center when bell is clicked', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       render(<Navbar />);
 
       const bellButton = screen.getAllByRole('button').find(btn => 
@@ -186,6 +177,11 @@ describe('Navbar', () => {
     });
 
     it('should show notification badge', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       const { container } = render(<Navbar />);
 
       const badge = container.querySelector('.bg-destructive');
@@ -195,23 +191,12 @@ describe('Navbar', () => {
 
   describe('User Menu', () => {
     it('should show Profile menu item', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -225,23 +210,12 @@ describe('Navbar', () => {
     });
 
     it('should show Settings menu item', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -255,23 +229,12 @@ describe('Navbar', () => {
     });
 
     it('should show Sign out menu item', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -285,24 +248,12 @@ describe('Navbar', () => {
     });
 
     it('should call signOut when Sign out is clicked', () => {
-      const mockLogout = jest.fn().mockResolvedValue(undefined);
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: mockLogout,
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -313,28 +264,17 @@ describe('Navbar', () => {
         fireEvent.click(userButton);
         const signOutButton = screen.getByText('Sign out');
         fireEvent.click(signOutButton);
-        expect(mockLogout).toHaveBeenCalled();
+        expect(mockSignOut).toHaveBeenCalled();
       }
     });
 
     it('should link to profile page', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -349,23 +289,12 @@ describe('Navbar', () => {
     });
 
     it('should link to settings page', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          email: 'john@example.com',
-          full_name: 'John',
-          role: 'user' as any,
-          is_active: true,
+      mockUseSession.mockReturnValue({
+        data: {
+          user: { name: 'John', email: 'john@example.com' },
         },
-        loading: false,
-        role: 'user' as any,
-        permissions: [],
-        login: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn(),
-        refreshToken: jest.fn(),
-        isAuthenticated: true,
-      });
+        status: 'authenticated',
+      } as any);
 
       render(<Navbar />);
 
@@ -382,6 +311,11 @@ describe('Navbar', () => {
 
   describe('Logo Link', () => {
     it('should link to dashboard', () => {
+      mockUseSession.mockReturnValue({
+        data: null,
+        status: 'unauthenticated',
+      } as any);
+
       render(<Navbar />);
 
       const logoLink = screen.getByText('AI').closest('a');

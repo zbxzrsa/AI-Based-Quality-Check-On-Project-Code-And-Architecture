@@ -1,37 +1,32 @@
 """
 API v1 router configuration
 """
-
 from fastapi import APIRouter
 
-from app.api.v1 import performance, repositories
 from app.api.v1.endpoints import (
-    analyze,
-    architecture,
-    audit_logs,
-    auth,
-    code_review,
+    health, 
+    database, 
+    auth, 
+    github, 
+    pull_request, 
+    analyze, 
+    libraries, 
     code_review_webhook,
-    database,
-    errors,
-    github,
-    health,
-    libraries,
-    metrics,
-    monitoring,
-    project_analytics,
-    project_invitations,
-    pull_request,
-    rbac_audit,
-    rbac_projects,
-    rbac_users,
-    security_audit,
-    security_compliance,
-    tasks,
-    user_data,
-    user_settings,
     webhooks,
+    rbac_users,
+    rbac_projects,
+    rbac_audit,
+    audit_logs,
+    user_data,
+    metrics,
+    project_analytics,
+    architecture,
+    user_settings,
+    code_review,
+    errors,
+    monitoring,
 )
+from app.api.v1 import repositories
 
 api_router = APIRouter()
 
@@ -78,16 +73,3 @@ api_router.include_router(errors.router, tags=["Error Reporting"])
 
 # Monitoring endpoints
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring"])
-
-# Project invitation and membership endpoints
-api_router.include_router(project_invitations.router, tags=["Project Invitations"])
-
-# Background task monitoring endpoints
-api_router.include_router(tasks.router, tags=["Task Monitoring"])
-
-# Security audit and compliance endpoints
-api_router.include_router(security_audit.router, tags=["Security Audit"])
-api_router.include_router(security_compliance.router, tags=["Security Compliance"])
-
-# Performance monitoring and optimization endpoints
-api_router.include_router(performance.router, tags=["Performance"])

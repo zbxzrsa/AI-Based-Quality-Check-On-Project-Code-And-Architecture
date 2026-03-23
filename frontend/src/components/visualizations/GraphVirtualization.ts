@@ -16,14 +16,14 @@ export interface VirtualizedNode {
   y?: number;
   visible: boolean;
   lod: 'high' | 'medium' | 'low';
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface VirtualizedLink {
   source: string | VirtualizedNode;
   target: string | VirtualizedNode;
   visible: boolean;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface ViewportBounds {

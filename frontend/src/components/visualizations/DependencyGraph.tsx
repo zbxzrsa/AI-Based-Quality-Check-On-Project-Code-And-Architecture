@@ -5,8 +5,8 @@
  */
 import { useCallback, useState, useMemo } from 'react';
 import ReactFlow, {
-    Node as FlowNode,
-    Edge as FlowEdge,
+    Node,
+    Edge,
     Controls,
     Background,
     MiniMap,
@@ -17,14 +17,14 @@ import ReactFlow, {
     Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Search, Download } from 'lucide-react';
+import { Search, Maximize, Download } from 'lucide-react';
 
 interface GraphNode {
     id: string;
     type: 'module' | 'class' | 'function';
     name: string;
     importance: number; // in-degree + out-degree
-    metadata?: Record<string, unknown>;
+    metadata?: Record<string, any>;
 }
 
 interface GraphEdge {
@@ -77,7 +77,7 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
     const [selectedType, setSelectedType] = useState<string>('all');
 
     // Transform data to React Flow format
-    const initialNodes: FlowNode[] = useMemo(
+    const initialNodes: Node[] = useMemo(
         () =>
             graphNodes.map((node, index) => ({
                 id: node.id,
@@ -96,7 +96,7 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
         [graphNodes]
     );
 
-    const initialEdges: FlowEdge[] = useMemo(
+    const initialEdges: Edge[] = useMemo(
         () =>
             graphEdges.map((edge) => ({
                 id: `${edge.source}-${edge.target}`,
@@ -128,8 +128,8 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
         [graphEdges]
     );
 
-    const [nodes, , onNodesChange] = useNodesState(initialNodes);
-    const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
     // Filter nodes based on search and type
     const filteredNodes = useMemo(() => {
@@ -149,7 +149,7 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
     }, [edges, filteredNodes]);
 
     const onNodeClickHandler = useCallback(
-        (_event: unknown, node: FlowNode) => {
+        (event: any, node: Node) => {
             const graphNode = graphNodes.find((n) => n.id === node.id);
             if (graphNode && onNodeClick) {
                 onNodeClick(graphNode);
@@ -160,7 +160,7 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
 
     const handleExport = () => {
         // Export to SVG/PNG (implementation would use html2canvas or similar)
-        console.warn('Export functionality to be implemented');
+        console.log('Export functionality to be implemented');
     };
 
     return (

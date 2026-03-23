@@ -46,11 +46,6 @@ interface AnalysisProgress {
   message: string;
 }
 
-type ServerSentEvent =
-  | { type: 'progress'; data: AnalysisProgress }
-  | { type: 'result'; data: AnalysisResult }
-  | { type: 'error'; data: { message: string } };
-
 export default function ProjectAnalysisDashboard() {
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -127,7 +122,7 @@ export default function ProjectAnalysisDashboard() {
 
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('Analysis cancelled by user');
+        console.log('Analysis cancelled by user');
       } else {
         setError(err instanceof Error ? err.message : 'Analysis failed');
       }
@@ -136,7 +131,7 @@ export default function ProjectAnalysisDashboard() {
     }
   };
 
-  const handleServerSentEvent = useCallback((event: ServerSentEvent) => {
+  const handleServerSentEvent = useCallback((event: any) => {
     switch (event.type) {
       case 'progress':
         setAnalysisProgress(event.data);
@@ -144,7 +139,7 @@ export default function ProjectAnalysisDashboard() {
       case 'result':
         setAnalysisResult(event.data);
         setAnalysisProgress(null);
-        console.warn('Analysis complete');
+        console.log('Analysis complete');
         break;
       case 'error':
         setError(event.data.message);

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchBackendWithFallback } from '@/lib/server/backend';
+
+// Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend register endpoint
-    const { response } = await fetchBackendWithFallback('/api/v1/auth/register', {
+    const response = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

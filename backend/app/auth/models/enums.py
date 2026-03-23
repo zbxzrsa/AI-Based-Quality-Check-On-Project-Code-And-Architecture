@@ -1,19 +1,11 @@
 """
 Enums for the Enterprise RBAC Authentication System.
 """
+# Import consolidated enums from common library
+from common.shared.enums import Role, Permission
 
-# Import consolidated enums from shared package
-from app.shared.enums import Permission, Role
 
 # Role-Permission Mapping
-_USER_PERMISSIONS = [
-    Permission.CREATE_PROJECT,
-    Permission.UPDATE_PROJECT,
-    Permission.VIEW_PROJECT,
-    Permission.VIEW_CONFIG,
-    Permission.EXPORT_REPORT,
-]
-
 ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
     Role.ADMIN: [
         Permission.CREATE_USER,
@@ -28,5 +20,14 @@ ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
         Permission.VIEW_CONFIG,
         Permission.EXPORT_REPORT,
     ],
-    Role.USER: _USER_PERMISSIONS,
+    Role.PROGRAMMER: [
+        Permission.CREATE_PROJECT,
+        Permission.UPDATE_PROJECT,
+        Permission.VIEW_PROJECT,
+        Permission.VIEW_CONFIG,
+        Permission.EXPORT_REPORT,
+    ],
+    Role.VISITOR: [
+        Permission.VIEW_PROJECT,
+    ],
 }

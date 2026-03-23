@@ -6,14 +6,13 @@ Validates Requirements: 1.4
 """
 
 from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 
 class LLMProviderType(str, Enum):
     """Supported LLM provider types"""
-
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     OPENROUTER = "openrouter"
@@ -23,13 +22,12 @@ class LLMProviderType(str, Enum):
 @dataclass
 class LLMRequest:
     """Request parameters for LLM generation"""
-
     prompt: str
-    system_prompt: str | None = None
+    system_prompt: Optional[str] = None
     temperature: float = 0.3
     max_tokens: int = 4000
     json_mode: bool = False
-
+    
     def __post_init__(self):
         """Validate request parameters"""
         if not 0 <= self.temperature <= 2:
@@ -41,38 +39,37 @@ class LLMRequest:
 @dataclass
 class LLMResponse:
     """Response from LLM generation"""
-
     content: str
     provider: str
     model: str
-    tokens: dict[str, int]  # prompt, completion, total
+    tokens: Dict[str, int]  # prompt, completion, total
     cost: float
-
-    def to_dict(self) -> dict[str, Any]:
+    
+    def to_dict(self) -> Dict[str, Any]:
         """Convert response to dictionary"""
         return {
             "content": self.content,
             "provider": self.provider,
             "model": self.model,
             "tokens": self.tokens,
-            "cost": self.cost,
+            "cost": self.cost
         }
 
 
 class BaseLLMProvider(ABC):
     """
     Abstract base class for LLM providers.
-
+    
     All LLM providers must implement this interface to ensure
     consistent behavior across different providers.
-
+    
     Validates Requirements: 1.4
     """
-
-    def __init__(self, model: str, api_key: str | None = None):
+    
+    def __init__(self, model: str, api_key: Optional[str] = None):
         """
         Initialize LLM provider.
-
+        
         Args:
             model: Model identifier (e.g., "gpt-4", "claude-3-5-sonnet-20241022")
             api_key: API key for authentication
@@ -81,37 +78,37 @@ class BaseLLMProvider(ABC):
         self.api_key = api_key
         self.total_tokens = 0
         self.total_cost = 0.0
-
+    
     @abstractmethod
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """
         Generate completion from LLM.
-
+        
         Args:
             request: LLM request parameters
-
+            
         Returns:
             LLM response with content and metadata
-
+            
         Raises:
             Exception: If generation fails
         """
         pass
-
+    
     @abstractmethod
     def get_provider_type(self) -> LLMProviderType:
         """Get the provider type"""
         pass
-
-    def get_usage_stats(self) -> dict[str, Any]:
+    
+    def get_usage_stats(self) -> Dict[str, Any]:
         """Get usage statistics"""
         return {
             "total_tokens": self.total_tokens,
             "total_cost": round(self.total_cost, 4),
             "provider": self.get_provider_type().value,
-            "model": self.model,
+            "model": self.model
         }
-
+    
     def reset_usage(self):
         """Reset usage tracking"""
         self.total_tokens = 0

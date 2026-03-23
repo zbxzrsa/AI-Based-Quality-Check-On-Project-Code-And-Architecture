@@ -86,14 +86,14 @@ describe('ConfigService', () => {
 
       // Mock NODE_ENV for this test
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
+      (process.env as any).NODE_ENV = 'development';
 
       const config = ConfigService.load();
 
       expect(config.enableDebugMode).toBe(true);
 
       // Restore
-      process.env.NODE_ENV = originalNodeEnv;
+      (process.env as any).NODE_ENV = originalNodeEnv;
       ConfigService.reset();
     });
 
@@ -105,14 +105,14 @@ describe('ConfigService', () => {
 
       // Mock NODE_ENV for this test
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      (process.env as any).NODE_ENV = 'production';
 
       const config = ConfigService.load();
 
       expect(config.enableDebugMode).toBe(false);
 
       // Restore
-      process.env.NODE_ENV = originalNodeEnv;
+      (process.env as any).NODE_ENV = originalNodeEnv;
       ConfigService.reset();
     });
 
@@ -216,7 +216,7 @@ describe('ConfigService', () => {
       const config = {
         apiBaseUrl: 'http://localhost:8000',
         environment: 'development' as const,
-        enableDebugMode: 'true' as unknown as boolean,
+        enableDebugMode: 'true' as any,
         features: {
           enablePWA: false,
           enableOfflineMode: false,
@@ -255,7 +255,7 @@ describe('ConfigService', () => {
         environment: 'development' as const,
         enableDebugMode: true,
         features: {
-          enablePWA: 'false' as unknown as boolean,
+          enablePWA: 'false' as any,
           enableOfflineMode: false,
           enablePerformanceMonitoring: true,
         },
@@ -295,10 +295,10 @@ describe('ConfigService', () => {
     it('should return multiple errors for multiple invalid fields', () => {
       const config = {
         apiBaseUrl: 'invalid-url',
-        environment: 'invalid' as unknown as AppConfig['environment'],
-        enableDebugMode: 'true' as unknown as boolean,
+        environment: 'invalid' as any,
+        enableDebugMode: 'true' as any,
         features: {
-          enablePWA: 'false' as unknown as boolean,
+          enablePWA: 'false' as any,
           enableOfflineMode: false,
           enablePerformanceMonitoring: true,
         },

@@ -1,42 +1,26 @@
-# Development Dockerfile for FastAPI with Hot Reload
-# 开发环境 Dockerfile - 支持热重载和快速迭代
+# Development Dockerfile for FastAPI backend — hot reload support
+FROM python:3.11-slim
 
-FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl git \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制 requirements
-COPY requirements.txt .
+COPY backend/ .
+COPY common/ ./common/
 
-# 安装 Python 依赖
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
-
-# 设置环境变量
-ENV PYTHONUNBUFFERED=1 \
+ENV PYTHONPATH=/app \
     PYTHONDONTWRITEBYTECODE=1 \
-    ENVIRONMENT=development
+    PYTHONUNBUFFERED=1
 
-# 复制应用代码
-COPY . .
-
-# 创建日志目录
-RUN mkdir -p /app/logs && chmod 777 /app/logs
-
-# 暴露端口
-EXPOSE 8000
-
-# 健康检查
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# 启动开发服务器（支持热重载）
+EXPOSE 8000
+
+# --reload enables hot reload for development
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

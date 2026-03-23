@@ -27,6 +27,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { 
+  Activity, 
+  Database, 
   Globe, 
   Zap, 
   TrendingUp, 
@@ -105,6 +107,28 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  // Feature flag disabled - show placeholder (Validates Requirements: 10.8)
+  if (!isFeatureEnabled) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-gray-200">
+          <CardContent className="p-12">
+            <div className="text-center max-w-md mx-auto">
+              <Lock className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Feature Not Available</h3>
+              <p className="text-gray-600 mb-4">
+                The Performance Dashboard is currently disabled. This feature is being progressively rolled out.
+              </p>
+              <p className="text-sm text-gray-500">
+                Please contact your administrator if you need access to this feature.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Transform API data for chart display
   const performanceData = React.useMemo(() => {
     if (!metricsData?.metrics.response_time) return [];
@@ -176,28 +200,6 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
     if (score >= 40) return 'Fair';
     return 'Poor';
   };
-
-  // Feature flag disabled - show placeholder (Validates Requirements: 10.8)
-  if (!isFeatureEnabled) {
-    return (
-      <div className="space-y-6">
-        <Card className="border-gray-200">
-          <CardContent className="p-12">
-            <div className="text-center max-w-md mx-auto">
-              <Lock className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Feature Not Available</h3>
-              <p className="text-gray-600 mb-4">
-                The Performance Dashboard is currently disabled. This feature is being progressively rolled out.
-              </p>
-              <p className="text-sm text-gray-500">
-                Please contact your administrator if you need access to this feature.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   // Handle error state
   if (isError) {

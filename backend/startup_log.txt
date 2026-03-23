@@ -1,0 +1,19 @@
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:252: UserWarning: `validate_postgres_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_postgres_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:262: UserWarning: `validate_neo4j_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_neo4j_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:425: UserWarning: `validate_celery_config` overrides an existing Pydantic `@model_validator` decorator
+  def validate_celery_config(self) -> List[str]:
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\main.py", line 15, in <module>
+    from app.api.v1.router import api_router
+  File "D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\api\v1\router.py", line 6, in <module>
+    from app.api.v1.endpoints import (
+  File "D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\api\v1\endpoints\rbac_users.py", line 12, in <module>
+    from app.auth import (
+  File "D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\auth\__init__.py", line 24, in <module>
+    from .services import (
+  File "D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\auth\services\__init__.py", line 8, in <module>
+    from app.database.models import User
+ImportError: cannot import name 'User' from 'app.database.models' (D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\database\models.py)

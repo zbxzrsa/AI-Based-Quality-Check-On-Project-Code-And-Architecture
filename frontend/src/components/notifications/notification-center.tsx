@@ -124,8 +124,9 @@ export default function NotificationCenter({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="fixed right-0 top-0 h-full w-full max-w-md border-l bg-background shadow-lg">
+    <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-full max-w-md border-l bg-white dark:bg-gray-900 shadow-2xl z-10">
         <Card className="h-full rounded-none border-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b p-4">
@@ -168,9 +169,8 @@ export default function NotificationCenter({
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-muted/50 transition-colors ${
-                      !notification.read ? 'bg-muted/30' : ''
-                    }`}
+                    className={`p-4 hover:bg-muted/50 transition-colors ${!notification.read ? 'bg-muted/30' : ''
+                      }`}
                   >
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 mt-1">

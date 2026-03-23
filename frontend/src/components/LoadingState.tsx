@@ -1,13 +1,13 @@
 /**
- * LoadingState Component
+ * LoadingStatecomponent
  * 
- * Features:
- * - Provide unified loading status display
- * - Support multiple loading styles (spinner, skeleton, dots)
- * - Customizable size and color
- * - Optional loading text hint
+ * feature:
+ * - provide统一的loadstatus展示
+ * - support多种loadstyle（spinner、skeleton、dots）
+ * - 可自定义大小and颜色
+ * - 可选load文本hint
  * 
- * Verification Requirement: 12.3
+ * verifyRequirement: 12.3
  */
 
 import React, { CSSProperties } from 'react';
@@ -16,19 +16,19 @@ export type LoadingVariant = 'spinner' | 'skeleton' | 'dots';
 export type LoadingSize = 'small' | 'medium' | 'large';
 
 export interface LoadingStateProps {
-  /** Loading status variant */
+  /** loadstatus变体 */
   variant?: LoadingVariant;
-  /** Size */
+  /** 大小 */
   size?: LoadingSize;
-  /** Loading text */
+  /** load文本 */
   text?: string;
-  /** Whether to show fullscreen */
+  /** 是否全屏show */
   fullscreen?: boolean;
-  /** Custom class name */
+  /** 自定义class名 */
   className?: string;
-  /** Custom color */
+  /** 自定义颜色 */
   color?: string;
-  /** Number of skeleton lines (only effective when variant='skeleton') */
+  /** 骨架屏行数（仅在variant='skeleton'时有效） */
   skeletonLines?: number;
 }
 
@@ -39,7 +39,7 @@ const sizeMap: Record<LoadingSize, number> = {
 };
 
 /**
- * Spinner loading animation
+ * Spinnerload动画
  */
 const Spinner: React.FC<{ size: number; color: string }> = ({ size, color }) => {
   const spinnerStyle: CSSProperties = {
@@ -67,7 +67,7 @@ const Spinner: React.FC<{ size: number; color: string }> = ({ size, color }) => 
 };
 
 /**
- * Dots loading animation
+ * Dotsload动画
  */
 const Dots: React.FC<{ size: number; color: string }> = ({ size, color }) => {
   const dotSize = size / 4;
@@ -111,7 +111,7 @@ const Dots: React.FC<{ size: number; color: string }> = ({ size, color }) => {
 };
 
 /**
- * Skeleton loading placeholder
+ * Skeleton骨架屏
  */
 const Skeleton: React.FC<{ lines: number; color: string }> = ({ lines, color }) => {
   const containerStyle: CSSProperties = {
@@ -153,8 +153,8 @@ const Skeleton: React.FC<{ lines: number; color: string }> = ({ lines, color }) 
 };
 
 /**
- * LoadingState Component
- * Provides unified loading status display
+ * LoadingStatecomponent
+ * provide统一的loadstatus展示
  */
 export const LoadingState: React.FC<LoadingStateProps> = ({
   variant = 'spinner',

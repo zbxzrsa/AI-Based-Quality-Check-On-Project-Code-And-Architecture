@@ -1,13 +1,13 @@
 /**
- * OfflineIndicator Component
+ * OfflineIndicatorcomponent
  * 
- * Features:
- * - Detect user online/offline status
- * - Show offline status hint
- * - Auto-detect network recovery
- * - Customizable position and style
+ * feature:
+ * - 检测user在线/离线status
+ * - show离线statushint
+ * - 自动检测网络恢复
+ * - 可自定义位置andstyle
  * 
- * Verification Requirement: 12.3
+ * verifyRequirement: 12.3
  */
 
 import React, { useState, useEffect, CSSProperties } from 'react';
@@ -15,29 +15,29 @@ import React, { useState, useEffect, CSSProperties } from 'react';
 export type IndicatorPosition = 'top' | 'bottom';
 
 export interface OfflineIndicatorProps {
-  /** Indicator position */
+  /** 指示器位置 */
   position?: IndicatorPosition;
-  /** Message to show when offline */
+  /** 离线时show的消息 */
   offlineMessage?: string;
-  /** Message to show when online */
+  /** 在线时show的消息 */
   onlineMessage?: string;
-  /** Duration to show online message (ms), 0 means don't auto-hide */
+  /** 在线消息show时长（ms），0表示不自动hide */
   onlineMessageDuration?: number;
-  /** Custom class name */
+  /** 自定义class名 */
   className?: string;
-  /** Callback when going offline */
+  /** 离线时的回调 */
   onOffline?: () => void;
-  /** Callback when going online */
+  /** 在线时的回调 */
   onOnline?: () => void;
-  /** Whether to show retry button */
+  /** 是否showretrybutton */
   showRetryButton?: boolean;
-  /** Retry button click callback */
+  /** retrybutton点击回调 */
   onRetry?: () => void;
 }
 
 /**
- * OfflineIndicator Component
- * Monitors network status and shows offline hint
+ * OfflineIndicatorcomponent
+ * 监听网络status并show离线hint
  */
 export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   position = 'top',
@@ -60,11 +60,11 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     const handleOnline = () => {
       setIsOnline(true);
       
-      // Only show recovery message if previously offline
+      // 只有在之前离线的情况下才show恢复消息
       if (wasOffline) {
         setShowOnlineMessage(true);
         
-        // Auto-hide online message
+        // 自动hide在线消息
         if (onlineMessageDuration > 0) {
           setTimeout(() => {
             setShowOnlineMessage(false);
@@ -83,11 +83,11 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       onOffline?.();
     };
 
-    // Add event listeners
+    // add事件监听器
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Cleanup function
+    // cleanupfunction
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -98,12 +98,12 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     if (onRetry) {
       onRetry();
     } else {
-      // Default behavior: reload page
+      // 默认行为：重新load页面
       window.location.reload();
     }
   };
 
-  // If online and not showing online message, don't render anything
+  // 如果在线且不show在线消息，则不render任何content
   if (isOnline && !showOnlineMessage) {
     return null;
   }

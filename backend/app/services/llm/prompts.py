@@ -6,19 +6,17 @@ code quality review, architectural analysis, and security vulnerability detectio
 
 Validates Requirements: 1.4
 """
-
 import logging
-
 logger = logging.getLogger(__name__)
 
 
-from dataclasses import dataclass
+from typing import Dict, Optional, List
 from enum import Enum
+from dataclasses import dataclass
 
 
 class AnalysisType(str, Enum):
     """Types of code analysis"""
-
     CODE_QUALITY = "code_quality"
     ARCHITECTURE = "architecture"
     SECURITY = "security"
@@ -27,43 +25,48 @@ class AnalysisType(str, Enum):
 @dataclass
 class PromptTemplate:
     """Template for code analysis prompts"""
-
     system_prompt: str
     user_prompt_template: str
     analysis_type: AnalysisType
-
-    def format(self, **kwargs) -> dict[str, str]:
+    
+    def format(self, **kwargs) -> Dict[str, str]:
         """
         Format the prompt template with provided variables.
-
+        
         Args:
             **kwargs: Variables to substitute in the template
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt' keys
-
+            
         Raises:
             KeyError: If required template variables are missing
         """
         try:
             user_prompt = self.user_prompt_template.format(**kwargs)
-            return {"system_prompt": self.system_prompt, "user_prompt": user_prompt}
+            return {
+                "system_prompt": self.system_prompt,
+                "user_prompt": user_prompt
+            }
         except KeyError as e:
-            raise KeyError(f"Missing required template variable: {e}. Available variables: {list(kwargs.keys())}")
+            raise KeyError(
+                f"Missing required template variable: {e}. "
+                f"Available variables: {list(kwargs.keys())}"
+            )
 
 
 class CodeAnalysisPrompts:
     """
     Prompt library for code analysis.
-
+    
     Provides well-designed prompts for different types of code analysis:
     - Code quality review (readability, maintainability, best practices)
     - Architectural analysis (design patterns, dependencies, structure)
     - Security vulnerability detection (OWASP Top 10, secure coding)
-
+    
     Validates Requirements: 1.4
     """
-
+    
     # Code Quality Review Prompts
     CODE_QUALITY_SYSTEM = """You are an expert code reviewer specializing in code quality, readability, and maintainability.
 
@@ -227,28 +230,37 @@ Please provide a comprehensive security analysis focusing on OWASP Top 10 vulner
 
     @classmethod
     def get_code_quality_prompt(
-        cls, file_path: str, language: str, code_diff: str, context: str = "Pull request code review"
-    ) -> dict[str, str]:
+        cls,
+        file_path: str,
+        language: str,
+        code_diff: str,
+        context: str = "Pull request code review"
+    ) -> Dict[str, str]:
         """
         Get code quality review prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             context: Additional context about the changes
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
         template = PromptTemplate(
             system_prompt=cls.CODE_QUALITY_SYSTEM,
             user_prompt_template=cls.CODE_QUALITY_USER,
-            analysis_type=AnalysisType.CODE_QUALITY,
+            analysis_type=AnalysisType.CODE_QUALITY
         )
-
-        return template.format(file_path=file_path, language=language, code_diff=code_diff, context=context)
-
+        
+        return template.format(
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            context=context
+        )
+    
     @classmethod
     def get_architecture_prompt(
         cls,
@@ -256,31 +268,35 @@ Please provide a comprehensive security analysis focusing on OWASP Top 10 vulner
         language: str,
         code_diff: str,
         dependencies: str = "No dependencies provided",
-        context: str = "Architectural review",
-    ) -> dict[str, str]:
+        context: str = "Architectural review"
+    ) -> Dict[str, str]:
         """
         Get architectural analysis prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             dependencies: Existing dependencies information
             context: Additional architectural context
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
         template = PromptTemplate(
             system_prompt=cls.ARCHITECTURE_SYSTEM,
             user_prompt_template=cls.ARCHITECTURE_USER,
-            analysis_type=AnalysisType.ARCHITECTURE,
+            analysis_type=AnalysisType.ARCHITECTURE
         )
-
+        
         return template.format(
-            file_path=file_path, language=language, code_diff=code_diff, dependencies=dependencies, context=context
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            dependencies=dependencies,
+            context=context
         )
-
+    
     @classmethod
     def get_security_prompt(
         cls,
@@ -288,43 +304,51 @@ Please provide a comprehensive security analysis focusing on OWASP Top 10 vulner
         language: str,
         code_diff: str,
         context: str = "Security vulnerability scan",
-        exposure_level: str = "public-facing",
-    ) -> dict[str, str]:
+        exposure_level: str = "public-facing"
+    ) -> Dict[str, str]:
         """
         Get security vulnerability detection prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             context: Security context
             exposure_level: Exposure level (public-facing, internal, private)
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
         template = PromptTemplate(
             system_prompt=cls.SECURITY_SYSTEM,
             user_prompt_template=cls.SECURITY_USER,
-            analysis_type=AnalysisType.SECURITY,
+            analysis_type=AnalysisType.SECURITY
         )
-
+        
         return template.format(
-            file_path=file_path, language=language, code_diff=code_diff, context=context, exposure_level=exposure_level
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            context=context,
+            exposure_level=exposure_level
         )
-
+    
     @classmethod
-    def get_prompt_by_type(cls, analysis_type: AnalysisType, **kwargs) -> dict[str, str]:
+    def get_prompt_by_type(
+        cls,
+        analysis_type: AnalysisType,
+        **kwargs
+    ) -> Dict[str, str]:
         """
         Get prompt by analysis type.
-
+        
         Args:
             analysis_type: Type of analysis to perform
             **kwargs: Variables for prompt template
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
-
+            
         Raises:
             ValueError: If analysis_type is not supported
         """
@@ -341,33 +365,38 @@ Please provide a comprehensive security analysis focusing on OWASP Top 10 vulner
 class PromptManager:
     """
     Manager for code analysis prompts.
-
+    
     Provides a high-level interface for generating prompts for different
     types of code analysis with proper variable substitution and validation.
-
+    
     Validates Requirements: 1.4
     """
-
+    
     def __init__(self):
         """Initialize prompt manager"""
         self.prompts = CodeAnalysisPrompts()
-
+    
     def generate_prompt(
-        self, analysis_type: AnalysisType, file_path: str, language: str, code_diff: str, **kwargs
-    ) -> dict[str, str]:
+        self,
+        analysis_type: AnalysisType,
+        file_path: str,
+        language: str,
+        code_diff: str,
+        **kwargs
+    ) -> Dict[str, str]:
         """
         Generate a prompt for code analysis.
-
+        
         Args:
             analysis_type: Type of analysis (code_quality, architecture, security)
             file_path: Path to the file being analyzed
             language: Programming language
             code_diff: Code changes to analyze
             **kwargs: Additional context variables
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
-
+            
         Example:
             >>> manager = PromptManager()
             >>> prompt = manager.generate_prompt(
@@ -381,42 +410,58 @@ class PromptManager:
             >>> logger.info(str(prompt['user_prompt']))
         """
         return self.prompts.get_prompt_by_type(
-            analysis_type=analysis_type, file_path=file_path, language=language, code_diff=code_diff, **kwargs
+            analysis_type=analysis_type,
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            **kwargs
         )
-
+    
     def generate_code_quality_prompt(
-        self, file_path: str, language: str, code_diff: str, context: str | None = None
-    ) -> dict[str, str]:
+        self,
+        file_path: str,
+        language: str,
+        code_diff: str,
+        context: Optional[str] = None
+    ) -> Dict[str, str]:
         """
         Generate code quality review prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             context: Optional additional context
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
         kwargs = {"context": context} if context else {}
         return self.prompts.get_code_quality_prompt(
-            file_path=file_path, language=language, code_diff=code_diff, **kwargs
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            **kwargs
         )
-
+    
     def generate_architecture_prompt(
-        self, file_path: str, language: str, code_diff: str, dependencies: str | None = None, context: str | None = None
-    ) -> dict[str, str]:
+        self,
+        file_path: str,
+        language: str,
+        code_diff: str,
+        dependencies: Optional[str] = None,
+        context: Optional[str] = None
+    ) -> Dict[str, str]:
         """
         Generate architectural analysis prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             dependencies: Optional dependencies information
             context: Optional architectural context
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
@@ -425,29 +470,32 @@ class PromptManager:
             kwargs["dependencies"] = dependencies
         if context:
             kwargs["context"] = context
-
+        
         return self.prompts.get_architecture_prompt(
-            file_path=file_path, language=language, code_diff=code_diff, **kwargs
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            **kwargs
         )
-
+    
     def generate_security_prompt(
         self,
         file_path: str,
         language: str,
         code_diff: str,
-        context: str | None = None,
-        exposure_level: str | None = None,
-    ) -> dict[str, str]:
+        context: Optional[str] = None,
+        exposure_level: Optional[str] = None
+    ) -> Dict[str, str]:
         """
         Generate security vulnerability detection prompt.
-
+        
         Args:
             file_path: Path to the file being reviewed
             language: Programming language
             code_diff: Code changes to review
             context: Optional security context
             exposure_level: Optional exposure level (public-facing, internal, private)
-
+            
         Returns:
             Dictionary with 'system_prompt' and 'user_prompt'
         """
@@ -456,13 +504,18 @@ class PromptManager:
             kwargs["context"] = context
         if exposure_level:
             kwargs["exposure_level"] = exposure_level
-
-        return self.prompts.get_security_prompt(file_path=file_path, language=language, code_diff=code_diff, **kwargs)
-
-    def get_available_analysis_types(self) -> list[str]:
+        
+        return self.prompts.get_security_prompt(
+            file_path=file_path,
+            language=language,
+            code_diff=code_diff,
+            **kwargs
+        )
+    
+    def get_available_analysis_types(self) -> List[str]:
         """
         Get list of available analysis types.
-
+        
         Returns:
             List of analysis type names
         """
@@ -473,10 +526,10 @@ class PromptManager:
 def get_prompt_manager() -> PromptManager:
     """
     Get a prompt manager instance.
-
+    
     Returns:
         PromptManager instance
-
+        
     Example:
         >>> manager = get_prompt_manager()
         >>> prompt = manager.generate_code_quality_prompt(

@@ -4,15 +4,13 @@ Cypher Queries for Architectural Drift Detection
 
 This module contains Cypher queries for Neo4j to detect:
 1. Cyclic Dependencies
-2. Layer Violations
+2. Layer Violations  
 3. Unexpected Dependencies
 4. Coupling Metrics
 
 Each query includes detailed explanation of the pattern matching logic.
 """
-
 import logging
-
 logger = logging.getLogger(__name__)
 
 
@@ -186,7 +184,7 @@ RETURN m1.name AS internal_module,
 ALL_LAYER_VIOLATIONS_QUERY = """
 MATCH (p:Project {projectId: $projectId})-[:CONTAINS]->(source:Module)
 MATCH (source)-[d1:DEPENDS_ON*1..3]->(target:Module)
-WHERE source.layerRank IS NOT NULL
+WHERE source.layerRank IS NOT NULL 
   AND target.layerRank IS NOT NULL
   AND source.layerRank < target.layerRank - 1
 RETURN source.name AS source,
@@ -372,15 +370,14 @@ RETURN p.name AS project,
 # 8. HELPER FUNCTIONS
 # ========================================
 
-
 def format_cypher_query(query_template: str, **parameters) -> tuple:
     """
     Format a Cypher query with parameters
-
+    
     Args:
         query_template: Cypher query with $parameter placeholders
         **parameters: Parameter values
-
+        
     Returns:
         (formatted_query, parameters_dict)
     """
@@ -390,23 +387,23 @@ def format_cypher_query(query_template: str, **parameters) -> tuple:
 def parse_cycle_result(record):
     """Parse cycle detection result"""
     return {
-        "module": record.get("module"),
-        "cycle_path": record.get("cycle_path", []),
-        "cycle_length": record.get("cycle_length"),
-        "severity": "CRITICAL" if record.get("cycle_length") == 2 else "HIGH",
-        "reasons": record.get("dependency_reasons", []),
+        'module': record.get('module'),
+        'cycle_path': record.get('cycle_path', []),
+        'cycle_length': record.get('cycle_length'),
+        'severity': 'CRITICAL' if record.get('cycle_length') == 2 else 'HIGH',
+        'reasons': record.get('dependency_reasons', [])
     }
 
 
 def parse_violation_result(record):
     """Parse layer violation result"""
     return {
-        "source": record.get("source_module"),
-        "target": record.get("target_module"),
-        "violation_type": "LAYER_SKIP",
-        "severity": "HIGH",
-        "layers_skipped": record.get("layers_skipped", 1),
-        "path": record.get("violation_path", []),
+        'source': record.get('source_module'),
+        'target': record.get('target_module'),
+        'violation_type': 'LAYER_SKIP',
+        'severity': 'HIGH',
+        'layers_skipped': record.get('layers_skipped', 1),
+        'path': record.get('violation_path', [])
     }
 
 
@@ -423,12 +420,12 @@ from app.services.neo4j_ast_service import Neo4jASTService
 async def check_cycles():
     driver = await get_neo4j_driver()
     service = Neo4jASTService(driver)
-
+    
     results = await service.run_query(
         CYCLIC_DEPENDENCY_QUERY,
         projectId='my-project'
     )
-
+    
     for record in results:
         logger.info("Cycle found: {record['cycle_path']}")
 
@@ -438,12 +435,12 @@ Example 2: Detect Layer Violations
 async def check_layer_violations():
     driver = await get_neo4j_driver()
     service = Neo4jASTService(driver)
-
+    
     results = await service.run_query(
         LAYER_VIOLATION_QUERY,
         projectId='my-project'
     )
-
+    
     for record in results:
         logger.info("Violation: {record['source_module']} -> {record['target_module']}")
 

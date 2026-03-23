@@ -10,31 +10,33 @@ This module provides role-based access control (RBAC) functionality including:
 - Audit logging
 """
 
-from .middleware import (
-    AuthMiddleware,
-    get_current_user,
-    require_permission,
-    require_project_access,
-    require_role,
-    security,
-)
 from .models import (
-    ROLE_PERMISSIONS,
-    AuditLog,
-    Permission,
+    User,
+    Session,
     Project,
     ProjectAccess,
+    AuditLog,
     Role,
-    Session,
-    User,
+    Permission,
+    ROLE_PERMISSIONS,
 )
+
 from .services import (
-    AuditFilter,
-    AuditService,
-    AuthService,
     AuthResult,
-    RBACService,
+    AuthService,
     TokenPayload,
+    RBACService,
+    AuditService,
+    AuditFilter,
+)
+
+from .middleware import (
+    AuthMiddleware,
+    security,
+    get_current_user,
+    require_role,
+    require_permission,
+    require_project_access,
 )
 
 __all__ = [
@@ -48,8 +50,8 @@ __all__ = [
     "Permission",
     "ROLE_PERMISSIONS",
     # Services
-    "AuthService",
     "AuthResult",
+    "AuthService",
     "TokenPayload",
     "RBACService",
     "AuditService",

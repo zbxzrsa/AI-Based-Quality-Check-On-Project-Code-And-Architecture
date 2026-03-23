@@ -50,11 +50,11 @@ def create_code_review_prompt(
     diff: str,
     dependency_context: str = "",
     baseline_rules: str = "",
-    language: str = "Python",
+    language: str = "Python"
 ) -> str:
     """
     Create user prompt for code review
-
+    
     Args:
         repo_name: Repository name
         pr_title: Pull request title
@@ -64,7 +64,7 @@ def create_code_review_prompt(
         dependency_context: Dependency graph summary
         baseline_rules: Architectural constraints
         language: Primary language
-
+        
     Returns:
         Formatted prompt string
     """
@@ -78,19 +78,19 @@ def create_code_review_prompt(
 - **Primary Language**: {language}
 
 """
-
+    
     if dependency_context:
         prompt += f"""## Architectural Context
 {dependency_context}
 
 """
-
+    
     if baseline_rules:
         prompt += f"""## Architectural Rules
 {baseline_rules}
 
 """
-
+    
     prompt += f"""## Code Changes
 
 ```diff
@@ -120,7 +120,7 @@ Also provide:
 
 Remember to output valid JSON only, following the specified schema.
 """
-
+    
     return prompt
 
 
@@ -249,22 +249,28 @@ CRITICAL: Analyze the dependency graph context provided and identify:
 Reference the dependency graph context to identify violations and provide specific recommendations for architectural improvements."""
 
 
-def create_specialized_prompt(focus: str, repo_name: str, pr_title: str, diff: str, **kwargs) -> tuple[str, str]:
+def create_specialized_prompt(
+    focus: str,
+    repo_name: str,
+    pr_title: str,
+    diff: str,
+    **kwargs
+) -> tuple[str, str]:
     """
     Create specialized review prompt
-
+    
     Args:
         focus: 'security', 'performance', or 'architecture'
         repo_name: Repository name
         pr_title: PR title
         diff: Diff content
         **kwargs: Additional context
-
+        
     Returns:
         Tuple of (system_prompt, user_prompt)
     """
     base_system = SYSTEM_PROMPT
-
+    
     if focus == "security":
         system_prompt = base_system + "\n\n" + SECURITY_FOCUSED_PROMPT
     elif focus == "performance":
@@ -273,51 +279,54 @@ def create_specialized_prompt(focus: str, repo_name: str, pr_title: str, diff: s
         system_prompt = base_system + "\n\n" + ARCHITECTURE_FOCUSED_PROMPT
     else:
         system_prompt = base_system
-
-    user_prompt = create_code_review_prompt(repo_name=repo_name, pr_title=pr_title, diff=diff, **kwargs)
-
+    
+    user_prompt = create_code_review_prompt(
+        repo_name=repo_name,
+        pr_title=pr_title,
+        diff=diff,
+        **kwargs
+    )
+    
     return system_prompt, user_prompt
 
 
 def truncate_diff_smart(diff: str, max_lines: int = 500) -> str:
     """
     Intelligently truncate diff to fit context window
-
+    
     Prioritizes:
     1. Added/modified lines over context
     2. Beginning and end of files
     3. Removed duplicate hunks
-
+    
     Args:
         diff: Git diff content
         max_lines: Maximum lines to include
-
+        
     Returns:
         Truncated diff
     """
-    lines = diff.split("\n")
-
+    lines = diff.split('\n')
+    
     if len(lines) <= max_lines:
         return diff
-
+    
     # Keep file headers and changed lines
     important_lines = []
     for line in lines:
-        if (
-            line.startswith("diff --git")
-            or line.startswith("+++")
-            or line.startswith("---")
-            or line.startswith("@@")
-            or line.startswith("+")
-            or line.startswith("-")
-        ):
+        if (line.startswith('diff --git') or
+            line.startswith('+++') or
+            line.startswith('---') or
+            line.startswith('@@') or
+            line.startswith('+') or
+            line.startswith('-')):
             important_lines.append(line)
         elif len(important_lines) < max_lines:
             # Keep some context
             important_lines.append(line)
-
+    
     if len(important_lines) > max_lines:
         important_lines = important_lines[:max_lines]
         important_lines.append("\n... (diff truncated for context limit)")
-
-    return "\n".join(important_lines)
+    
+    return '\n'.join(important_lines)

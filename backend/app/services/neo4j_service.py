@@ -2,9 +2,7 @@
 Neo4j graph database service
 Handles code architecture graph operations
 """
-
-from typing import Any
-
+from typing import List, Dict, Any
 from neo4j import AsyncDriver
 
 from app.core.config import settings
@@ -12,11 +10,16 @@ from app.core.config import settings
 
 class Neo4jService:
     """Service class for Neo4j graph database operations"""
-
+    
     def __init__(self, driver: AsyncDriver):
         self.driver = driver
-
-    async def insert_project(self, project_id: str, name: str, language: str) -> dict[str, Any]:
+    
+    async def insert_project(
+        self,
+        project_id: str,
+        name: str,
+        language: str
+    ) -> Dict[str, Any]:
         """Insert a new project node"""
         query = """
         MERGE (p:Project {projectId: $projectId})
@@ -26,13 +29,23 @@ class Neo4jService:
         RETURN p
         """
         async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(query, projectId=project_id, name=name, language=language)
+            result = await session.run(
+                query,
+                projectId=project_id,
+                name=name,
+                language=language
+            )
             record = await result.single()
             return dict(record["p"]) if record else {}
-
+    
     async def insert_module(
-        self, project_id: str, module_id: str, name: str, path: str, module_type: str
-    ) -> dict[str, Any]:
+        self,
+        project_id: str,
+        module_id: str,
+        name: str,
+        path: str,
+        module_type: str
+    ) -> Dict[str, Any]:
         """Insert a module node and link it to project"""
         query = """
         MATCH (p:Project {projectId: $projectId})
@@ -45,12 +58,20 @@ class Neo4jService:
         """
         async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
             result = await session.run(
-                query, projectId=project_id, moduleId=module_id, name=name, path=path, type=module_type
+                query,
+                projectId=project_id,
+                moduleId=module_id,
+                name=name,
+                path=path,
+                type=module_type
             )
             record = await result.single()
             return dict(record["m"]) if record else {}
-
-    async def find_circular_dependencies(self, project_id: str) -> list[dict[str, Any]]:
+    
+    async def find_circular_dependencies(
+        self,
+        project_id: str
+    ) -> List[Dict[str, Any]]:
         """Find circular dependencies in module graph"""
         query = """
         MATCH (p:Project {projectId: $projectId})-[:CONTAINS]->(m1:Module)
@@ -65,8 +86,11 @@ class Neo4jService:
             result = await session.run(query, projectId=project_id)
             records = await result.data()
             return records
-
-    async def calculate_coupling_metrics(self, project_id: str) -> list[dict[str, Any]]:
+    
+    async def calculate_coupling_metrics(
+        self,
+        project_id: str
+    ) -> List[Dict[str, Any]]:
         """Calculate coupling metrics for all modules"""
         query = """
         MATCH (p:Project {projectId: $projectId})-[:CONTAINS]->(m:Module)
@@ -88,8 +112,12 @@ class Neo4jService:
             result = await session.run(query, projectId=project_id)
             records = await result.data()
             return records
-
-    async def find_critical_paths(self, project_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    
+    async def find_critical_paths(
+        self,
+        project_id: str,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
         """Find critical call paths in the codebase"""
         query = """
         MATCH (p:Project {projectId: $projectId})-[:CONTAINS*]->(f:Function)
@@ -107,8 +135,11 @@ class Neo4jService:
             result = await session.run(query, projectId=project_id, limit=limit)
             records = await result.data()
             return records
-
-    async def detect_architectural_violations(self, project_id: str) -> list[dict[str, Any]]:
+    
+    async def detect_architectural_violations(
+        self,
+        project_id: str
+    ) -> List[Dict[str, Any]]:
         """Detect architectural violations"""
         query = """
         MATCH (p:Project {projectId: $projectId})-[:CONTAINS*]->()-[v:VIOLATES]->()
@@ -123,8 +154,11 @@ class Neo4jService:
             result = await session.run(query, projectId=project_id)
             records = await result.data()
             return records
-
-    async def get_project_overview(self, project_id: str) -> dict[str, Any]:
+    
+    async def get_project_overview(
+        self,
+        project_id: str
+    ) -> Dict[str, Any]:
         """Get overview statistics for a project"""
         query = """
         MATCH (p:Project {projectId: $projectId})
@@ -146,6 +180,5 @@ class Neo4jService:
 async def get_neo4j_service() -> Neo4jService:
     """Get Neo4j service instance with driver"""
     from app.database.neo4j_db import get_neo4j_driver
-
     driver = await get_neo4j_driver()
     return Neo4jService(driver)

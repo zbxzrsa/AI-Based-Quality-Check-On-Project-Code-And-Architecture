@@ -1,0 +1,63 @@
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:252: UserWarning: `validate_postgres_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_postgres_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:262: UserWarning: `validate_neo4j_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_neo4j_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:425: UserWarning: `validate_celery_config` overrides an existing Pydantic `@model_validator` decorator
+  def validate_celery_config(self) -> List[str]:
+INFO:     Started server process [163368]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-16T11:56:57.226421+00:00", "level": "WARNING", "logger": "app.core.cloudwatch_handler", "message": "AWS credentials not found, CloudWatch logging disabled", "error": "Unable to locate credentials", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:57.228302+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "Logging configured", "log_level": "INFO", "json_enabled": true, "service_name": "backend-api", "cloudwatch_enabled": false, "log_file": "logs\\app.log", "log_rotation": "daily", "log_retention_days": 30}
+{"timestamp": "2026-03-16T11:56:59.262145+00:00", "level": "WARNING", "logger": "app.core.logging_config", "message": "CloudWatch Logs integration failed", "error": "AWS credentials not found: Unable to locate credentials", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.282404+00:00", "level": "INFO", "logger": "app.core.tracing", "message": "\u2705 OpenTelemetry tracing initialized: service=AI Code Review Platform, environment=development, endpoint=http://localhost:4317, sample_rate=1.0", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.282404+00:00", "level": "ERROR", "logger": "app.core.tracing", "message": "Failed to instrument HTTPX: 'NoneType' object is not callable", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.284457+00:00", "level": "INFO", "logger": "app.core.tracing", "message": "\u2705 Redis instrumented for tracing", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.284457+00:00", "level": "INFO", "logger": "app.services.graceful_shutdown", "message": "Graceful shutdown handler initialized (timeout: 30s)", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.284457+00:00", "level": "INFO", "logger": "app.services.graceful_shutdown", "message": "Signal handlers registered (SIGTERM, SIGINT)", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.284457+00:00", "level": "INFO", "logger": "app.main", "message": "Testing mode: Skipping startup validation", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.284457+00:00", "level": "INFO", "logger": "app.main", "message": "Testing mode: Skipping database initialization in lifespan", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.580979+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.schemas", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.581981+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.tables", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.581981+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.types", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.581981+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.constraints", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.581981+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.defaults", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.581981+00:00", "level": "INFO", "logger": "alembic.runtime.plugins", "message": "setup plugin alembic.autogenerate.comments", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.608857+00:00", "level": "INFO", "logger": "app.main", "message": "Checking for pending migrations...", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "ERROR", "logger": "app.database.migration_manager", "message": "Error getting migration status: No module named 'psycopg2'", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "Migration status: Migrations: 0 applied, 1 error(s)", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "Database is up to date", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "Authentication initialized (JWT expiry: 24 hours)", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "Database Connection Status:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "--------------------------------------------------", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "--------------------------------------------------", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.main", "message": "\u2705 All databases connected", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "======================================================================", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "APPLICATION STARTUP SUMMARY", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "======================================================================", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "Application: AI Code Review Platform", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "Version: 1.0.0", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "Environment: development", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "Configuration file: .env", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "\nDatabase Status:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "\nFeatures:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  GitHub Integration: \u26a0\ufe0f  disabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  DeepSeek AI: \u2705 enabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  OpenAI: \u26a0\ufe0f  disabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Anthropic: \u26a0\ufe0f  disabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Ollama Local LLM: \u26a0\ufe0f  disabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.610381+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Celery: \u26a0\ufe0f  disabled", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "WARNING", "logger": "app.core.logging_config", "message": "\nSecurity Warnings:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "WARNING", "logger": "app.core.logging_config", "message": "  \u26a0\ufe0f  No external API keys configured (GITHUB_TOKEN, OPENAI_API_KEY, ANTHROPIC_API_KEY). Limited functionality available.", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "\nAPI Documentation:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Swagger UI: http://localhost:8000/docs", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  ReDoc: http://localhost:8000/redoc", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  OpenAPI JSON: http://localhost:8000/openapi.json", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "\nHealth Check Endpoints:", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Overall health: GET /health", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Readiness probe: GET /health/ready", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "  Liveness probe: GET /health/live", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "======================================================================", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "\u2705 Application startup complete", "service_name": "backend-api"}
+{"timestamp": "2026-03-16T11:56:59.611387+00:00", "level": "INFO", "logger": "app.core.logging_config", "message": "======================================================================", "service_name": "backend-api"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

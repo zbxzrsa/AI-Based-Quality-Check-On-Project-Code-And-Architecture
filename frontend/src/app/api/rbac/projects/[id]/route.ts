@@ -4,12 +4,8 @@ import { cookies } from 'next/headers';
 // Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
-
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -92,7 +88,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -141,10 +137,10 @@ export async function DELETE(
     }
 
     return NextResponse.json(data);
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Error deleting project:', error);
     return NextResponse.json(
-      { detail: `Internal server error: ${getErrorMessage(error)}` },
+      { detail: `Internal server error: ${error.message}` },
       { status: 500 }
     );
   }

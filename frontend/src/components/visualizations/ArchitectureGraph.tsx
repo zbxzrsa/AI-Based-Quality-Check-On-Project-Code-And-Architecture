@@ -42,15 +42,6 @@ interface Link {
   weight: number;
 }
 
-interface NodeProperties {
-  layer?: string;
-}
-
-interface NodePosition {
-  x: number;
-  y: number;
-}
-
 interface ArchitectureGraphProps {
   analysisId: string;
   className?: string;
@@ -91,9 +82,9 @@ function transformArchitectureData(data: ArchitectureAnalysis): { nodes: Node[];
     size: 50, // Default size
     complexity: node.complexity,
     isDrift: node.health === 'drift' || node.health === 'unhealthy',
-    layer: (node.properties as NodeProperties | undefined)?.layer,
+    layer: node.properties?.layer as string | undefined,
     group: node.type,
-    position: node.position as NodePosition | undefined,
+    position: node.position as { x: number; y: number } | undefined,
   }));
 
   // Transform edges from API format to component format
@@ -241,7 +232,7 @@ export default function ArchitectureGraph({ analysisId, className }: Architectur
     return 'low';
   };
 
-  const handleNodeClick = (node: { id: string }) => {
+  const handleNodeClick = (node: any) => {
     setSelectedNode(selectedNode === node.id ? null : node.id);
   };
 
@@ -257,11 +248,13 @@ export default function ArchitectureGraph({ analysisId, className }: Architectur
   };
 
   const resetView = () => {
-    setSelectedNode(null);
+    // Placeholder for reset view functionality
+    console.log('Reset view');
   };
 
   const applyForceLayout = () => {
-    setSelectedNode(null);
+    // Placeholder for force layout functionality
+    console.log('Apply force layout');
   };
 
   return (

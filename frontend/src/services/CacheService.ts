@@ -26,7 +26,7 @@ export interface CacheStats {
 }
 
 export class CacheService {
-  private cache: Map<string, CacheEntry<unknown>>;
+  private cache: Map<string, CacheEntry<any>>;
   private hits: number;
   private misses: number;
   private defaultTTL: number;

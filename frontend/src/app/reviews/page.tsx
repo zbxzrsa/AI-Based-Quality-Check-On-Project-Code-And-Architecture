@@ -1,256 +1,369 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/layout/main-layout';
-import { PageHeader } from '@/components/layout/page-header';
+import MainLayout from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, GitPullRequest, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Search,
+  GitPullRequest,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Activity,
+  ExternalLink,
+  RefreshCw,
+  Play,
+  Loader2,
+} from 'lucide-react';
+import { useProjects, useProjectPullRequests } from '@/hooks/useProjects';
+import type { Project, PullRequest } from '@/hooks/useProjects';
 
-interface Review {
-  id: string;
-  title: string;
-  repository: string;
-  author: string;
-  status: 'pending' | 'approved' | 'rejected' | 'in_progress';
-  qualityScore: number;
-  securityScore: number;
-  createdAt: string;
-  updatedAt: string;
-  prNumber?: number;
+// Component to render Pull Request list for a project
+function ProjectPRList({ project, onSync }: { project: Project; onSync: (msg: string) => void }) {
+  const router = useRouter();
+  const { data: pullRequestsData, isLoading, refetch } = useProjectPullRequests(project.id, 'all');
+  const [analyzingPRId, setAnalyzingPRId] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  // Fix: backend returns { pull_requests: [...] }, not a direct array
+  const pullRequests: PullRequest[] = useMemo(() => {
+    if (!pullRequestsData) return [];
+    if (Array.isArray(pullRequestsData)) return pullRequestsData;
+    if (pullRequestsData.pull_requests && Array.isArray(pullRequestsData.pull_requests)) {
+      return pullRequestsData.pull_requests;
+    }
+    return [];
+  }, [pullRequestsData]);
+
+  const handleSync = useCallback(async () => {
+    setSyncLoading(true);
+    try {
+      const resp = await fetch(`/api/github/projects/${project.id}/sync`, { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok) {
+        // Show backend's sync result message (includes PR counts)
+        onSync(data.message || `${project.name} 同步完成`);
+        // Refetch PRs after sync
+        setTimeout(() => refetch(), 500);
+      } else {
+        alert(data.message || data.detail || 'Sync failed');
+      }
+    } catch (err) {
+      alert('Sync failed: network error');
+    } finally {
+      setSyncLoading(false);
+    }
+  }, [project.id, refetch, onSync]);
+
+  const handleAnalyze = useCallback(async (prId: string) => {
+    setAnalyzingPRId(prId);
+    try {
+      const resp = await fetch(`/api/github/analyze/${prId}`, { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok) {
+        // Force invalidate the cache and refetch immediately
+        // The apiClient has a 5-min cache, so we clear the query cache via React Query
+        refetch();
+        // Poll for status change (analyzing → reviewed) every 2 seconds
+        let pollCount = 0;
+        const pollInterval = setInterval(() => {
+          pollCount++;
+          refetch();
+          // Stop polling after 30 attempts (60 seconds)
+          if (pollCount >= 30) clearInterval(pollInterval);
+        }, 2000);
+        // Also stop polling after 60 seconds as safety measure
+        setTimeout(() => clearInterval(pollInterval), 62000);
+      } else {
+        alert(data.message || data.detail || '分析启动失败');
+      }
+    } catch (err) {
+      alert('分析启动失败：网络错误');
+    } finally {
+      setAnalyzingPRId(null);
+    }
+  }, [refetch]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved': case 'merged': return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'rejected': case 'closed': return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'analyzing': return <Activity className="h-4 w-4 text-blue-500" />;
+      case 'reviewed': return <CheckCircle2 className="h-4 w-4 text-blue-500" />;
+      default: return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'approved': case 'merged': case 'reviewed': return 'success' as const;
+      case 'rejected': case 'closed': return 'destructive' as const;
+      case 'analyzing': return 'default' as const;
+      default: return 'outline' as const;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: '待审查', analyzing: '分析中', reviewed: '已审查',
+      approved: '已通过', rejected: '已拒绝', merged: '已合并', closed: '已关闭',
+    };
+    return labels[status] || status;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Sync button */}
+      {project.github_repo_url && (
+        <div className="flex items-center justify-between border-b pb-3">
+          <span className="text-sm text-muted-foreground">
+            {pullRequests.length > 0 ? `${pullRequests.length} 个 Pull Request` : '暂无 Pull Request'}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSync}
+            disabled={syncLoading}
+          >
+            {syncLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {syncLoading ? '同步中...' : '从 GitHub 同步'}
+          </Button>
+        </div>
+      )}
+
+      {/* No GitHub repo linked */}
+      {!project.github_repo_url && (
+        <div className="text-center py-6">
+          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">此项目未关联 GitHub 仓库</p>
+          <p className="text-xs text-muted-foreground mt-1">请先在项目设置中关联 GitHub 仓库</p>
+        </div>
+      )}
+
+      {/* PR list */}
+      {pullRequests.length === 0 && project.github_repo_url ? (
+        <div className="text-center py-6">
+          <GitPullRequest className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">暂无 Pull Request</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            点击上方"从 GitHub 同步"按钮获取 Pull Request
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pullRequests.map((pr) => (
+            <div
+              key={pr.id}
+              className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-start gap-3 flex-1">
+                {getStatusIcon(pr.status)}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-semibold truncate">
+                      PR #{pr.github_pr_number || pr.number}: {pr.title}
+                    </h4>
+                    <Badge variant={getStatusBadgeVariant(pr.status)}>
+                      {getStatusLabel(pr.status)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    {pr.files_changed > 0 && <span>{pr.files_changed} 文件</span>}
+                    {pr.lines_added > 0 && <span className="text-green-600">+{pr.lines_added}</span>}
+                    {pr.lines_deleted > 0 && <span className="text-red-600">-{pr.lines_deleted}</span>}
+                    {pr.branch_name && <span>{pr.branch_name}</span>}
+                    <span>
+                      <Clock className="inline h-3 w-3 mr-1" />
+                      {new Date(pr.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {pr.risk_score !== null && pr.risk_score !== undefined && (
+                  <Badge
+                    variant={pr.risk_score > 70 ? 'destructive' : pr.risk_score > 40 ? 'warning' : 'success'}
+                  >
+                    风险: {pr.risk_score}
+                  </Badge>
+                )}
+                {(pr.status === 'pending' || pr.status === 'analyzing') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); handleAnalyze(pr.id); }}
+                    disabled={analyzingPRId === pr.id || pr.status === 'analyzing'}
+                  >
+                    {(analyzingPRId === pr.id || pr.status === 'analyzing') ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Play className="h-3 w-3 mr-1" />
+                    )}
+                    {(analyzingPRId === pr.id || pr.status === 'analyzing') ? '分析中' : '开始审查'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-const statusConfig = {
-  pending: { label: 'Pending', icon: Clock, variant: 'secondary' as const },
-  in_progress: { label: 'In Progress', icon: AlertCircle, variant: 'default' as const },
-  approved: { label: 'Approved', icon: CheckCircle2, variant: 'default' as const },
-  rejected: { label: 'Rejected', icon: XCircle, variant: 'destructive' as const },
-};
-
 export default function ReviewsPage() {
-  const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const { data: projects = [], isLoading } = useProjects();
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [repositoryFilter, setRepositoryFilter] = useState<string>('all');
+  const [syncMessage, setSyncMessage] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadReviews = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch('/api/reviews', {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({ detail: 'Failed to load pull requests' }));
-          throw new Error(apiError.detail || 'Failed to load pull requests');
-        }
-
-        const data = await response.json();
-        if (!cancelled) {
-          setReviews(Array.isArray(data.reviews) ? data.reviews : []);
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load pull requests');
-          setReviews([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+  const filteredProjects = useMemo(() => {
+    const list = Array.isArray(projects) ? projects : [];
+    return list.filter((project: Project) => {
+      if (searchTerm) {
+        return project.name.toLowerCase().includes(searchTerm.toLowerCase());
       }
-    };
+      return true;
+    });
+  }, [projects, searchTerm]);
 
-    void loadReviews();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const repositories = Array.from(new Set(reviews.map((review) => review.repository)));
-
-  const filteredReviews = reviews.filter((review) => {
-    const matchesSearch =
-      review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.repository.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.author.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || review.status === statusFilter;
-    const matchesRepository = repositoryFilter === 'all' || review.repository === repositoryFilter;
-
-    return matchesSearch && matchesStatus && matchesRepository;
-  });
-
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  // Sort projects: those with GitHub repos first
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      if (a.github_repo_url && !b.github_repo_url) return -1;
+      if (!a.github_repo_url && b.github_repo_url) return 1;
+      return 0;
+    });
+  }, [filteredProjects]);
 
   return (
     <MainLayout>
       <div className="space-y-6">
-        <PageHeader title="Pull Requests" description="Review and manage code reviews" />
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <GitPullRequest className="h-8 w-8" />
+            Pull Requests
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            查看和管理所有项目的 Pull Request 代码审查
+          </p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 md:flex-row">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by title, repository, or author..."
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={repositoryFilter} onValueChange={setRepositoryFilter}>
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Filter by repository" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Repositories</SelectItem>
-                    {repositories.map((repo) => (
-                      <SelectItem key={repo} value={repo}>
-                        {repo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(searchQuery || statusFilter !== 'all' || repositoryFilter !== 'all') && (
-                <div className="text-sm text-muted-foreground">
-                  Showing {filteredReviews.length} of {reviews.length} pull requests
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {syncMessage && (
+          <div className="p-3 rounded-lg bg-green-50 text-green-700 text-sm border border-green-200">
+            {syncMessage}
+          </div>
+        )}
 
+        {/* Filters */}
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索项目..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="状态筛选" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="pending">待审查</SelectItem>
+              <SelectItem value="approved">已通过</SelectItem>
+              <SelectItem value="rejected">已拒绝</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Content */}
         {isLoading ? (
           <div className="space-y-4">
-            {[...Array(3)].map((_, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <Skeleton className="mb-2 h-6 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                </CardHeader>
-              </Card>
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-40 w-full" />
             ))}
           </div>
-        ) : error ? (
+        ) : sortedProjects.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
-              <h3 className="mb-2 text-lg font-semibold">Unable to load pull requests</h3>
-              <p className="text-sm text-muted-foreground">{error}</p>
-            </CardContent>
-          </Card>
-        ) : filteredReviews.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <GitPullRequest className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No pull requests found</h3>
+              <GitPullRequest className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">暂无项目</h3>
               <p className="text-sm text-muted-foreground">
-                {searchQuery || statusFilter !== 'all' || repositoryFilter !== 'all'
-                  ? 'Try adjusting your search or filters'
-                  : 'No pull requests available'}
+                请先在项目页面中添加项目
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredReviews.map((review) => {
-              const StatusIcon = statusConfig[review.status].icon;
-
-              return (
-                <Card
-                  key={review.id}
-                  className="cursor-pointer transition-shadow hover:shadow-lg"
-                  onClick={() => router.push(`/reviews/${review.id}`)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="mb-2 flex items-center gap-2">
-                          <GitPullRequest className="h-5 w-5 text-muted-foreground" />
-                          <CardTitle className="text-lg">{review.title}</CardTitle>
-                        </div>
-                        <CardDescription>
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="font-medium">{review.repository}</span>
-                            <span>•</span>
-                            <span>{review.author}</span>
-                            {typeof review.prNumber === 'number' && (
-                              <>
-                                <span>•</span>
-                                <span>PR #{review.prNumber}</span>
-                              </>
-                            )}
-                            <span>•</span>
-                            <time dateTime={review.createdAt}>
-                              {new Date(review.createdAt).toLocaleDateString()}
-                            </time>
-                          </div>
-                        </CardDescription>
-                      </div>
-                      <Badge variant={statusConfig[review.status].variant} className="flex items-center gap-1">
-                        <StatusIcon className="h-3 w-3" />
-                        {statusConfig[review.status].label}
-                      </Badge>
+          <div className="space-y-6">
+            {sortedProjects.map((project: Project) => (
+              <Card key={project.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <GitPullRequest className="h-5 w-5" />
+                        {project.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {project.github_repo_url ? (
+                          <a
+                            href={project.github_repo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:underline"
+                          >
+                            {project.github_repo_url.replace('https://github.com/', '')}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          '未关联仓库'
+                        )}
+                      </CardDescription>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-6 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Quality:</span>
-                        <span className={`font-semibold ${getScoreColor(review.qualityScore)}`}>
-                          {review.qualityScore}%
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Security:</span>
-                        <span className={`font-semibold ${getScoreColor(review.securityScore)}`}>
-                          {review.securityScore}%
-                        </span>
-                      </div>
-                      <div className="ml-auto flex items-center gap-2 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>Updated {new Date(review.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    <Badge variant={project.language ? 'outline' : 'secondary'}>
+                      {project.language || 'Unknown'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ProjectPRList
+                    project={project}
+                    onSync={(msg) => setSyncMessage(msg)}
+                  />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>

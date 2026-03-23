@@ -1,38 +1,31 @@
 """
 Database connection management with retry logic and health checks.
 """
-
 import asyncio
 import logging
-from datetime import datetime, timezone
+from typing import Dict, Any
 from functools import wraps
-from typing import Any
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
 
-from .neo4j_db import (
-    close_neo4j,
-    get_neo4j_driver,
-    init_neo4j,
-    test_neo4j_connection,
-)
-from .neo4j_db import (
-    create_indexes as create_neo4j_indexes,
-)
 from .postgresql import (
-    close_postgres,
     init_postgres,
+    close_postgres,
     test_postgres_connection,
-)
-from .postgresql import (
     get_db as get_postgres_session,
 )
-from .redis_db import (
-    close_redis,
-    init_redis,
-    test_redis_connection,
+from .neo4j_db import (
+    init_neo4j,
+    close_neo4j,
+    test_neo4j_connection,
+    get_neo4j_driver,
+    create_indexes as create_neo4j_indexes,
 )
 from .redis_db import (
+    init_redis,
+    close_redis,
+    test_redis_connection,
     get_redis as get_redis_client,
 )
 
@@ -54,37 +47,36 @@ RETRY_BACKOFF_FACTOR = 2
 
 def retry_on_failure(max_retries: int = MAX_RETRIES, initial_delay: float = INITIAL_RETRY_DELAY):
     """Decorator for retrying database operations with exponential backoff."""
-
+    
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             delay = initial_delay
             last_exception = None
-
+            
             for attempt in range(max_retries):
                 try:
                     return await func(*args, **kwargs)
                 except Exception as e:
                     last_exception = e
                     if attempt < max_retries - 1:  # Don't sleep on the last attempt
-                        wait_time = delay * (RETRY_BACKOFF_FACTOR**attempt)
+                        wait_time = delay * (RETRY_BACKOFF_FACTOR ** attempt)
                         logger.warning(
                             f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}. "
                             f"Retrying in {wait_time:.2f} seconds..."
                         )
                         await asyncio.sleep(wait_time)
-
+            
             logger.error(f"All {max_retries} attempts failed. Last error: {str(last_exception)}")
             raise last_exception
-
+        
         return wrapper
-
     return decorator
 
 
 class DatabaseManager:
     """Manages database connections and provides health checks."""
-
+    
     @classmethod
     async def initialize_databases(cls):
         """Initialize all database connections with retry logic."""
@@ -93,7 +85,7 @@ class DatabaseManager:
             cls.initialize_neo4j(),
             cls.initialize_redis(),
         )
-
+    
     @classmethod
     @retry_on_failure()
     async def initialize_postgres(cls):
@@ -113,7 +105,7 @@ class DatabaseManager:
             raise
         finally:
             db_state["postgres"]["last_check"] = datetime.now(timezone.utc)
-
+    
     @classmethod
     @retry_on_failure()
     async def initialize_neo4j(cls):
@@ -134,7 +126,7 @@ class DatabaseManager:
             raise
         finally:
             db_state["neo4j"]["last_check"] = datetime.now(timezone.utc)
-
+    
     @classmethod
     @retry_on_failure()
     async def initialize_redis(cls):
@@ -154,7 +146,7 @@ class DatabaseManager:
             raise
         finally:
             db_state["redis"]["last_check"] = datetime.now(timezone.utc)
-
+    
     @classmethod
     async def close_databases(cls):
         """Close all database connections gracefully."""
@@ -168,9 +160,9 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error closing database connections: {e}")
             raise
-
+    
     @classmethod
-    def get_database_health(cls) -> dict[str, dict[str, Any]]:
+    def get_database_health(cls) -> Dict[str, Dict[str, Any]]:
         """Get the current health status of all databases."""
         return {
             "postgres": {
@@ -190,11 +182,10 @@ class DatabaseManager:
             },
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-
+    
     @classmethod
     def get_db_dependencies(cls):
         """Get FastAPI dependencies for database sessions."""
-
         async def get_postgres():
             if not db_state["postgres"]["connected"]:
                 raise HTTPException(
@@ -206,7 +197,7 @@ class DatabaseManager:
                     yield session
                 finally:
                     await session.close()
-
+        
         async def get_neo4j():
             if not db_state["neo4j"]["connected"]:
                 raise HTTPException(
@@ -214,7 +205,7 @@ class DatabaseManager:
                     detail="Neo4j database is not available",
                 )
             return await get_neo4j_driver()
-
+        
         async def get_redis():
             if not db_state["redis"]["connected"]:
                 raise HTTPException(
@@ -222,7 +213,7 @@ class DatabaseManager:
                     detail="Redis is not available",
                 )
             return await get_redis_client()
-
+        
         return {
             "postgres": Depends(get_postgres),
             "neo4j": Depends(get_neo4j),

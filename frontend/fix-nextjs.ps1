@@ -47,4 +47,4 @@ if ($nextVersion) {
 
 Write-Host "`n✨ Fix complete! You can now run:" -ForegroundColor Cyan
 Write-Host "   npm run dev" -ForegroundColor White
-Write-Host "`nThe development server should start at http://localhost:6066" -ForegroundColor Gray
+Write-Host "`nThe development server should start at http://localhost:3000" -ForegroundColor Gray

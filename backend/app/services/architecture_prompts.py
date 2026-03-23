@@ -335,71 +335,64 @@ Include specific recommendations for improving modularity and reducing architect
 IMPORTANT: Respond with ONLY the JSON object. Do not include any additional text, explanations, or formatting before or after the JSON.
 """
 
-
 def format_architectural_purpose_prompt(metrics: dict, code_structure: str) -> str:
     """Format the architectural purpose prompt with actual metrics."""
     return ARCHITECTURAL_PURPOSE_PROMPT.format(
-        repository_url=metrics.get("repository_url", "Unknown"),
-        analysis_date=metrics.get("analysis_date", "Unknown"),
-        total_files=metrics.get("total_files", 0),
-        total_classes=metrics.get("total_classes", 0),
-        total_functions=metrics.get("total_functions", 0),
-        avg_complexity=metrics.get("avg_complexity", 0),
-        coupling=metrics.get("coupling", 0),
-        cohesion=metrics.get("cohesion", 0),
-        code_smells=metrics.get("code_smells", 0),
-        file_types=", ".join(metrics.get("file_types", [])),
-        code_structure_summary=code_structure,
+        repository_url=metrics.get('repository_url', 'Unknown'),
+        analysis_date=metrics.get('analysis_date', 'Unknown'),
+        total_files=metrics.get('total_files', 0),
+        total_classes=metrics.get('total_classes', 0),
+        total_functions=metrics.get('total_functions', 0),
+        avg_complexity=metrics.get('avg_complexity', 0),
+        coupling=metrics.get('coupling', 0),
+        cohesion=metrics.get('cohesion', 0),
+        code_smells=metrics.get('code_smells', 0),
+        file_types=', '.join(metrics.get('file_types', [])),
+        code_structure_summary=code_structure
     )
-
 
 def format_architectural_patterns_prompt(metrics: dict, code_structure: str) -> str:
     """Format the architectural patterns prompt with actual metrics."""
     return ARCHITECTURAL_PATTERNS_PROMPT.format(
-        total_classes=metrics.get("total_classes", 0),
-        total_functions=metrics.get("total_functions", 0),
-        avg_complexity=metrics.get("avg_complexity", 0),
-        coupling=metrics.get("coupling", 0),
-        cohesion=metrics.get("cohesion", 0),
-        file_types=", ".join(metrics.get("file_types", [])),
-        class_distribution=metrics.get("class_distribution", "Unknown"),
-        code_structure=code_structure,
+        total_classes=metrics.get('total_classes', 0),
+        total_functions=metrics.get('total_functions', 0),
+        avg_complexity=metrics.get('avg_complexity', 0),
+        coupling=metrics.get('coupling', 0),
+        cohesion=metrics.get('cohesion', 0),
+        file_types=', '.join(metrics.get('file_types', [])),
+        class_distribution=metrics.get('class_distribution', 'Unknown'),
+        code_structure=code_structure
     )
-
 
 def format_code_quality_prompt(metrics: dict, code_structure: str) -> str:
     """Format the code quality analysis prompt with actual metrics."""
     return CODE_QUALITY_ANALYSIS_PROMPT.format(
-        complexity=metrics.get("complexity", 0),
-        coupling=metrics.get("coupling", 0),
-        cohesion=metrics.get("cohesion", 0),
-        code_smells=metrics.get("code_smells", 0),
-        total_files=metrics.get("total_files", 0),
-        code_structure=code_structure,
+        complexity=metrics.get('complexity', 0),
+        coupling=metrics.get('coupling', 0),
+        cohesion=metrics.get('cohesion', 0),
+        code_smells=metrics.get('code_smells', 0),
+        total_files=metrics.get('total_files', 0),
+        code_structure=code_structure
     )
 
-
-def format_drift_detection_prompt(
-    golden_standard: str, metrics: dict, current_patterns: str, code_structure: str
-) -> str:
+def format_drift_detection_prompt(golden_standard: str, metrics: dict, current_patterns: str, code_structure: str) -> str:
     """Format the architectural drift detection prompt."""
     return ARCHITECTURAL_DRIFT_DETECTION_PROMPT.format(
         golden_standard=golden_standard,
-        total_files=metrics.get("total_files", 0),
-        total_classes=metrics.get("total_classes", 0),
-        file_types=", ".join(metrics.get("file_types", [])),
-        coupling=metrics.get("coupling", 0),
-        cohesion=metrics.get("cohesion", 0),
+        total_files=metrics.get('total_files', 0),
+        total_classes=metrics.get('total_classes', 0),
+        file_types=', '.join(metrics.get('file_types', [])),
+        coupling=metrics.get('coupling', 0),
+        cohesion=metrics.get('cohesion', 0),
         current_patterns=current_patterns,
-        code_structure=code_structure,
+        code_structure=code_structure
     )
-
 
 def format_clustering_analysis_prompt(dependency_graph: str, metrics: dict) -> str:
     """Format the clustering coefficient analysis prompt."""
     return CLUSTERING_COEFFICIENT_ANALYSIS_PROMPT.format(
         dependency_graph=dependency_graph,
-        total_components=metrics.get("total_components", 0),
-        total_dependencies=metrics.get("total_dependencies", 0),
-        avg_component_size=metrics.get("avg_component_size", 0),
+        total_components=metrics.get('total_components', 0),
+        total_dependencies=metrics.get('total_dependencies', 0),
+        avg_component_size=metrics.get('avg_component_size', 0)
     )

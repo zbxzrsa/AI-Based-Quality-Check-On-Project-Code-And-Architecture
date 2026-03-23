@@ -6,7 +6,7 @@ Tracks error patterns and statistics for monitoring.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Dict, List, Optional
 
 from .types import DatabaseErrorCategory, DatabaseErrorInfo
 
@@ -14,12 +14,11 @@ from .types import DatabaseErrorCategory, DatabaseErrorInfo
 @dataclass
 class ErrorStatistics:
     """Error statistics for pattern identification"""
-
-    error_counts: dict[DatabaseErrorCategory, int] = field(default_factory=dict)
-    component_errors: dict[str, int] = field(default_factory=dict)
-    recent_errors: list[DatabaseErrorInfo] = field(default_factory=list)
-    first_seen: datetime | None = None
-    last_seen: datetime | None = None
+    error_counts: Dict[DatabaseErrorCategory, int] = field(default_factory=dict)
+    component_errors: Dict[str, int] = field(default_factory=dict)
+    recent_errors: List[DatabaseErrorInfo] = field(default_factory=list)
+    first_seen: Optional[datetime] = None
+    last_seen: Optional[datetime] = None
 
     def add_error(self, error_info: DatabaseErrorInfo) -> None:
         """Add error to statistics"""
@@ -34,19 +33,19 @@ class ErrorStatistics:
         if len(self.recent_errors) > 50:
             self.recent_errors.pop(0)
 
-    def get_most_frequent_category(self) -> DatabaseErrorCategory | None:
+    def get_most_frequent_category(self) -> Optional[DatabaseErrorCategory]:
         """Get the most frequent error category"""
         if not self.error_counts:
             return None
         return max(self.error_counts.items(), key=lambda x: x[1])[0]
 
-    def get_most_problematic_component(self) -> str | None:
+    def get_most_problematic_component(self) -> Optional[str]:
         """Get the component with most errors"""
         if not self.component_errors:
             return None
         return max(self.component_errors.items(), key=lambda x: x[1])[0]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Export statistics as dictionary"""
         return {
             "error_counts": {k.value: v for k, v in self.error_counts.items()},

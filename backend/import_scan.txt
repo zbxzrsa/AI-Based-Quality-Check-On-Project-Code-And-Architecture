@@ -1,0 +1,36 @@
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:252: UserWarning: `validate_postgres_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_postgres_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:262: UserWarning: `validate_neo4j_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_neo4j_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:425: UserWarning: `validate_celery_config` overrides an existing Pydantic `@model_validator` decorator
+  def validate_celery_config(self) -> List[str]:
+app.main: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.refactored_repositories: InvalidRequestError: Attribute name 'metadata' is reserved when using the Declarative API.
+app.api.v1.response_models: NameError: name 'Dict' is not defined
+app.api.v1.router: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.architecture: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.code_review: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.project_analytics: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.rbac_audit: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.rbac_projects: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.rbac_users: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.api.v1.endpoints.security_audit: ModuleNotFoundError: No module named 'app.core.dependencies'
+app.api.v1.endpoints.security_compliance: ModuleNotFoundError: No module named 'app.core.dependencies'
+app.api.v1.endpoints.user_settings: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.auth.middleware.auth_middleware: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.core.resilient_config: PydanticImportError: `BaseSettings` has been moved to the `pydantic-settings` package. See https://docs.pydantic.dev/2.12/migration/#basesett
+app.core.tracing: ModuleNotFoundError: No module named 'opentelemetry.instrumentation.httpx'
+app.core.error_reporting.masking: NameError: name 'Any' is not defined
+app.core.error_reporting.reporter: NameError: name 'Any' is not defined
+app.core.error_reporting.statistics: NameError: name 'Any' is not defined
+app.core.error_reporting.statistics_manager: NameError: name 'Any' is not defined
+app.models.repository: InvalidRequestError: Attribute name 'metadata' is reserved when using the Declarative API.
+app.services.ai_pr_reviewer_service: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.services.audit_trail: NameError: name 'Integer' is not defined
+app.services.refactored_repository_service: InvalidRequestError: Attribute name 'metadata' is reserved when using the Declarative API.
+app.services.tracing_example: ModuleNotFoundError: No module named 'opentelemetry.instrumentation.httpx'
+app.services.user_llm_service: ModuleNotFoundError: No module named 'app.auth.services.auth_service'
+app.services.parsers.csharp_parser: ImportError: cannot import name 'Module' from 'app.schemas.ast_models' (D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Arch
+app.utils.audit_helpers: ImportError: cannot import name 'AuditService' from 'app.services.audit_logging_service' (D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Pro
+
+=== Total errors: 28 ===

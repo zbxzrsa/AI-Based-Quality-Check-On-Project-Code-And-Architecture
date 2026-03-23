@@ -1,17 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/main-layout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -29,321 +24,240 @@ import {
   AlertCircle,
   PlayCircle,
   RotateCw,
-  Trash2,
   Eye,
+  GitPullRequest,
 } from 'lucide-react';
+import { useProjects, useProjectPullRequests } from '@/hooks/useProjects';
+import type { Project, PullRequest } from '@/hooks/useProjects';
 
-interface QueueTask {
-  id: string;
-  projectName: string;
-  prNumber: number;
-  status: 'queued' | 'in_progress' | 'completed' | 'failed';
-  priority: 'high' | 'medium' | 'low';
-  submittedTime: string;
-  estimatedCompletion?: string;
-  progress?: number;
-}
-
-export default function QueuePage() {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
-
-  // Mock data
-  const queueStats = {
-    totalQueued: 12,
-    inProgress: 3,
-    avgWaitTime: '5 min',
-    estimatedCompletion: '15 min',
-  };
-
-  const mockTasks: QueueTask[] = [
-    {
-      id: '1',
-      projectName: 'AI Code Review Platform',
-      prNumber: 123,
-      status: 'in_progress',
-      priority: 'high',
-      submittedTime: '2026-01-19T10:30:00Z',
-      estimatedCompletion: '2026-01-19T10:45:00Z',
-      progress: 65,
-    },
-    {
-      id: '2',
-      projectName: 'E-commerce API',
-      prNumber: 456,
-      status: 'queued',
-      priority: 'medium',
-      submittedTime: '2026-01-19T10:35:00Z',
-      estimatedCompletion: '2026-01-19T10:50:00Z',
-    },
-    {
-      id: '3',
-      projectName: 'Analytics Dashboard',
-      prNumber: 789,
-      status: 'completed',
-      priority: 'low',
-      submittedTime: '2026-01-19T10:00:00Z',
-    },
-    {
-      id: '4',
-      projectName: 'AI Code Review Platform',
-      prNumber: 124,
-      status: 'failed',
-      priority: 'high',
-      submittedTime: '2026-01-19T09:45:00Z',
-    },
-    {
-      id: '5',
-      projectName: 'Mobile App Backend',
-      prNumber: 234,
-      status: 'queued',
-      priority: 'medium',
-      submittedTime: '2026-01-19T10:40:00Z',
-      estimatedCompletion: '2026-01-19T11:00:00Z',
-    },
-  ];
+// Component for showing analysis tasks for one project
+function ProjectQueueSection({ project }: { project: Project }) {
+  const router = useRouter();
+  const { data: pullRequestsData = [], isLoading } = useProjectPullRequests(project.id, 'all');
+  const pullRequests: PullRequest[] = Array.isArray(pullRequestsData) ? pullRequestsData : [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'approved':
+      case 'merged':
+      case 'reviewed':
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'in_progress':
-        return <PlayCircle className="h-4 w-4 text-blue-500" />;
-      case 'failed':
+      case 'rejected':
+      case 'closed':
         return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'queued':
+      case 'analyzing':
+        return <PlayCircle className="h-4 w-4 text-blue-500 animate-pulse" />;
+      case 'pending':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-500';
-      case 'in_progress':
-        return 'bg-blue-500';
-      case 'failed':
-        return 'bg-red-500';
-      case 'queued':
-        return 'bg-yellow-500';
+      case 'approved':
+      case 'merged':
+      case 'reviewed':
+        return <Badge variant="success">已完成</Badge>;
+      case 'rejected':
+      case 'closed':
+        return <Badge variant="destructive">已关闭</Badge>;
+      case 'analyzing':
+        return <Badge variant="default">分析中</Badge>;
+      case 'pending':
+        return <Badge variant="outline">排队中</Badge>;
       default:
-        return 'bg-gray-500';
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-500';
-      case 'medium':
-        return 'bg-yellow-500';
-      case 'low':
-        return 'bg-blue-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
+  if (isLoading) {
+    return (
+      <>
+        {[1, 2].map((i) => (
+          <TableRow key={`skeleton-${project.id}-${i}`}>
+            <TableCell><div className="h-4 w-24 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-16 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-32 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-16 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-20 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-28 animate-pulse rounded bg-muted" /></TableCell>
+            <TableCell><div className="h-4 w-8 animate-pulse rounded bg-muted" /></TableCell>
+          </TableRow>
+        ))}
+      </>
+    );
+  }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  if (pullRequests.length === 0) return null;
 
-  const filteredTasks = mockTasks.filter((task) => {
-    if (statusFilter !== 'all' && task.status !== statusFilter) return false;
-    if (projectFilter !== 'all' && task.projectName !== projectFilter)
-      return false;
-    return true;
-  });
+  return (
+    <>
+      {pullRequests.map((pr) => (
+        <TableRow
+          key={pr.id}
+          className="cursor-pointer hover:bg-accent/50"
+          onClick={() => router.push(`/projects/${project.id}`)}
+        >
+          <TableCell>
+            <div className="flex items-center gap-2">
+              {getStatusIcon(pr.status)}
+              <span className="font-medium">{project.name}</span>
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-1">
+              <GitPullRequest className="h-3 w-3" />
+              PR #{pr.github_pr_number}
+            </div>
+          </TableCell>
+          <TableCell className="max-w-[200px] truncate">
+            {pr.title}
+          </TableCell>
+          <TableCell>{getStatusBadge(pr.status)}</TableCell>
+          <TableCell>
+            {pr.risk_score !== null && pr.risk_score !== undefined ? (
+              <div className="flex items-center gap-2">
+                <Progress
+                  value={pr.risk_score}
+                  className="w-16 h-2"
+                />
+                <span className="text-xs">{pr.risk_score}%</span>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">-</span>
+            )}
+          </TableCell>
+          <TableCell className="text-xs text-muted-foreground">
+            {new Date(pr.created_at).toLocaleString()}
+          </TableCell>
+          <TableCell>
+            <Button variant="ghost" size="sm">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
+export default function QueuePage() {
+  const { data: projects = [], isLoading } = useProjects();
+  const projectList: Project[] = Array.isArray(projects) ? projects : [];
+
+  // Simple counts
+  const totalProjects = projectList.length;
 
   return (
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Activity className="h-8 w-8" />
-            Analysis Queue
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor and manage analysis tasks
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <Activity className="h-8 w-8" />
+              Analysis Queue
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Monitor code review and architecture analysis tasks
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            <RotateCw className="h-4 w-4 mr-2" />
+            刷新
+          </Button>
         </div>
 
-        {/* Queue Statistics */}
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-6">
+          <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Queued</p>
-                <p className="text-3xl font-bold mt-2">
-                  {queueStats.totalQueued}
-                </p>
+                <p className="text-sm text-muted-foreground">总项目数</p>
+                <p className="text-2xl font-bold">{totalProjects}</p>
               </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
+              <Activity className="h-8 w-8 text-blue-500" />
             </div>
           </Card>
-
-          <Card className="p-6">
+          <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">In Progress</p>
-                <p className="text-3xl font-bold mt-2">
-                  {queueStats.inProgress}
-                </p>
-              </div>
-              <PlayCircle className="h-8 w-8 text-blue-500" />
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Wait Time</p>
-                <p className="text-3xl font-bold mt-2">
-                  {queueStats.avgWaitTime}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Est. Completion</p>
-                <p className="text-3xl font-bold mt-2">
-                  {queueStats.estimatedCompletion}
+                <p className="text-sm text-muted-foreground">已关联仓库</p>
+                <p className="text-2xl font-bold">
+                  {projectList.filter(p => p.github_repo_url).length}
                 </p>
               </div>
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">活跃项目</p>
+                <p className="text-2xl font-bold">
+                  {projectList.filter(p => p.is_active).length}
+                </p>
+              </div>
+              <PlayCircle className="h-8 w-8 text-blue-500" />
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">无仓库项目</p>
+                <p className="text-2xl font-bold">
+                  {projectList.filter(p => !p.github_repo_url).length}
+                </p>
+              </div>
+              <AlertCircle className="h-8 w-8 text-yellow-500" />
+            </div>
+          </Card>
         </div>
 
-        {/* Filters */}
-        <Card className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">
-                Filter by Status
-              </label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="queued">Queued</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">
-                Filter by Project
-              </label>
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  <SelectItem value="AI Code Review Platform">
-                    AI Code Review Platform
-                  </SelectItem>
-                  <SelectItem value="E-commerce API">E-commerce API</SelectItem>
-                  <SelectItem value="Analytics Dashboard">
-                    Analytics Dashboard
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </Card>
-
-        {/* Task List Table */}
+        {/* Task Queue Table */}
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead>PR #</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead>Est. Completion</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">
-                    {task.projectName}
-                  </TableCell>
-                  <TableCell>#{task.prNumber}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(task.status)}>
-                      {getStatusIcon(task.status)}
-                      <span className="ml-2 capitalize">
-                        {task.status.replace('_', ' ')}
-                      </span>
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getPriorityColor(task.priority)}>
-                      {task.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatTime(task.submittedTime)}</TableCell>
-                  <TableCell>
-                    {task.estimatedCompletion
-                      ? formatTime(task.estimatedCompletion)
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {task.progress !== undefined ? (
-                      <div className="flex items-center gap-2">
-                        <Progress value={task.progress} className="w-20" />
-                        <span className="text-sm text-muted-foreground">
-                          {task.progress}%
-                        </span>
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {task.status === 'failed' && (
-                        <Button variant="ghost" size="sm">
-                          <RotateCw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {task.status === 'queued' && (
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <CardHeader>
+            <CardTitle>Analysis Tasks</CardTitle>
+            <CardDescription>所有项目的 Pull Request 分析任务</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : projectList.length === 0 ? (
+              <div className="text-center py-12">
+                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">暂无分析任务</h3>
+                <p className="text-sm text-muted-foreground">
+                  当项目有新的 Pull Request 时，分析任务会自动添加到队列
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>项目</TableHead>
+                    <TableHead>PR</TableHead>
+                    <TableHead>标题</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>风险分数</TableHead>
+                    <TableHead>提交时间</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectList.map((project) => (
+                    <ProjectQueueSection key={project.id} project={project} />
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
         </Card>
       </div>
     </MainLayout>

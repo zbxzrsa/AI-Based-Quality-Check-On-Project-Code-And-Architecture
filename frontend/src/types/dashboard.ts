@@ -44,7 +44,7 @@ export interface Widget {
   metricId: string;
   position: WidgetPosition;
   chartType: 'line' | 'bar' | 'pie' | 'gauge' | 'number';
-  options: Record<string, unknown>;
+  options: Record<string, any>;
 }
 
 /**

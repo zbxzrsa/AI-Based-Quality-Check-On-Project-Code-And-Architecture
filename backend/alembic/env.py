@@ -59,14 +59,18 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
     """
     # Create engine from configuration
-    # Database URL should be provided via environment variable
+    # Build URL from POSTGRES_* env vars (same vars the main app uses)
     from sqlalchemy import create_engine
     import os
     
-    database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+psycopg://postgres:password@postgres:5432/ai_code_review"
-    )
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pg_user = os.environ.get("POSTGRES_USER", "postgres")
+        pg_pass = os.environ.get("POSTGRES_PASSWORD", "postgres123")
+        pg_host = os.environ.get("POSTGRES_HOST", "localhost")
+        pg_port = os.environ.get("POSTGRES_PORT", "5432")
+        pg_db   = os.environ.get("POSTGRES_DB", "ai_code_review")
+        database_url = f"postgresql+psycopg://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
 
     connectable = create_engine(
         database_url,

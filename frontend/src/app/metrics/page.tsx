@@ -1,300 +1,264 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/main-layout';
-import LineChart from '@/components/charts/line-chart';
-import BarChart from '@/components/charts/bar-chart';
-import AreaChart from '@/components/charts/area-chart';
-import GaugeChart from '@/components/charts/gauge-chart';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { TrendingUp, FileJson, FileSpreadsheet } from 'lucide-react';
+  TrendingUp,
+  Activity,
+  Code,
+  Shield,
+  GitPullRequest,
+  Network,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  GitBranch,
+} from 'lucide-react';
+import { useProjects, useProjectAnalytics } from '@/hooks/useProjects';
+import type { Project } from '@/hooks/useProjects';
+
+// Individual project metric card
+function ProjectMetricCard({ project }: { project: Project }) {
+  const router = useRouter();
+  const { data: analytics, isLoading } = useProjectAnalytics(project.id);
+  const metrics = analytics?.metrics || null;
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getProgressColor = (score: number) => {
+    if (score >= 80) return 'bg-green-600';
+    if (score >= 60) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  return (
+    <Card
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => router.push(`/projects/${project.id}`)}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{project.name}</CardTitle>
+          <Badge variant="outline">{project.language || 'Unknown'}</Badge>
+        </div>
+        <CardDescription className="text-xs">
+          {project.github_repo_url
+            ? project.github_repo_url.replace('https://github.com/', '')
+            : '未关联仓库'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ) : metrics ? (
+          <div className="space-y-3">
+            {/* Overall Health */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">总体健康</span>
+              <span className={`text-lg font-bold ${getScoreColor(metrics.overall_health)}`}>
+                {metrics.overall_health}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${getProgressColor(metrics.overall_health)}`}
+                style={{ width: `${metrics.overall_health}%` }}
+              />
+            </div>
+
+            {/* Metric Breakdown */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="flex items-center gap-1.5">
+                <Code className="h-3 w-3 text-blue-500" />
+                <span className="text-xs text-muted-foreground">代码质量</span>
+                <span className={`text-xs font-semibold ml-auto ${getScoreColor(metrics.code_quality)}`}>
+                  {metrics.code_quality}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3 w-3 text-green-500" />
+                <span className="text-xs text-muted-foreground">安全评分</span>
+                <span className={`text-xs font-semibold ml-auto ${getScoreColor(metrics.security_rating)}`}>
+                  {metrics.security_rating}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Network className="h-3 w-3 text-purple-500" />
+                <span className="text-xs text-muted-foreground">架构健康</span>
+                <span className={`text-xs font-semibold ml-auto ${getScoreColor(metrics.architecture_health)}`}>
+                  {metrics.architecture_health}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-cyan-500" />
+                <span className="text-xs text-muted-foreground">测试覆盖</span>
+                <span className={`text-xs font-semibold ml-auto ${getScoreColor(metrics.test_coverage)}`}>
+                  {metrics.test_coverage}%
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <Activity className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+            <p className="text-xs text-muted-foreground">分析中...</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function MetricsPage() {
-  // Mock data
-  const codeQualityData = [
-    { date: 'Jan 1', quality: 75, security: 80, maintainability: 70 },
-    { date: 'Jan 8', quality: 78, security: 82, maintainability: 73 },
-    { date: 'Jan 15', quality: 82, security: 85, maintainability: 78 },
-    { date: 'Jan 22', quality: 85, security: 87, maintainability: 82 },
-    { date: 'Jan 29', quality: 88, security: 90, maintainability: 85 },
+  const { data: projects = [], isLoading } = useProjects();
+  const projectList: Project[] = Array.isArray(projects) ? projects : [];
+
+  // Summary statistics
+  const totalProjects = projectList.length;
+  const linkedProjects = projectList.filter(p => p.github_repo_url).length;
+  const activeProjects = projectList.filter(p => p.is_active).length;
+
+  // Language distribution
+  const languageDistribution = useMemo(() => {
+    const langCounts: Record<string, number> = {};
+    projectList.forEach(p => {
+      const lang = p.language || 'Unknown';
+      langCounts[lang] = (langCounts[lang] || 0) + 1;
+    });
+    return Object.entries(langCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+  }, [projectList]);
+
+  const langColors = [
+    'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500',
+    'bg-red-500', 'bg-cyan-500', 'bg-pink-500', 'bg-orange-500',
   ];
-
-  const architectureHealthData = [
-    { date: 'Week 1', health: 72, coupling: 65, cohesion: 78 },
-    { date: 'Week 2', health: 75, coupling: 68, cohesion: 80 },
-    { date: 'Week 3', health: 78, coupling: 70, cohesion: 82 },
-    { date: 'Week 4', health: 82, coupling: 75, cohesion: 85 },
-  ];
-
-  const reviewCompletionData = [
-    { month: 'Sep', completed: 45, pending: 12 },
-    { month: 'Oct', completed: 52, pending: 8 },
-    { month: 'Nov', completed: 58, pending: 10 },
-    { month: 'Dec', completed: 65, pending: 7 },
-    { month: 'Jan', completed: 72, pending: 5 },
-  ];
-
-  const teamProductivityData = [
-    { week: 'Week 1', prs: 15, reviews: 28, issues: 8 },
-    { week: 'Week 2', prs: 18, reviews: 32, issues: 6 },
-    { week: 'Week 3', prs: 22, reviews: 38, issues: 5 },
-    { week: 'Week 4', prs: 20, reviews: 35, issues: 7 },
-  ];
-
-  const [isExporting, setIsExporting] = useState(false);
-
-  const allMetricsData = {
-    codeQuality: codeQualityData,
-    architectureHealth: architectureHealthData,
-    reviewCompletion: reviewCompletionData,
-    teamProductivity: teamProductivityData,
-    summary: {
-      codeQualityScore: 88,
-      architectureHealthScore: 82,
-      securityScore: 92,
-      teamVelocity: 75,
-      averageReviewTime: '2.5 hrs',
-      criticalIssuesResolved: '94%',
-      codeCoverage: '87%',
-    },
-    generatedAt: new Date().toISOString(),
-  };
-
-  const handleExport = async (format: 'json' | 'csv') => {
-    setIsExporting(true);
-    try {
-      let content: string;
-      let mimeType: string;
-      let filename: string;
-
-      if (format === 'json') {
-        content = JSON.stringify(allMetricsData, null, 2);
-        mimeType = 'application/json';
-        filename = `metrics-export-${new Date().toISOString().split('T')[0]}.json`;
-      } else {
-        const csvRows = [
-          'Category,Metric,Value,Date',
-          ...codeQualityData.flatMap(d => [
-            `Code Quality,Quality Score,${d.quality},${d.date}`,
-            `Code Quality,Security Score,${d.security},${d.date}`,
-            `Code Quality,Maintainability,${d.maintainability},${d.date}`,
-          ]),
-          ...architectureHealthData.flatMap(d => [
-            `Architecture,Health Score,${d.health},${d.date}`,
-            `Architecture,Coupling,${d.coupling},${d.date}`,
-            `Architecture,Cohesion,${d.cohesion},${d.date}`,
-          ]),
-          ...reviewCompletionData.flatMap(d => [
-            `Reviews,Completed,${d.completed},${d.month}`,
-            `Reviews,Pending,${d.pending},${d.month}`,
-          ]),
-          ...teamProductivityData.flatMap(d => [
-            `Productivity,PRs,${d.prs},${d.week}`,
-            `Productivity,Reviews,${d.reviews},${d.week}`,
-            `Productivity,Issues,${d.issues},${d.week}`,
-          ]),
-          `Summary,Code Quality Score,${allMetricsData.summary.codeQualityScore},-`,
-          `Summary,Architecture Health Score,${allMetricsData.summary.architectureHealthScore},-`,
-          `Summary,Security Score,${allMetricsData.summary.securityScore},-`,
-          `Summary,Team Velocity,${allMetricsData.summary.teamVelocity},-`,
-          `Summary,Average Review Time,${allMetricsData.summary.averageReviewTime},-`,
-          `Summary,Critical Issues Resolved,${allMetricsData.summary.criticalIssuesResolved},-`,
-          `Summary,Code Coverage,${allMetricsData.summary.codeCoverage},-`,
-        ];
-        content = csvRows.join('\n');
-        mimeType = 'text/csv';
-        filename = `metrics-export-${new Date().toISOString().split('T')[0]}.csv`;
-      }
-
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <TrendingUp className="h-8 w-8" />
-              Metrics Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Track code quality, architecture health, and team productivity
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Select defaultValue="30days">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7days">Last 7 days</SelectItem>
-                <SelectItem value="30days">Last 30 days</SelectItem>
-                <SelectItem value="90days">Last 90 days</SelectItem>
-                <SelectItem value="1year">Last year</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => handleExport('json')}
-                disabled={isExporting}
-              >
-                <FileJson className="h-4 w-4 mr-2" />
-                JSON
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleExport('csv')}
-                disabled={isExporting}
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                CSV
-              </Button>
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <TrendingUp className="h-8 w-8" />
+            Metrics Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Track code quality, architecture health, and project metrics
+          </p>
+        </div>
+
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">总项目数</p>
+                <p className="text-3xl font-bold">{totalProjects}</p>
+              </div>
+              <Activity className="h-8 w-8 text-blue-500" />
             </div>
-          </div>
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">已关联仓库</p>
+                <p className="text-3xl font-bold">{linkedProjects}</p>
+              </div>
+              <GitBranch className="h-8 w-8 text-green-500" />
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">活跃项目</p>
+                <p className="text-3xl font-bold">{activeProjects}</p>
+              </div>
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">语言类型</p>
+                <p className="text-3xl font-bold">{languageDistribution.length}</p>
+              </div>
+              <Code className="h-8 w-8 text-purple-500" />
+            </div>
+          </Card>
         </div>
 
-        {/* Overview Gauges */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <GaugeChart
-            value={88}
-            title="Code Quality"
-            subtitle="Overall quality score"
-          />
-          <GaugeChart
-            value={82}
-            title="Architecture Health"
-            subtitle="System health score"
-          />
-          <GaugeChart
-            value={92}
-            title="Security Score"
-            subtitle="Security compliance"
-          />
-          <GaugeChart
-            value={75}
-            title="Team Velocity"
-            subtitle="Sprint completion rate"
-          />
-        </div>
-
-        {/* Code Quality Trends */}
-        <LineChart
-          data={codeQualityData}
-          title="Code Quality Trends"
-          xAxisKey="date"
-          lines={[
-            { dataKey: 'quality', stroke: '#3b82f6', name: 'Quality' },
-            { dataKey: 'security', stroke: '#22c55e', name: 'Security' },
-            {
-              dataKey: 'maintainability',
-              stroke: '#f59e0b',
-              name: 'Maintainability',
-            },
-          ]}
-          height={350}
-        />
-
-        {/* Architecture Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AreaChart
-            data={architectureHealthData}
-            title="Architecture Health Metrics"
-            xAxisKey="date"
-            areas={[
-              {
-                dataKey: 'health',
-                fill: '#3b82f680',
-                stroke: '#3b82f6',
-                name: 'Health',
-              },
-              {
-                dataKey: 'coupling',
-                fill: '#f59e0b80',
-                stroke: '#f59e0b',
-                name: 'Coupling',
-              },
-              {
-                dataKey: 'cohesion',
-                fill: '#22c55e80',
-                stroke: '#22c55e',
-                name: 'Cohesion',
-              },
-            ]}
-          />
-
-          <BarChart
-            data={reviewCompletionData}
-            title="Review Completion Rates"
-            xAxisKey="month"
-            bars={[
-              { dataKey: 'completed', fill: '#22c55e', name: 'Completed' },
-              { dataKey: 'pending', fill: '#f59e0b', name: 'Pending' },
-            ]}
-          />
-        </div>
-
-        {/* Team Productivity */}
-        <BarChart
-          data={teamProductivityData}
-          title="Team Productivity Metrics"
-          xAxisKey="week"
-          bars={[
-            { dataKey: 'prs', fill: '#3b82f6', name: 'Pull Requests' },
-            { dataKey: 'reviews', fill: '#8b5cf6', name: 'Reviews' },
-            { dataKey: 'issues', fill: '#ef4444', name: 'Issues' },
-          ]}
-          height={350}
-        />
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">
-              Average Review Time
-            </h3>
-            <p className="text-3xl font-bold">2.5 hrs</p>
-            <p className="text-sm text-green-600 mt-2">↓ 15% from last month</p>
+        {/* Language Distribution */}
+        {languageDistribution.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">语言分布</CardTitle>
+              <CardDescription>项目使用的编程语言统计</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {languageDistribution.map(([lang, count], index) => (
+                  <div key={lang} className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${langColors[index % langColors.length]}`} />
+                    <span className="text-sm font-medium w-24">{lang}</span>
+                    <div className="flex-1">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${langColors[index % langColors.length]}`}
+                          style={{ width: `${(count / totalProjects) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-sm text-muted-foreground w-12 text-right">
+                      {count} 个
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
           </Card>
+        )}
 
-          <Card className="p-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">
-              Critical Issues Resolved
-            </h3>
-            <p className="text-3xl font-bold">94%</p>
-            <p className="text-sm text-green-600 mt-2">↑ 8% from last month</p>
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">
-              Code Coverage
-            </h3>
-            <p className="text-3xl font-bold">87%</p>
-            <p className="text-sm text-green-600 mt-2">↑ 3% from last month</p>
-          </Card>
+        {/* Per-Project Metrics */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">项目详细指标</h2>
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-52" />
+              ))}
+            </div>
+          ) : projectList.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">暂无数据</h3>
+                <p className="text-sm text-muted-foreground">
+                  请先在项目页面中添加项目以查看指标
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projectList.map((project) => (
+                <ProjectMetricCard key={project.id} project={project} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

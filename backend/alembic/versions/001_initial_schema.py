@@ -23,6 +23,9 @@ USERS_ID = 'users.id'
 
 
 def upgrade() -> None:
+    # Enable uuid-ossp extension for uuid_generate_v4()
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    
     # Create custom ENUM types
     user_role_enum = postgresql.ENUM(
         'user',

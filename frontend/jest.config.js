@@ -7,7 +7,6 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFiles: ['<rootDir>/jest.polyfills.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jsdom',
   moduleNameMapper: {
@@ -34,26 +33,24 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(lucide-react)/)',
+    '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
-  reporters: process.env.CI
-    ? [
-        'default',
-        [
-          'jest-junit',
-          {
-            outputDirectory: './',
-            outputName: 'junit.xml',
-            classNameTemplate: '{classname}',
-            titleTemplate: '{title}',
-            ancestorSeparator: ' -> ',
-            usePathForSuiteName: true,
-          },
-        ],
-      ]
-    : ['default'],
+  reporters: [
+    'default',
+    [
+      'jest-junit',
+      {
+        outputDirectory: './',
+        outputName: 'junit.xml',
+        classNameTemplate: '{classname}',
+        titleTemplate: '{title}',
+        ancestorSeparator: ' › ',
+        usePathForSuiteName: true,
+      },
+    ],
+  ],
   // Memory and performance optimizations
   maxWorkers: process.env.CI ? 2 : '50%',
   testTimeout: 10000,

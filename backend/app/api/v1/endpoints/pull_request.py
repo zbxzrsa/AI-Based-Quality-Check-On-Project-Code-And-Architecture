@@ -2,51 +2,20 @@
 Pull Request Analysis endpoints
 Handles PR creation, analysis status, and results
 """
-
-from celery.result import AsyncResult
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import check_project_access, get_current_user
-from app.celery_config import celery_app
 from app.database.postgresql import get_db
 from app.models import PullRequest, User
-from app.services.circular_dependency_detector import detect_circular_dependencies_background
+from app.api.dependencies import get_current_user, check_project_access
 from app.tasks.pull_request_analysis import analyze_pull_request_sync
+from app.services.circular_dependency_detector import detect_circular_dependencies_background
+from celery.result import AsyncResult
+from app.celery_config import celery_app
+
 
 router = APIRouter()
-
-
-async def _get_project_pr_or_404(db: AsyncSession, project_id: str, pr_id: str) -> PullRequest:
-    """Fetch PR by project and id, or raise 404."""
-    stmt = select(PullRequest).where(PullRequest.id == pr_id, PullRequest.project_id == project_id)
-    result = await db.execute(stmt)
-    pr = result.scalar_one_or_none()
-    if not pr:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pull request not found")
-    return pr
-
-
-def _build_task_status_response(task_id: str, task_result: AsyncResult) -> dict:
-    """Map Celery status into consistent API response."""
-    response = {"task_id": task_id, "status": task_result.status}
-    if task_result.status == "PENDING":
-        response["result"] = None
-        response["error"] = None
-    elif task_result.status == "SUCCESS":
-        response["result"] = task_result.result
-        response["error"] = None
-    elif task_result.status == "FAILURE":
-        response["result"] = None
-        response["error"] = str(task_result.info)
-    elif task_result.status == "RETRY":
-        response["result"] = None
-        response["error"] = "Task is retrying"
-    else:
-        response["result"] = None
-        response["error"] = None
-    return response
 
 
 @router.post("/projects/{project_id}/analyze")
@@ -55,16 +24,16 @@ async def analyze_pull_request_endpoint(
     pr_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _: bool = Depends(check_project_access),
+    _: bool = Depends(check_project_access)
 ):
     """
     Queue a pull request for asynchronous analysis
-
+    
     Returns immediately with task ID for polling
-
+    
     Query Parameters:
     - pr_id: Pull request database ID
-
+    
     Returns:
     {
         "task_id": "abc123...",
@@ -73,19 +42,34 @@ async def analyze_pull_request_endpoint(
         "message": "PR analysis queued and will begin shortly"
     }
     """
-    await _get_project_pr_or_404(db, project_id, pr_id)
-
+    # Verify PR exists and belongs to project
+    stmt = select(PullRequest).where(
+        PullRequest.id == pr_id,
+        PullRequest.project_id == project_id
+    )
+    result = await db.execute(stmt)
+    pr = result.scalar_one_or_none()
+    
+    if not pr:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pull request not found"
+        )
+    
     # Queue async task
     task_result = analyze_pull_request_sync(pr_id, project_id)
-
+    
     return task_result
 
 
 @router.get("/analysis/{task_id}/status")
-async def get_analysis_status(task_id: str, current_user: User = Depends(get_current_user)):
+async def get_analysis_status(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
     """
     Get the status of an analysis task
-
+    
     Returns:
     {
         "task_id": "abc123...",
@@ -95,8 +79,26 @@ async def get_analysis_status(task_id: str, current_user: User = Depends(get_cur
     }
     """
     task_result = AsyncResult(task_id, app=celery_app)
-
-    return _build_task_status_response(task_id, task_result)
+    
+    response = {
+        "task_id": task_id,
+        "status": task_result.status,
+    }
+    
+    if task_result.status == 'PENDING':
+        response["result"] = None
+        response["error"] = None
+    elif task_result.status == 'SUCCESS':
+        response["result"] = task_result.result
+        response["error"] = None
+    elif task_result.status == 'FAILURE':
+        response["result"] = None
+        response["error"] = str(task_result.info)
+    elif task_result.status == 'RETRY':
+        response["result"] = None
+        response["error"] = "Task is retrying"
+    
+    return response
 
 
 @router.post("/projects/{project_id}/pull-requests/{pr_id}/reanalyze")
@@ -105,21 +107,36 @@ async def reanalyze_pull_request(
     pr_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _: bool = Depends(check_project_access),
+    _: bool = Depends(check_project_access)
 ):
     """
     Re-analyze an existing pull request
-
+    
     Useful for retrying failed analyses or analyzing with updated rules
-
+    
     Returns task info with task_id
     """
-    await _get_project_pr_or_404(db, project_id, pr_id)
-
+    # Verify PR exists
+    stmt = select(PullRequest).where(
+        PullRequest.id == pr_id,
+        PullRequest.project_id == project_id
+    )
+    result = await db.execute(stmt)
+    pr = result.scalar_one_or_none()
+    
+    if not pr:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pull request not found"
+        )
+    
     # Queue new analysis task
     task_result = analyze_pull_request_sync(pr_id, project_id)
-
-    return {"message": "PR re-analysis queued", **task_result}
+    
+    return {
+        "message": "PR re-analysis queued",
+        **task_result
+    }
 
 
 @router.post("/projects/{project_id}/circular-dependencies")
@@ -128,7 +145,7 @@ async def analyze_circular_dependencies(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _: bool = Depends(check_project_access),
+    _: bool = Depends(check_project_access)
 ):
     """
     Analyze circular dependencies in a project using AST analysis
@@ -151,4 +168,8 @@ async def analyze_circular_dependencies(
         "estimated_duration": "30-60 seconds"
     }
     """
-    return await detect_circular_dependencies_background(project_id, background_tasks, db)
+    return await detect_circular_dependencies_background(
+        project_id,
+        background_tasks,
+        db
+    )

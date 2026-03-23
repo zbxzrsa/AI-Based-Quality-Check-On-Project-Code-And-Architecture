@@ -12,35 +12,35 @@ Validates Requirements: 2.5, 12.1, 12.2, 12.3
 
 import logging
 import traceback
-from typing import Any
-
+from typing import Any, Dict, Optional
 from fastapi import Request, status
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.shared.exceptions import (
+    ServiceException,
     AuthenticationException,
     AuthorizationException,
-    CacheException,
-    CircuitBreakerException,
-    ConflictException,
-    DatabaseException,
-    ExternalServiceException,
-    LLMProviderException,
-    NotFoundException,
-    RateLimitException,
-    ServiceException,
-    TimeoutException,
     ValidationException,
+    DatabaseException,
+    LLMProviderException,
+    CircuitBreakerException,
+    CacheException,
+    NotFoundException,
+    ConflictException,
+    RateLimitException,
+    ExternalServiceException,
+    TimeoutException,
 )
+
 
 logger = logging.getLogger(__name__)
 
 
-def get_request_context(request: Request) -> dict[str, Any]:
+def get_request_context(request: Request) -> Dict[str, Any]:
     """
     Extract comprehensive request context for logging
-
+    
     Includes:
     - Request ID for tracing
     - User ID if authenticated
@@ -48,13 +48,13 @@ def get_request_context(request: Request) -> dict[str, Any]:
     - Query parameters
     - Client information (IP, user agent)
     - Request headers (sanitized)
-
+    
     Args:
         request: FastAPI request object
-
+        
     Returns:
         Dictionary with comprehensive request context information
-
+        
     Validates Requirements: 12.2
     """
     context = {
@@ -64,11 +64,11 @@ def get_request_context(request: Request) -> dict[str, Any]:
         "client_host": request.client.host if request.client else None,
         "user_agent": request.headers.get("user-agent"),
     }
-
+    
     # Add request ID if available
     if hasattr(request.state, "request_id"):
         context["request_id"] = request.state.request_id
-
+    
     # Add user ID if authenticated
     if hasattr(request.state, "user_id"):
         context["user_id"] = request.state.user_id
@@ -79,21 +79,21 @@ def get_request_context(request: Request) -> dict[str, Any]:
             context["user_id"] = user.id
         elif isinstance(user, dict) and "id" in user:
             context["user_id"] = user["id"]
-
+    
     # Add selected headers (sanitized - no auth tokens)
     safe_headers = {}
     for header_name in ["content-type", "accept", "referer", "origin"]:
         if header_name in request.headers:
             safe_headers[header_name] = request.headers[header_name]
-
+    
     if safe_headers:
         context["headers"] = safe_headers
-
+    
     # Add URL scheme and host
     context["url"] = str(request.url)
     context["scheme"] = request.url.scheme
     context["host"] = request.url.hostname
-
+    
     return context
 
 
@@ -101,19 +101,19 @@ def create_error_response(
     status_code: int,
     message: str,
     error_code: str,
-    details: dict[str, Any] | None = None,
-    request_id: str | None = None,
+    details: Optional[Dict[str, Any]] = None,
+    request_id: Optional[str] = None,
 ) -> JSONResponse:
     """
     Create standardized error response
-
+    
     Args:
         status_code: HTTP status code
         message: Human-readable error message
         error_code: Machine-readable error code
         details: Additional error details (optional)
         request_id: Request ID for tracing (optional)
-
+        
     Returns:
         JSONResponse with standardized error format
     """
@@ -124,27 +124,30 @@ def create_error_response(
             "status": status_code,
         }
     }
-
+    
     if details:
         content["error"]["details"] = details
-
+        
     if request_id:
         content["error"]["request_id"] = request_id
-
+    
     return JSONResponse(
         status_code=status_code,
         content=content,
     )
 
 
-def service_exception_handler(request: Request, exc: ServiceException) -> JSONResponse:
+async def service_exception_handler(
+    request: Request, 
+    exc: ServiceException
+) -> JSONResponse:
     """
     Handle custom service exceptions
-
+    
     Maps service exceptions to appropriate HTTP status codes and
     returns standardized error responses. Logs exceptions with full
     stack traces and comprehensive request context.
-
+    
     Validates Requirements: 12.1, 12.2, 12.3
     """
     # Map exception types to status codes
@@ -162,16 +165,16 @@ def service_exception_handler(request: Request, exc: ServiceException) -> JSONRe
         CacheException: status.HTTP_500_INTERNAL_SERVER_ERROR,
         ExternalServiceException: status.HTTP_502_BAD_GATEWAY,
     }
-
+    
     # Get status code for exception type
     status_code = status_code_map.get(type(exc), status.HTTP_400_BAD_REQUEST)
-
+    
     # Get comprehensive request context (Requirement 12.2)
     request_context = get_request_context(request)
-
+    
     # Get full stack trace (Requirement 12.2)
     stack_trace = traceback.format_exc()
-
+    
     # Build structured log data for JSON logging (Requirement 12.2)
     log_data = {
         "exception_type": exc.__class__.__name__,
@@ -183,7 +186,7 @@ def service_exception_handler(request: Request, exc: ServiceException) -> JSONRe
         "request_context": request_context,
         "stack_trace": stack_trace,
     }
-
+    
     # Add exception-specific fields
     if isinstance(exc, LLMProviderException):
         log_data["llm_provider"] = exc.provider
@@ -203,19 +206,19 @@ def service_exception_handler(request: Request, exc: ServiceException) -> JSONRe
     elif isinstance(exc, TimeoutException):
         log_data["operation"] = exc.operation
         log_data["timeout_seconds"] = exc.timeout_seconds
-
+    
     # Log exception with full context (Requirement 12.2)
     logger.error(
         f"Service exception: {exc.__class__.__name__}: {exc.message}",
         extra=log_data,
         exc_info=True,  # Include full stack trace
     )
-
+    
     # Add retry-after header for rate limit exceptions
     headers = {}
     if isinstance(exc, RateLimitException) and exc.retry_after:
         headers["Retry-After"] = str(exc.retry_after)
-
+    
     response = create_error_response(
         status_code=status_code,
         message=exc.message,
@@ -223,41 +226,42 @@ def service_exception_handler(request: Request, exc: ServiceException) -> JSONRe
         details=exc.details if exc.details else None,
         request_id=request_context.get("request_id"),
     )
-
+    
     # Add custom headers if any
     if headers:
         for key, value in headers.items():
             response.headers[key] = value
-
+    
     return response
 
 
-def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError
+) -> JSONResponse:
     """
     Handle FastAPI/Pydantic validation errors
-
+    
     Converts validation errors to standardized error format.
     Logs validation errors with full request context.
-
+    
     Validates Requirements: 2.9, 12.2, 12.3
     """
     # Extract validation errors
     errors = []
     for error in exc.errors():
-        errors.append(
-            {
-                "field": ".".join(str(loc) for loc in error["loc"]),
-                "message": error["msg"],
-                "type": error["type"],
-            }
-        )
-
+        errors.append({
+            "field": ".".join(str(loc) for loc in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        })
+    
     # Get comprehensive request context (Requirement 12.2)
     request_context = get_request_context(request)
-
+    
     # Get stack trace for debugging
     stack_trace = traceback.format_exc()
-
+    
     # Log validation error with full context (Requirement 12.2)
     logger.warning(
         f"Validation error: {len(errors)} field(s) failed validation",
@@ -269,7 +273,7 @@ def validation_exception_handler(request: Request, exc: RequestValidationError) 
             "stack_trace": stack_trace,
         },
     )
-
+    
     return create_error_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         message="Validation error",
@@ -279,22 +283,25 @@ def validation_exception_handler(request: Request, exc: RequestValidationError) 
     )
 
 
-def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def global_exception_handler(
+    request: Request,
+    exc: Exception
+) -> JSONResponse:
     """
     Handle all unhandled exceptions
-
+    
     Catches any exception not handled by specific handlers and returns
     a standardized error response. Logs full stack trace with comprehensive
     request context for debugging and monitoring.
-
+    
     Validates Requirements: 12.1, 12.2, 12.3
     """
     # Get comprehensive request context (Requirement 12.2)
     request_context = get_request_context(request)
-
+    
     # Get full stack trace (Requirement 12.2)
     stack_trace = traceback.format_exc()
-
+    
     # Build structured log data for JSON logging (Requirement 12.2)
     log_data = {
         "exception_type": exc.__class__.__name__,
@@ -303,21 +310,24 @@ def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         "request_context": request_context,
         "stack_trace": stack_trace,
     }
-
+    
     # Add exception attributes if available
     if hasattr(exc, "__dict__"):
         # Filter out private attributes and methods
-        exc_attrs = {k: v for k, v in exc.__dict__.items() if not k.startswith("_") and not callable(v)}
+        exc_attrs = {
+            k: v for k, v in exc.__dict__.items() 
+            if not k.startswith("_") and not callable(v)
+        }
         if exc_attrs:
             log_data["exception_attributes"] = exc_attrs
-
+    
     # Log exception with full context (Requirement 12.2)
     logger.error(
         f"Unhandled exception: {exc.__class__.__name__}: {str(exc)}",
         extra=log_data,
         exc_info=True,  # Include full stack trace
     )
-
+    
     # Return generic error message (don't expose internal details)
     # Requirement 2.5: Return standardized error response with HTTP 500
     return create_error_response(
@@ -332,17 +342,17 @@ def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
 def register_exception_handlers(app) -> None:
     """
     Register all exception handlers with FastAPI app
-
+    
     Args:
         app: FastAPI application instance
     """
     # Register custom service exception handler
     app.add_exception_handler(ServiceException, service_exception_handler)
-
+    
     # Register validation exception handler
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
-
+    
     # Register global exception handler (catch-all)
     app.add_exception_handler(Exception, global_exception_handler)
-
+    
     logger.info("Exception handlers registered successfully")

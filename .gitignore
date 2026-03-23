@@ -9,13 +9,12 @@ dist/
 build/
 *.tsbuildinfo
 
-# Environment files (docker-compose .env.local is tracked)
-# .env
-# .env.local
-# .env.development.local
-# .env.test.local
-# .env.production
-# .env.production.local
+# Environment files (keep secrets out of git, track examples as templates)
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
 
 # Logs
 logs/
@@ -53,14 +52,7 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-.env.*
-frontend/.env.*
-backend/.env.*
-!.env.production.template
-!frontend/.env*.example
-!backend/.env*.template
+
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -135,11 +127,6 @@ temp/
 __pycache__/
 .mypy_cache/
 .ruff_cache/
-backend/pytest-cache-files-*/
-backend/tests/.tmp_service_config_generator/
-backend/logs/
-backend/scripts/__pycache__/
-backend/tests/__pycache__/
 
 # Backup directories
 .consolidation_backups/
@@ -160,7 +147,6 @@ collection_errors_summary.txt
 test-results.json
 report.json
 *.log
-frontend/lint-report.json
 
 # Coverage reports
 .coverage
@@ -176,6 +162,3 @@ models/*.gguf
 # Large binary files
 *.pack
 *.gz
-
-# Local database snapshots and runtime state
-test_db_data/

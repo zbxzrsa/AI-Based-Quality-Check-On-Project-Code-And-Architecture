@@ -8,28 +8,13 @@
 import { ApiClient, ApiClientConfig } from '../ApiClient';
 import axios from 'axios';
 
-interface RetryableAxiosError extends Error {
-  code?: string;
-  response?: {
-    status: number;
-  };
-}
-
-interface MockAxiosInstance {
-  request: jest.Mock;
-  interceptors: {
-    request: { use: jest.Mock; eject: jest.Mock };
-    response: { use: jest.Mock; eject: jest.Mock };
-  };
-}
-
 // Mock axios
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('ApiClient Retry Integration', () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: MockAxiosInstance;
+  let mockAxiosInstance: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -63,7 +48,7 @@ describe('ApiClient Retry Integration', () => {
 
   describe('指数退避retry机制', () => {
     it('shouldBeAt网络error时use指数退避retry', async () => {
-      const networkError: RetryableAxiosError = new Error('Network Error');
+      const networkError: any = new Error('Network Error');
       networkError.code = 'ECONNABORTED';
 
       // 前2timesfailure，第3timessuccess
@@ -84,7 +69,7 @@ describe('ApiClient Retry Integration', () => {
     });
 
     it('shouldBeAt5xxerror时use指数退避retry', async () => {
-      const serverError: RetryableAxiosError = new Error('Internal Server Error');
+      const serverError: any = new Error('Internal Server Error');
       serverError.response = { status: 500 };
 
       // 前2timesfailure，第3timessuccess
@@ -104,7 +89,7 @@ describe('ApiClient Retry Integration', () => {
     });
 
     it('shouldBeAt429error时use指数退避retry', async () => {
-      const rateLimitError: RetryableAxiosError = new Error('Too Many Requests');
+      const rateLimitError: any = new Error('Too Many Requests');
       rateLimitError.response = { status: 429 };
 
       mockAxiosInstance.request
@@ -122,32 +107,30 @@ describe('ApiClient Retry Integration', () => {
     });
 
     it('should throw error after max 3 retries', async () => {
-      const networkError: RetryableAxiosError = new Error('Persistent Network Error');
+      const networkError: any = new Error('Persistent Network Error');
       networkError.code = 'ETIMEDOUT';
 
       mockAxiosInstance.request.mockRejectedValue(networkError);
 
       const promise = apiClient.get('/test');
-      const rejection = expect(promise).rejects.toThrow('Persistent Network Error');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Persistent Network Error');
       expect(mockAxiosInstance.request).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
     });
 
     it('should not retry 4xx client errors', async () => {
-      const clientError: RetryableAxiosError = new Error('Bad Request');
+      const clientError: any = new Error('Bad Request');
       clientError.response = { status: 400 };
 
       mockAxiosInstance.request.mockRejectedValue(clientError);
 
       const promise = apiClient.get('/test');
-      const rejection = expect(promise).rejects.toThrow('Bad Request');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Bad Request');
       expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1); // No retries
     });
 
@@ -167,24 +150,23 @@ describe('ApiClient Retry Integration', () => {
 
       const customClient = new ApiClient(customConfig);
 
-      const networkError: RetryableAxiosError = new Error('Network Error');
+      const networkError: any = new Error('Network Error');
       networkError.code = 'ECONNABORTED';
 
       mockAxiosInstance.request.mockRejectedValue(networkError);
 
       const promise = customClient.get('/test');
-      const rejection = expect(promise).rejects.toThrow('Network Error');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Network Error');
       expect(mockAxiosInstance.request).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     });
   });
 
   describe('retry与cacheintegration', () => {
     it('shouldBeAtretrysuccess后cacheresult', async () => {
-      const networkError: RetryableAxiosError = new Error('Network Error');
+      const networkError: any = new Error('Network Error');
       networkError.code = 'ECONNABORTED';
 
       mockAxiosInstance.request
@@ -209,7 +191,7 @@ describe('ApiClient Retry Integration', () => {
 
   describe('retry与并发控制integration', () => {
     it('shouldBeAtretry时遵守并发限制', async () => {
-      const networkError: RetryableAxiosError = new Error('Network Error');
+      const networkError: any = new Error('Network Error');
       networkError.code = 'ECONNABORTED';
 
       // All requests will fail and retry
@@ -221,11 +203,11 @@ describe('ApiClient Retry Integration', () => {
         apiClient.post('/test2', {}),
         apiClient.post('/test3', {}),
       ];
-      const rejection = expect(Promise.all(promises)).rejects.toThrow();
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      // All requests should fail
+      await expect(Promise.all(promises)).rejects.toThrow();
 
       // Each request should retry 3 times (1 initial + 3 retries = 4 calls per request)
       expect(mockAxiosInstance.request).toHaveBeenCalledTimes(12); // 3 requests * 4 calls
@@ -234,17 +216,16 @@ describe('ApiClient Retry Integration', () => {
 
   describe('skipRetry option', () => {
     it('should support skip retry', async () => {
-      const networkError: RetryableAxiosError = new Error('Network Error');
+      const networkError: any = new Error('Network Error');
       networkError.code = 'ECONNABORTED';
 
       mockAxiosInstance.request.mockRejectedValue(networkError);
 
       const promise = apiClient.get('/test', { skipRetry: true });
-      const rejection = expect(promise).rejects.toThrow('Network Error');
 
       await jest.runAllTimersAsync();
 
-      await rejection;
+      await expect(promise).rejects.toThrow('Network Error');
       expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1); // No retries
     });
   });

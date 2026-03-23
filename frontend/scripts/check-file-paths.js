@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 
 /**
  * File Path Validation Script
@@ -31,7 +30,9 @@ const colors = {
  * @returns {boolean} True if contains non-ASCII characters
  */
 function containsNonAscii(str) {
-    return Array.from(str).some(char => char.charCodeAt(0) > 127);
+    // Regular expression to match non-ASCII characters
+    // This includes Chinese characters, special symbols, etc.
+    return /[^\x00-\x7F]/.test(str);
 }
 
 /**
@@ -84,7 +85,7 @@ function scanDirectory(dir, results = []) {
                 scanDirectory(fullPath, results);
             }
         }
-    } catch {
+    } catch (error) {
         // Skip directories that can't be read
         console.warn(`${colors.yellow}Warning: Cannot read directory ${dir}${colors.reset}`);
     }

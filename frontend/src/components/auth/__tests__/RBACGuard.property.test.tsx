@@ -26,62 +26,10 @@ const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseRole = useRole as jest.MockedFunction<typeof useRole>;
 const mockUsePermission = usePermission as jest.MockedFunction<typeof usePermission>;
 
-type RouterValue = ReturnType<typeof useRouter>;
-type AuthValue = ReturnType<typeof useAuth>;
-type RoleValue = ReturnType<typeof useRole>;
-type PermissionValue = ReturnType<typeof usePermission>;
-
-interface AuthUser {
-  id: string;
-  role: Role;
-}
-
-const createAuthValue = ({
-  user,
-  role,
-  permissions,
-}: {
-  user: AuthUser | null;
-  role: Role | null;
-  permissions: Permission[];
-}): AuthValue =>
-  ({
-    user: user
-      ? {
-          id: user.id,
-          email: `${user.id}@example.com`,
-          full_name: user.id,
-          role: user.role,
-          is_active: true,
-        }
-      : null,
-    loading: false,
-    role,
-    permissions,
-    login: jest.fn(async () => undefined),
-    register: jest.fn(async () => undefined),
-    logout: jest.fn(async () => undefined),
-    refreshToken: jest.fn(async () => true),
-    isAuthenticated: user !== null,
-  }) as AuthValue;
-
-const createRoleValue = (role: Role | null): RoleValue => ({
-  hasRole: (requiredRole: Role) => requiredRole === role,
-  currentRole: role,
-  loading: false,
-});
-
-const createPermissionValue = (
-  hasPermission: (permission: Permission) => boolean
-): PermissionValue => ({
-  hasPermission,
-  loading: false,
-});
-
 describe('RBACGuard Property Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseRouter.mockReturnValue({ push: mockPush } as unknown as RouterValue);
+    mockUseRouter.mockReturnValue({ push: mockPush } as any);
   });
 
   /**
@@ -93,19 +41,32 @@ describe('RBACGuard Property Tests', () => {
   it('Property 19: Non-Admin users are redirected from admin routes', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.constant(Role.USER),
+        fc.constantFrom(Role.PROGRAMMER, Role.VISITOR),
         fc.string({ minLength: 1 }),
         async (userRole, userId) => {
-          mockUseAuth.mockReturnValue(
-            createAuthValue({
-              user: { id: userId, role: userRole },
-              role: userRole,
-              permissions: [],
-            })
-          );
+          // Setup: User with non-admin role
+          mockUseAuth.mockReturnValue({
+            user: { id: userId, role: userRole } as any,
+            session: { user: { id: userId, role: userRole } } as any,
+            loading: false,
+            role: userRole,
+            permissions: [],
+            login: jest.fn(),
+            register: jest.fn(),
+            logout: jest.fn(),
+            refreshToken: jest.fn(),
+          });
 
-          mockUseRole.mockReturnValue(createRoleValue(userRole));
-          mockUsePermission.mockReturnValue(createPermissionValue(() => false));
+          mockUseRole.mockReturnValue({
+            hasRole: (role: Role) => role === userRole,
+            currentRole: userRole,
+            loading: false,
+          });
+
+          mockUsePermission.mockReturnValue({
+            hasPermission: () => false,
+            loading: false,
+          });
 
           // Render with admin role requirement
           render(
@@ -133,21 +94,32 @@ describe('RBACGuard Property Tests', () => {
   it('Property 20: Users without MODIFY_CONFIG cannot access settings', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.constant(Role.USER),
+        fc.constantFrom(Role.PROGRAMMER, Role.VISITOR),
         fc.string({ minLength: 1 }),
         async (userRole, userId) => {
-          mockUseAuth.mockReturnValue(
-            createAuthValue({
-              user: { id: userId, role: userRole },
-              role: userRole,
-              permissions: [],
-            })
-          );
+          // Setup: User without MODIFY_CONFIG permission
+          mockUseAuth.mockReturnValue({
+            user: { id: userId, role: userRole } as any,
+            session: { user: { id: userId, role: userRole } } as any,
+            loading: false,
+            role: userRole,
+            permissions: [],
+            login: jest.fn(),
+            register: jest.fn(),
+            logout: jest.fn(),
+            refreshToken: jest.fn(),
+          });
 
-          mockUseRole.mockReturnValue(createRoleValue(userRole));
-          mockUsePermission.mockReturnValue(
-            createPermissionValue((perm: Permission) => perm !== Permission.MODIFY_CONFIG)
-          );
+          mockUseRole.mockReturnValue({
+            hasRole: (role: Role) => role === userRole,
+            currentRole: userRole,
+            loading: false,
+          });
+
+          mockUsePermission.mockReturnValue({
+            hasPermission: (perm: Permission) => perm !== Permission.MODIFY_CONFIG,
+            loading: false,
+          });
 
           // Render with MODIFY_CONFIG permission requirement
           render(
@@ -175,18 +147,31 @@ describe('RBACGuard Property Tests', () => {
   it('Property 22: Expired sessions redirect to login', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.constantFrom(Role.ADMIN, Role.USER),
+        fc.constantFrom(Role.ADMIN, Role.PROGRAMMER, Role.VISITOR),
         async (userRole) => {
-          mockUseAuth.mockReturnValue(
-            createAuthValue({
-              user: null,
-              role: null,
-              permissions: [],
-            })
-          );
+          // Setup: No session (expired)
+          mockUseAuth.mockReturnValue({
+            user: null,
+            session: null,
+            loading: false,
+            role: null,
+            permissions: [],
+            login: jest.fn(),
+            register: jest.fn(),
+            logout: jest.fn(),
+            refreshToken: jest.fn(),
+          });
 
-          mockUseRole.mockReturnValue(createRoleValue(null));
-          mockUsePermission.mockReturnValue(createPermissionValue(() => false));
+          mockUseRole.mockReturnValue({
+            hasRole: () => false,
+            currentRole: null,
+            loading: false,
+          });
+
+          mockUsePermission.mockReturnValue({
+            hasPermission: () => false,
+            loading: false,
+          });
 
           // Render with any role requirement
           render(
@@ -213,16 +198,29 @@ describe('RBACGuard Property Tests', () => {
       fc.asyncProperty(
         fc.string({ minLength: 1 }),
         async (userId) => {
-          mockUseAuth.mockReturnValue(
-            createAuthValue({
-              user: { id: userId, role: Role.ADMIN },
-              role: Role.ADMIN,
-              permissions: [Permission.MODIFY_CONFIG],
-            })
-          );
+          // Setup: Admin user
+          mockUseAuth.mockReturnValue({
+            user: { id: userId, role: Role.ADMIN } as any,
+            session: { user: { id: userId, role: Role.ADMIN } } as any,
+            loading: false,
+            role: Role.ADMIN,
+            permissions: [Permission.MODIFY_CONFIG],
+            login: jest.fn(),
+            register: jest.fn(),
+            logout: jest.fn(),
+            refreshToken: jest.fn(),
+          });
 
-          mockUseRole.mockReturnValue(createRoleValue(Role.ADMIN));
-          mockUsePermission.mockReturnValue(createPermissionValue(() => true));
+          mockUseRole.mockReturnValue({
+            hasRole: (role: Role) => role === Role.ADMIN,
+            currentRole: Role.ADMIN,
+            loading: false,
+          });
+
+          mockUsePermission.mockReturnValue({
+            hasPermission: () => true,
+            loading: false,
+          });
 
           // Render with admin role requirement
           const { container } = render(

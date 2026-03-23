@@ -12,16 +12,16 @@ Implements Requirement 1.9: ISO/IEC 25010 compliance verification
 """
 
 from .analyzer import ArchitectureAnalyzer
-from .baseline import ArchitectureBaseline, BaselineManager
+from .baseline import BaselineManager, ArchitectureBaseline
+from .drift_detector import DriftDetector, DriftResult, DriftMetrics, DriftSeverity
 from .compliance import (
+    ComplianceVerifier,
     ComplianceReport,
     ComplianceStatus,
-    ComplianceVerifier,
-    ComplianceViolation,
     QualityCharacteristic,
-    ViolationSeverity,
+    ComplianceViolation,
+    ViolationSeverity
 )
-from .drift_detector import DriftDetector, DriftMetrics, DriftResult, DriftSeverity
 
 __all__ = [
     "ArchitectureAnalyzer",

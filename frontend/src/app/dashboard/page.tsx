@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { MainLayout } from '@/components/layout/main-layout'
 import { PageHeader } from '@/components/layout/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -14,12 +15,12 @@ import {
   AlertTriangle,
   TrendingUp,
   Eye,
+  Network,
   RefreshCw,
   AlertCircle
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-import { useAuth } from '@/contexts/AuthContext'
 
 // Lazy load components for better performance
 const RecentActivity = dynamic(() => import('@/components/dashboard/RecentActivity').then(mod => mod.RecentActivity), {
@@ -78,7 +79,7 @@ interface DashboardMetrics {
 }
 
 export default function DashboardPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth()
+  const queryClient = useQueryClient()
 
   // Use React Query for data fetching with caching and error handling
   const {
@@ -90,7 +91,6 @@ export default function DashboardPage() {
   } = useQuery<DashboardMetrics>({
     queryKey: ['dashboard'],
     queryFn: fetchDashboardStats,
-    enabled: isAuthenticated && !authLoading,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),

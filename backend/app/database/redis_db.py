@@ -1,19 +1,17 @@
 """
 Redis cache and session management
 """
-
-import asyncio
 import logging
-
+import asyncio
 logger = logging.getLogger(__name__)
 
-
 import redis.asyncio as redis
+from typing import Optional
 
 from app.core.config import settings
 
 # Global Redis client
-redis_client: redis.Redis | None = None
+redis_client: Optional[redis.Redis] = None
 
 
 async def get_redis() -> redis.Redis:
@@ -22,11 +20,6 @@ async def get_redis() -> redis.Redis:
     if redis_client is None:
         raise RuntimeError("Redis client not initialized")
     return redis_client
-
-
-async def get_redis_client() -> redis.Redis:
-    """Backward-compatible alias for modules importing get_redis_client."""
-    return await get_redis()
 
 
 async def init_redis():
@@ -94,7 +87,7 @@ async def cache_set(key: str, value: str, expiration: int = 3600):
     await client.set(key, value, ex=expiration)
 
 
-async def cache_get(key: str) -> str | None:
+async def cache_get(key: str) -> Optional[str]:
     """Get cache value"""
     client = await get_redis()
     return await client.get(key)

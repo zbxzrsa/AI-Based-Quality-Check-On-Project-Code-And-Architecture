@@ -7,95 +7,93 @@ that integrates with the existing system architecture.
 
 import json
 import logging
-from dataclasses import asdict, dataclass
+from typing import Dict, List, Optional
 from datetime import datetime
-
+from dataclasses import dataclass, asdict
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.ai_pr_reviewer import AIPRReviewer, ComplianceStatus, ReviewResult
-from app.services.llm.base import LLMRequest
-from app.services.llm_client import LLMClient, LLMProvider
 from app.services.user_llm_service import UserLLMService
+from app.services.llm.base import LLMRequest
+from app.services.ai_pr_reviewer import AIPRReviewer, ReviewResult, ComplianceStatus
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ReviewRequest:
     """Request for AI PR review."""
-
     diff_content: str
-    design_standards: dict | None = None
-    project_id: str | None = None
-    pr_id: str | None = None
-    reviewer_id: str | None = None
-
+    design_standards: Optional[Dict] = None
+    project_id: Optional[str] = None
+    pr_id: Optional[str] = None
+    reviewer_id: Optional[str] = None
 
 @dataclass
 class ReviewResponse:
     """Response from AI PR review."""
-
     review_id: str
     timestamp: datetime
     review_result: ReviewResult
-    report: dict
-    metadata: dict
-
+    report: Dict
+    metadata: Dict
 
 class AIReviewService:
     """
     AI codereviewservice
-
+    
     provide基于 AI 的 Pull Request reviewfeature，包括：
     - architectureanalyze
     - 安全漏洞检测
     - code质量评估
     - 重构建议
-
+    
     supportuser自定义 API key
     """
-
+    
+    
     async def _get_llm_provider(self):
         """get LLM providerInstance（延迟load）"""
         if self.llm_provider is None:
-            self.llm_provider = await UserLLMService.get_user_llm_provider(db=self.db, user_id=self.user_id)
+            self.llm_provider = await UserLLMService.get_user_llm_provider(
+                db=self.db,
+                user_id=self.user_id
+            )
         return self.llm_provider
-
+        
     async def review_pull_request(self, request: ReviewRequest) -> ReviewResponse:
         """
         Perform AI review of a pull request.
-
+        
         Args:
             request: Review request containing diff and metadata
-
+            
         Returns:
             ReviewResponse with complete analysis results
         """
         try:
             self.logger.info(f"Starting AI review for PR {request.pr_id}")
-
+            
             # get LLM provide者
             llm_provider = await self._get_llm_provider()
-
+            
             # 构建reviewhint
             prompt = self._build_review_prompt(request)
-
+            
             # 调用 LLM 进行review
             llm_request = LLMRequest(
                 prompt=prompt,
                 system_prompt="You are an expert code reviewer. Analyze the code changes and provide detailed feedback.",
                 temperature=0.3,
-                max_tokens=4000,
+                max_tokens=4000
             )
-
+            
             llm_response = await llm_provider.generate(llm_request)
-
+            
             # 解析reviewresult
             review_result = self._parse_review_result(llm_response.content)
-
+            
             # generatereport
             report = self._generate_report(review_result)
-
+            
             # createresponse
             response = ReviewResponse(
                 review_id=self._generate_review_id(),
@@ -109,23 +107,23 @@ class AIReviewService:
                     "llm_provider": llm_provider.get_provider_type().value,
                     "llm_model": llm_provider.model,
                     "tokens_used": llm_response.tokens,
-                    "cost": llm_response.cost,
-                },
+                    "cost": llm_response.cost
+                }
             )
-
+            
             self.logger.info(
                 f"AI review completed for PR {request.pr_id} - "
                 f"Provider: {llm_provider.get_provider_type().value}, "
                 f"Tokens: {llm_response.tokens['total']}, "
                 f"Cost: ${llm_response.cost:.4f}"
             )
-
+            
             return response
-
+            
         except Exception as e:
             self.logger.error(f"AI review failed for PR {request.pr_id}: {str(e)}")
             raise
-
+    
     def _build_review_prompt(self, request: ReviewRequest) -> str:
         """构建reviewhint"""
         prompt = f"""Please review the following code changes:
@@ -135,7 +133,7 @@ class AIReviewService:
 """
         if request.design_standards:
             prompt += f"\nDesign Standards:\n{json.dumps(request.design_standards, indent=2)}\n"
-
+        
         prompt += """
 Please provide:
 1. Architectural issues
@@ -145,7 +143,7 @@ Please provide:
 5. Overall safety score (0-100)
 """
         return prompt
-
+    
     def _parse_review_result(self, content: str) -> ReviewResult:
         """解析 LLM return的reviewresult"""
         # 简化的解析逻辑，实际should更复杂
@@ -163,26 +161,30 @@ Please provide:
             architectural_issues=architecture_violations,
             security_issues=security_concerns,
             refactoring_suggestions=best_practices,
-            code_quality_issues=code_quality_issues,
+            code_quality_issues=code_quality_issues
         )
-
-    def _generate_report(self, review_result: ReviewResult) -> dict:
+    
+    def _generate_report(self, review_result: ReviewResult) -> Dict:
         """generatereviewreport"""
         return {
             "summary": {
                 "safety_score": review_result.safety_score,
                 "compliance_status": review_result.compliance_status.value,
-                "total_issues": len(review_result.architectural_issues) + len(review_result.security_issues),
+                "total_issues": len(review_result.architectural_issues) + len(review_result.security_issues)
             },
-            "architectural_analysis": {"issues": review_result.architectural_issues},
-            "security_analysis": {"issues": review_result.security_issues},
-            "refactoring_suggestions": review_result.refactoring_suggestions,
+            "architectural_analysis": {
+                "issues": review_result.architectural_issues
+            },
+            "security_analysis": {
+                "issues": review_result.security_issues
+            },
+            "refactoring_suggestions": review_result.refactoring_suggestions
         }
 
     def __init__(self, db: AsyncSession, user_id: str, llm_provider=None, ai_reviewer=None):
         """
         初始化 AI reviewservice
-
+        
         Args:
             db: dbSession
             user_id: user ID
@@ -194,27 +196,29 @@ Please provide:
         self.llm_provider = llm_provider
         self.ai_reviewer = ai_reviewer or AIPRReviewer()
         self.logger = logger
+        
+        self.logger.info(
+            f"AI Review Service initialized for user: {user_id}"
+        )
 
-        self.logger.info(f"AI Review Service initialized for user: {user_id}")
 
     def _generate_review_id(self) -> str:
         """Generate unique review ID."""
         import uuid
-
         return f"review_{uuid.uuid4().hex[:16]}"
 
-    async def batch_review(self, requests: list[ReviewRequest]) -> list[ReviewResponse]:
+    async def batch_review(self, requests: List[ReviewRequest]) -> List[ReviewResponse]:
         """
         Perform batch AI review of multiple pull requests.
-
+        
         Args:
             requests: List of review requests
-
+            
         Returns:
             List of review responses
         """
         responses = []
-
+        
         for request in requests:
             try:
                 response = await self.review_pull_request(request)
@@ -223,42 +227,40 @@ Please provide:
                 self.logger.error(f"Batch review failed for PR {request.pr_id}: {str(e)}")
                 # Continue with other reviews
                 continue
-
+        
         return responses
 
-    def get_review_summary(self, responses: list[ReviewResponse]) -> dict:
+    def get_review_summary(self, responses: List[ReviewResponse]) -> Dict:
         """
         Generate summary of multiple review responses.
-
+        
         Args:
             responses: List of review responses
-
+            
         Returns:
             Summary statistics
         """
         if not responses:
             return {"error": "No reviews to summarize"}
-
+        
         total_reviews = len(responses)
         compliant_reviews = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.COMPLIANT)
         warning_reviews = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.WARNING)
-        non_compliant_reviews = sum(
-            1 for r in responses if r.review_result.compliance_status == ComplianceStatus.VIOLATION
-        )
-
+        non_compliant_reviews = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.VIOLATION)
+        
         avg_safety_score = sum(r.review_result.safety_score for r in responses) / total_reviews
         total_issues = sum(r.report["summary"]["total_issues"] for r in responses)
-
+        
         # Collect all issues
         all_architectural_issues = []
         all_security_issues = []
         all_refactoring_suggestions = []
-
+        
         for response in responses:
             all_architectural_issues.extend(response.review_result.architectural_issues)
             all_security_issues.extend(response.review_result.security_issues)
             all_refactoring_suggestions.extend(response.review_result.refactoring_suggestions)
-
+        
         return {
             "summary": {
                 "total_reviews": total_reviews,
@@ -267,61 +269,59 @@ Please provide:
                 "non_compliant_reviews": non_compliant_reviews,
                 "average_safety_score": round(avg_safety_score, 2),
                 "total_issues": total_issues,
-                "compliance_rate": round((compliant_reviews / total_reviews) * 100, 2),
+                "compliance_rate": round((compliant_reviews / total_reviews) * 100, 2)
             },
             "aggregated_issues": {
                 "architectural_issues": list(set(all_architectural_issues)),
                 "security_issues": list(set(all_security_issues)),
-                "refactoring_suggestions": list(set(all_refactoring_suggestions)),
+                "refactoring_suggestions": list(set(all_refactoring_suggestions))
             },
-            "recommendations": self._generate_batch_recommendations(responses),
+            "recommendations": self._generate_batch_recommendations(responses)
         }
 
-    def _generate_batch_recommendations(self, responses: list[ReviewResponse]) -> list[str]:
+    def _generate_batch_recommendations(self, responses: List[ReviewResponse]) -> List[str]:
         """Generate recommendations based on batch review results."""
         recommendations = []
-
+        
         # Count issue types
         issue_counts = self._count_issues_by_type(responses)
-
+        
         # Generate recommendations based on issue counts
         recommendations.extend(self._generate_security_recommendations(issue_counts["security"]))
         recommendations.extend(self._generate_architectural_recommendations(issue_counts["architectural"]))
         recommendations.extend(self._generate_compliance_recommendations(responses))
         recommendations.extend(self._generate_quality_recommendations(responses))
-
+        
         return recommendations
 
-    def _count_issues_by_type(self, responses: list[ReviewResponse]) -> dict[str, int]:
+    def _count_issues_by_type(self, responses: List[ReviewResponse]) -> Dict[str, int]:
         """Count issues by type across all responses."""
         return {
             "security": sum(len(r.review_result.security_issues) for r in responses),
             "architectural": sum(len(r.review_result.architectural_issues) for r in responses),
-            "refactoring": sum(len(r.review_result.refactoring_suggestions) for r in responses),
+            "refactoring": sum(len(r.review_result.refactoring_suggestions) for r in responses)
         }
 
-    def _generate_security_recommendations(self, security_issues_count: int) -> list[str]:
+    def _generate_security_recommendations(self, security_issues_count: int) -> List[str]:
         """Generate security-specific recommendations."""
         if security_issues_count > 0:
             return ["Prioritize security issue fixes across all reviewed PRs"]
         return []
 
-    def _generate_architectural_recommendations(self, architectural_issues_count: int) -> list[str]:
+    def _generate_architectural_recommendations(self, architectural_issues_count: int) -> List[str]:
         """Generate architectural-specific recommendations."""
         if architectural_issues_count > 0:
             return ["Review and update architectural guidelines"]
         return []
 
-    def _generate_compliance_recommendations(self, responses: list[ReviewResponse]) -> list[str]:
+    def _generate_compliance_recommendations(self, responses: List[ReviewResponse]) -> List[str]:
         """Generate compliance-specific recommendations."""
-        non_compliant_count = sum(
-            1 for r in responses if r.review_result.compliance_status == ComplianceStatus.VIOLATION
-        )
+        non_compliant_count = sum(1 for r in responses if r.review_result.compliance_status == ComplianceStatus.VIOLATION)
         if non_compliant_count > len(responses) * 0.3:  # More than 30% non-compliant
             return ["Consider mandatory code review training for the team"]
         return []
 
-    def _generate_quality_recommendations(self, responses: list[ReviewResponse]) -> list[str]:
+    def _generate_quality_recommendations(self, responses: List[ReviewResponse]) -> List[str]:
         """Generate quality-specific recommendations."""
         avg_score = sum(r.review_result.safety_score for r in responses) / len(responses)
         if avg_score < 70:
@@ -331,11 +331,11 @@ Please provide:
     def export_review_report(self, response: ReviewResponse, format: str = "json") -> str:
         """
         Export review report in specified format.
-
+        
         Args:
             response: Review response to export
             format: Export format (json, markdown, html)
-
+            
         Returns:
             Exported report content
         """
@@ -348,7 +348,7 @@ Please provide:
         else:
             raise ValueError(f"Unsupported export format: {format}")
 
-    def _convert_to_html(self, report: dict) -> str:
+    def _convert_to_html(self, report: Dict) -> str:
         """Convert report to HTML format."""
         html = f"""
         <!DOCTYPE html>
@@ -369,39 +369,39 @@ Please provide:
         <body>
             <div class="header">
                 <h1>AI PR Review Report</h1>
-                <p><strong>Review ID:</strong> {report.get("review_id", "N/A")}</p>
-                <p><strong>Timestamp:</strong> {report.get("timestamp", "N/A")}</p>
+                <p><strong>Review ID:</strong> {report.get('review_id', 'N/A')}</p>
+                <p><strong>Timestamp:</strong> {report.get('timestamp', 'N/A')}</p>
             </div>
-
+            
             <div class="summary">
                 <h2>Summary</h2>
-                <p><strong>Safety Score:</strong> {report["summary"]["safety_score"]}/100</p>
-                <p><strong>Compliance Status:</strong>
-                    <span class="{"compliant" if report["summary"]["compliance_status"] == "COMPLIANT" else "warning" if report["summary"]["compliance_status"] == "WARNING" else "non-compliant"}">
-                        {report["summary"]["compliance_status"]}
+                <p><strong>Safety Score:</strong> {report['summary']['safety_score']}/100</p>
+                <p><strong>Compliance Status:</strong> 
+                    <span class="{'compliant' if report['summary']['compliance_status'] == 'COMPLIANT' else 'warning' if report['summary']['compliance_status'] == 'WARNING' else 'non-compliant'}">
+                        {report['summary']['compliance_status']}
                     </span>
                 </p>
-                <p><strong>Total Issues:</strong> {report["summary"]["total_issues"]}</p>
+                <p><strong>Total Issues:</strong> {report['summary']['total_issues']}</p>
             </div>
-
+            
             <div class="issues">
                 <h2>Architectural Issues</h2>
                 <ul>
-                    {"".join(f"<li>{issue}</li>" for issue in report["architectural_analysis"]["issues"])}
+                    {''.join(f'<li>{issue}</li>' for issue in report['architectural_analysis']['issues'])}
                 </ul>
             </div>
-
+            
             <div class="issues">
                 <h2>Security Issues</h2>
                 <ul>
-                    {"".join(f"<li>{issue}</li>" for issue in report["security_analysis"]["issues"])}
+                    {''.join(f'<li>{issue}</li>' for issue in report['security_analysis']['issues'])}
                 </ul>
             </div>
-
+            
             <div class="issues">
                 <h2>Refactoring Suggestions</h2>
                 <ul>
-                    {"".join(f"<li>{suggestion}</li>" for suggestion in report["refactoring_suggestions"])}
+                    {''.join(f'<li>{suggestion}</li>' for suggestion in report['refactoring_suggestions'])}
                 </ul>
             </div>
         </body>
@@ -409,24 +409,24 @@ Please provide:
         """
         return html
 
-    def validate_design_standards(self, standards: dict) -> list[str]:
+    def validate_design_standards(self, standards: Dict) -> List[str]:
         """
         Validate design standards configuration.
-
+        
         Args:
             standards: Design standards to validate
-
+            
         Returns:
             List of validation errors (empty if valid)
         """
         errors = []
-
+        
         # Check required sections
         required_sections = ["layer_separation", "security_standards"]
         for section in required_sections:
             if section not in standards:
                 errors.append(f"Missing required section: {section}")
-
+        
         # Validate layer separation
         if "layer_separation" in standards:
             layer_separation = standards["layer_separation"]
@@ -434,7 +434,7 @@ Please provide:
             for layer in required_layers:
                 if layer not in layer_separation:
                     errors.append(f"Missing required layer: {layer}")
-
+        
         # Validate security standards
         if "security_standards" in standards:
             security_standards = standards["security_standards"]
@@ -442,22 +442,21 @@ Please provide:
             for security_item in required_security:
                 if security_item not in security_standards:
                     errors.append(f"Missing required security standard: {security_item}")
-
+        
         return errors
-
 
 # Example usage and testing
 if __name__ == "__main__":
     import asyncio
-
+    
     # Example usage
     async def main():
         # Create LLM client
         llm_client = LLMClient(LLMProvider.OPENAI)
-
+        
         # Create review service
         review_service = AIReviewService(llm_client)
-
+        
         # Example diff content
         example_diff = """
         diff --git a/frontend/src/components/UserProfile.tsx b/frontend/src/components/UserProfile.tsx
@@ -487,55 +486,57 @@ if __name__ == "__main__":
         +
         +export default UserProfile;
         """
-
+        
         # Example design standards
         example_standards = {
             "layer_separation": {
                 "ui_components": ["components/", "pages/", "views/"],
                 "business_logic": ["services/", "use_cases/", "domain/"],
                 "data_access": ["repositories/", "models/", "dao/"],
-                "forbidden_connections": [{"from": "ui_components", "to": "data_access"}],
+                "forbidden_connections": [
+                    {"from": "ui_components", "to": "data_access"}
+                ]
             },
             "security_standards": {
                 "input_validation": True,
                 "sql_injection_prevention": True,
                 "xss_prevention": True,
-                "authentication_required": True,
-            },
+                "authentication_required": True
+            }
         }
-
+        
         # Create review request
         request = ReviewRequest(
             diff_content=example_diff,
             design_standards=example_standards,
             project_id="example-project",
             pr_id="pr-123",
-            reviewer_id="ai-reviewer",
+            reviewer_id="ai-reviewer"
         )
-
+        
         try:
             # Perform review
             response = await review_service.review_pull_request(request)
-
+            
             # Print results
             logger.info("Review completed successfully!")
             logger.info("Review ID: {response.review_id}")
             logger.info("Safety Score: {response.review_result.safety_score}")
             logger.info("Compliance Status: {response.review_result.compliance_status}")
             logger.info("Total Issues: {response.report['summary']['total_issues']}")
-
+            
             # Export report
             json_report = review_service.export_review_report(response, "json")
             markdown_report = review_service.export_review_report(response, "markdown")
-
+            
             logger.info("\nJSON Report:")
             logger.info(str((json_report[:500] + "...") if len(json_report) > 500 else json_report))
-
+            
             logger.info("\nMarkdown Report:")
             logger.info(str((markdown_report[:500] + "...") if len(markdown_report) > 500 else markdown_report))
-
-        except Exception:
+            
+        except Exception as e:
             logger.info("Error during review: {e}")
-
+    
     # Run example
     asyncio.run(main())

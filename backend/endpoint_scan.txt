@@ -1,0 +1,31 @@
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:252: UserWarning: `validate_postgres_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_postgres_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:262: UserWarning: `validate_neo4j_password` overrides an existing Pydantic `@field_validator` decorator
+  def validate_neo4j_password(cls, v: str) -> str:
+D:\github��Ŀʵ��\AI-Based-Quality-Check-On-Project-Code-And-Architecture\backend\app\core\config.py:425: UserWarning: `validate_celery_config` overrides an existing Pydantic `@model_validator` decorator
+  def validate_celery_config(self) -> List[str]:
+OK: app.api.v1.endpoints.analyze
+OK: app.api.v1.endpoints.architecture
+OK: app.api.v1.endpoints.audit_logs
+OK: app.api.v1.endpoints.auth
+OK: app.api.v1.endpoints.code_review
+OK: app.api.v1.endpoints.code_review_webhook
+OK: app.api.v1.endpoints.database
+OK: app.api.v1.endpoints.errors
+OK: app.api.v1.endpoints.github
+OK: app.api.v1.endpoints.health
+OK: app.api.v1.endpoints.libraries
+OK: app.api.v1.endpoints.metrics
+OK: app.api.v1.endpoints.monitoring
+FAIL: app.api.v1.endpoints.project_analytics -> ModuleNotFoundError: No module named 'app.services.llm_service'
+OK: app.api.v1.endpoints.project_invitations
+OK: app.api.v1.endpoints.pull_request
+OK: app.api.v1.endpoints.rbac_audit
+OK: app.api.v1.endpoints.rbac_projects
+OK: app.api.v1.endpoints.rbac_users
+FAIL: app.api.v1.endpoints.security_audit -> ModuleNotFoundError: No module named 'app.core.dependencies'
+FAIL: app.api.v1.endpoints.security_compliance -> ModuleNotFoundError: No module named 'app.core.dependencies'
+OK: app.api.v1.endpoints.tasks
+OK: app.api.v1.endpoints.user_data
+OK: app.api.v1.endpoints.user_settings
+OK: app.api.v1.endpoints.webhooks

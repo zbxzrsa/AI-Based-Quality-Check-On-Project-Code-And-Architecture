@@ -4,6 +4,7 @@
  */
 
 // Export specific items to avoid conflicts
+export { apiClient } from './api';
 export * from './CacheService';
 export * from './config';
 export * from './ErrorMonitor';

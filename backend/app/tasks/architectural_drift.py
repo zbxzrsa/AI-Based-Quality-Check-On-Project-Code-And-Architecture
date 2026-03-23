@@ -2,35 +2,43 @@
 Architectural drift detection tasks
 Detects cyclic dependencies, layer violations, and other drift patterns
 """
+import logging
+logger = logging.getLogger(__name__)
 
 import asyncio
-import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Dict, List, Any, Optional
 
 from app.celery_config import celery_app
 from app.database.neo4j_db import get_neo4j_driver
-from app.services.architectural_drift_detector import ArchitecturalDriftDetector
 from app.services.neo4j_ast_service import Neo4jASTService
+from app.services.architectural_drift_detector import ArchitecturalDriftDetector
 
-logger = logging.getLogger(__name__)
 
-
-@celery_app.task(bind=True, name="app.tasks.detect_architectural_drift", max_retries=2, queue="low_priority")
-def detect_architectural_drift(self, project_id: str, baseline_version: str = "latest") -> dict[str, Any]:
+@celery_app.task(
+    bind=True,
+    name='app.tasks.detect_architectural_drift',
+    max_retries=2,
+    queue='low_priority'
+)
+def detect_architectural_drift(
+    self,
+    project_id: str,
+    baseline_version: str = "latest"
+) -> Dict[str, Any]:
     """
     Detect architectural drift in a project
-
+    
     Compares current architecture against baseline to detect:
     - Cyclic dependencies
     - Layer violations
     - Unexpected dependencies
     - Coupling increases
-
+    
     Args:
         project_id: Project ID
         baseline_version: Baseline version to compare against (default: latest)
-
+        
     Returns:
         Dict with drift detection results
     """
@@ -42,46 +50,50 @@ def detect_architectural_drift(self, project_id: str, baseline_version: str = "l
         loop.close()
 
 
-async def _detect_drift(project_id: str, baseline_version: str) -> dict[str, Any]:
+async def _detect_drift(project_id: str, baseline_version: str) -> Dict[str, Any]:
     """Internal async implementation of drift detection"""
     try:
         driver = await get_neo4j_driver()
         neo4j_service = Neo4jASTService(driver)
-
+        
         # Detect cyclic dependencies
         cycles = await detect_cyclic_dependencies_impl(neo4j_service, project_id)
-
+        
         # Detect layer violations
         violations = await detect_layer_violations_impl(neo4j_service, project_id)
-
+        
         # Build drift report
         drift_report = {
-            "project_id": project_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "baseline_version": baseline_version,
-            "cyclic_dependencies": cycles,
-            "layer_violations": violations,
-            "total_issues": len(cycles) + len(violations),
-            "status": "completed",
+            'project_id': project_id,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'baseline_version': baseline_version,
+            'cyclic_dependencies': cycles,
+            'layer_violations': violations,
+            'total_issues': len(cycles) + len(violations),
+            'status': 'completed'
         }
-
+        
         return drift_report
-
-    except Exception:
+        
+    except Exception as e:
         logger.info("❌ Error detecting drift for project {project_id}: {e}")
         raise
 
 
-@celery_app.task(name="app.tasks.detect_cyclic_dependencies", max_retries=1, queue="low_priority")
-def detect_cyclic_dependencies(project_id: str) -> dict[str, list[dict[str, Any]]]:
+@celery_app.task(
+    name='app.tasks.detect_cyclic_dependencies',
+    max_retries=1,
+    queue='low_priority'
+)
+def detect_cyclic_dependencies(project_id: str) -> Dict[str, List[Dict[str, Any]]]:
     """
     Detect cyclic dependencies in module dependency graph
-
+    
     Finds cycles where Module A depends on B, B depends on C, and C depends on A
-
+    
     Args:
         project_id: Project ID
-
+        
     Returns:
         Dict with detected cycles and analysis details
     """
@@ -93,10 +105,13 @@ def detect_cyclic_dependencies(project_id: str) -> dict[str, list[dict[str, Any]
         loop.close()
 
 
-async def detect_cyclic_dependencies_impl(neo4j_service: Neo4jASTService, project_id: str) -> list[dict[str, Any]]:
+async def detect_cyclic_dependencies_impl(
+    neo4j_service: Neo4jASTService,
+    project_id: str
+) -> List[Dict[str, Any]]:
     """
     Internal implementation for cyclic dependency detection
-
+    
     Cypher Query Explanation:
     - MATCH (p:Project {projectId: $projectId}) - Find project
     - MATCH path = (m1)-[:DEPENDS_ON*]->(m1) - Find paths that start and end on same node
@@ -116,58 +131,63 @@ async def detect_cyclic_dependencies_impl(neo4j_service: Neo4jASTService, projec
     ORDER BY cycle_length ASC
     LIMIT 100
     """
-
+    
     try:
         result = await neo4j_service.run_query(cypher_query, projectId=project_id)
-
+        
         cycles = []
         for record in result:
             cycle = {
-                "module": record.get("module"),
-                "cycle_path": record.get("cycle_path", []),
-                "cycle_length": record.get("cycle_length"),
-                "dependency_reasons": record.get("dependency_reasons", []),
-                "severity": "critical" if record.get("cycle_length", 0) == 2 else "high",
-                "description": f"Cyclic dependency detected: {' -> '.join(record.get('cycle_path', []))} -> {record.get('module')}",
+                'module': record.get('module'),
+                'cycle_path': record.get('cycle_path', []),
+                'cycle_length': record.get('cycle_length'),
+                'dependency_reasons': record.get('dependency_reasons', []),
+                'severity': 'critical' if record.get('cycle_length', 0) == 2 else 'high',
+                'description': f"Cyclic dependency detected: {' -> '.join(record.get('cycle_path', []))} -> {record.get('module')}"
             }
             cycles.append(cycle)
-
+        
         return cycles
-
-    except Exception:
+        
+    except Exception as e:
         logger.info("⚠️  Error in cyclic dependency detection: {e}")
         return []
 
 
-async def _detect_cycles(project_id: str) -> dict[str, list[dict[str, Any]]]:
+async def _detect_cycles(project_id: str) -> Dict[str, List[Dict[str, Any]]]:
     """Wrapper for cyclic dependency detection"""
     driver = await get_neo4j_driver()
     neo4j_service = Neo4jASTService(driver)
-
+    
     cycles = await detect_cyclic_dependencies_impl(neo4j_service, project_id)
-
+    
     return {
-        "project_id": project_id,
-        "cycles_found": len(cycles),
-        "cycles": cycles,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        'project_id': project_id,
+        'cycles_found': len(cycles),
+        'cycles': cycles,
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
 
 
-@celery_app.task(name="app.tasks.detect_layer_violations", max_retries=1, queue="low_priority")
+@celery_app.task(
+    name='app.tasks.detect_layer_violations',
+    max_retries=1,
+    queue='low_priority'
+)
 def detect_layer_violations(
-    project_id: str, layer_definitions: dict[str, list[str]] = None
-) -> dict[str, list[dict[str, Any]]]:
+    project_id: str,
+    layer_definitions: Dict[str, List[str]] = None
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Detect layer violations in architecture
-
+    
     Checks if modules skip intermediate layers, e.g., Controller directly to Repository
-
+    
     Args:
         project_id: Project ID
         layer_definitions: Optional dict defining layer names and their module patterns
                           Default: {'controller': [...], 'service': [...], 'repository': [...]}
-
+                          
     Returns:
         Dict with detected layer violations
     """
@@ -180,44 +200,46 @@ def detect_layer_violations(
 
 
 async def detect_layer_violations_impl(
-    neo4j_service: Neo4jASTService, project_id: str, layer_definitions: dict[str, list[str]] | None = None
-) -> list[dict[str, Any]]:
+    neo4j_service: Neo4jASTService,
+    project_id: str,
+    layer_definitions: Optional[Dict[str, List[str]]] = None
+) -> List[Dict[str, Any]]:
     """
     Internal implementation for layer violation detection
-
+    
     Cypher Query Explanation:
     - MATCH (p:Project)-[:CONTAINS]->(m1:Module) - Get all modules
     - MATCH (m1)-[:DEPENDS_ON*2..]->(m3:Module) - Find dependencies with 2+ hops
-    - WHERE NOT (m1)-[:DEPENDS_ON]->(m2:Module)-[:DEPENDS_ON]->(m3)
+    - WHERE NOT (m1)-[:DEPENDS_ON]->(m2:Module)-[:DEPENDS_ON]->(m3) 
     - This checks that there's NO intermediate layer (service)
     - If this WHERE clause succeeds, it means layer was violated (skipped)
     """
-
+    
     # Default layer detection based on naming conventions
     if not layer_definitions:
         layer_definitions = {
-            "controller": ["*controller*", "*handler*"],
-            "service": ["*service*", "*business*"],
-            "repository": ["*repository*", "*dao*", "*model*"],
+            'controller': ['*controller*', '*handler*'],
+            'service': ['*service*', '*business*'],
+            'repository': ['*repository*', '*dao*', '*model*']
         }
-
+    
     cypher_query = """
     MATCH (p:Project {projectId: $projectId})-[:CONTAINS]->(m1:Module)
     MATCH (m1)-[d1:DEPENDS_ON]->(m2:Module)
     MATCH (m2)-[d2:DEPENDS_ON]->(m3:Module)
     MATCH (m3)-[:DEPENDS_ON]->(m4:Module)
-
+    
     // Check for direct controller -> repository connection (skipping service)
     WHERE (toLower(m1.name) CONTAINS 'controller' OR toLower(m1.type) CONTAINS 'controller')
     AND (toLower(m3.name) CONTAINS 'repository' OR toLower(m3.type) CONTAINS 'repository')
-
+    
     // Verify there's no intermediate service layer
     AND NOT EXISTS {
         MATCH (m1)-[:DEPENDS_ON]->(svc:Module)
         WHERE (toLower(svc.name) CONTAINS 'service' OR toLower(svc.type) CONTAINS 'service')
         AND (svc)-[:DEPENDS_ON]->(m3)
     }
-
+    
     RETURN DISTINCT
         m1.name AS source_module,
         m1.type AS source_type,
@@ -227,35 +249,36 @@ async def detect_layer_violations_impl(
         [r IN relationships([d1, d2]) | r.reason] AS reasons
     LIMIT 50
     """
-
+    
     try:
         result = await neo4j_service.run_query(cypher_query, projectId=project_id)
-
+        
         violations = []
         for record in result:
             violation = {
-                "source_module": record.get("source_module"),
-                "source_type": record.get("source_type", "Unknown"),
-                "target_module": record.get("target_module"),
-                "target_type": record.get("target_type", "Unknown"),
-                "violation_path": record.get("violation_path", []),
-                "violation_type": "layer_skip",
-                "severity": "high",
-                "description": f"Layer violation: {record.get('source_module')} (Controller) bypasses Service layer and directly depends on {record.get('target_module')} (Repository)",
-                "recommendation": "Add intermediate Service layer to maintain proper architecture layers",
+                'source_module': record.get('source_module'),
+                'source_type': record.get('source_type', 'Unknown'),
+                'target_module': record.get('target_module'),
+                'target_type': record.get('target_type', 'Unknown'),
+                'violation_path': record.get('violation_path', []),
+                'violation_type': 'layer_skip',
+                'severity': 'high',
+                'description': f"Layer violation: {record.get('source_module')} (Controller) bypasses Service layer and directly depends on {record.get('target_module')} (Repository)",
+                'recommendation': 'Add intermediate Service layer to maintain proper architecture layers'
             }
             violations.append(violation)
-
+        
         return violations
-
-    except Exception:
+        
+    except Exception as e:
         logger.info("⚠️  Error in layer violation detection: {e}")
         return []
 
 
 async def _detect_violations(
-    project_id: str, layer_definitions: dict[str, list[str]] | None = None
-) -> dict[str, list[dict[str, Any]]]:
+    project_id: str,
+    layer_definitions: Optional[Dict[str, List[str]]] = None
+) -> Dict[str, List[Dict[str, Any]]]:
     """Wrapper for layer violation detection"""
     driver = await get_neo4j_driver()
     neo4j_service = Neo4jASTService(driver)
@@ -263,21 +286,26 @@ async def _detect_violations(
     violations = await detect_layer_violations_impl(neo4j_service, project_id, layer_definitions)
 
     return {
-        "project_id": project_id,
-        "violations_found": len(violations),
-        "violations": violations,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        'project_id': project_id,
+        'violations_found': len(violations),
+        'violations': violations,
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
 
 
-@celery_app.task(bind=True, name="app.tasks.detect_golden_standard_drift", max_retries=2, queue="high_priority")
+@celery_app.task(
+    bind=True,
+    name='app.tasks.detect_golden_standard_drift',
+    max_retries=2,
+    queue='high_priority'
+)
 def detect_golden_standard_drift(
     self,
     project_id: str,
-    repo_full_name: str | None = None,
-    commit_sha: str | None = None,
-    golden_standard_path: str | None = None,
-) -> dict[str, Any]:
+    repo_full_name: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    golden_standard_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Detect architectural drift against golden standard schema
 
@@ -300,16 +328,20 @@ def detect_golden_standard_drift(
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(
-            _detect_golden_standard_drift(project_id, repo_full_name, commit_sha, golden_standard_path, self)
-        )
+        return loop.run_until_complete(_detect_golden_standard_drift(
+            project_id, repo_full_name, commit_sha, golden_standard_path, self
+        ))
     finally:
         loop.close()
 
 
 async def _detect_golden_standard_drift(
-    project_id: str, repo_full_name: str | None, commit_sha: str | None, golden_standard_path: str | None, task
-) -> dict[str, Any]:
+    project_id: str,
+    repo_full_name: Optional[str],
+    commit_sha: Optional[str],
+    golden_standard_path: Optional[str],
+    task
+) -> Dict[str, Any]:
     """Internal async implementation of golden standard drift detection"""
     try:
         # Initialize drift detector
@@ -350,13 +382,13 @@ async def _detect_golden_standard_drift(
         logger.info("❌ Error in golden standard drift detection for project {project_id}: {e}")
 
         # Create error result
-        {
+        error_result = {
             "project_id": project_id,
             "status": "failed",
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "should_fail_ci": True,
-            "failure_reason": f"Drift detection failed: {str(e)}",
+            "failure_reason": f"Drift detection failed: {str(e)}"
         }
 
         # Still try to update GitHub status if possible
@@ -367,9 +399,9 @@ async def _detect_golden_standard_drift(
                     repo_full_name=repo_full_name,
                     commit_sha=commit_sha,
                     drift_report={"drift_score": 100, "violation_counts": {"critical": 1}},
-                    context="architectural-drift",
+                    context="architectural-drift"
                 )
-            except Exception:
+            except Exception as status_error:
                 logger.info("⚠️  Failed to update GitHub status: {status_error}")
 
         raise
@@ -377,10 +409,10 @@ async def _detect_golden_standard_drift(
 
 def detect_golden_standard_drift_sync(
     project_id: str,
-    repo_full_name: str | None = None,
-    commit_sha: str | None = None,
-    golden_standard_path: str | None = None,
-) -> dict[str, Any]:
+    repo_full_name: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    golden_standard_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Synchronous wrapper for golden standard drift detection
 
@@ -397,13 +429,13 @@ def detect_golden_standard_drift_sync(
     """
     task = detect_golden_standard_drift.apply_async(
         args=[project_id, repo_full_name, commit_sha, golden_standard_path],
-        queue="high_priority",
-        expires=1800,  # 30 minutes
+        queue='high_priority',
+        expires=1800  # 30 minutes
     )
 
     return {
-        "task_id": task.id,
-        "status": "PENDING",
-        "project_id": project_id,
-        "message": "Architectural drift analysis queued and will begin shortly",
+        'task_id': task.id,
+        'status': 'PENDING',
+        'project_id': project_id,
+        'message': 'Architectural drift analysis queued and will begin shortly'
     }
