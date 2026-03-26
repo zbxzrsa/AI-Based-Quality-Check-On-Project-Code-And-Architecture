@@ -1,11 +1,10 @@
 """
-Data models for the Enterprise RBAC Authentication System.
+Compatibility exports for auth-related enums and shared runtime models.
 """
-from .user import Base, User
-from .project import Project, ProjectAccess
-from .session import Session
-from .audit_log import AuditLog
-from .enums import Role, Permission, ROLE_PERMISSIONS
+from app.database.postgresql import Base
+from app.models import AuditLog, Project, ProjectAccess, Session, User
+
+from .enums import Permission, Role, ROLE_PERMISSIONS
 
 __all__ = [
     "Base",

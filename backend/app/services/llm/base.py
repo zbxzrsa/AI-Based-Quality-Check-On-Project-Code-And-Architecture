@@ -17,6 +17,10 @@ class LLMProviderType(str, Enum):
     ANTHROPIC = "anthropic"
     OPENROUTER = "openrouter"
     LMSTUDIO = "lmstudio"
+    OLLAMA = "ollama"
+    DEEPSEEK = "deepseek"
+    GOOGLE = "google"
+    CHATGLM = "chatglm"
 
 
 @dataclass

@@ -3,13 +3,8 @@
  */
 
 export enum Role {
-  ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  REVIEWER = 'REVIEWER',
-  PROGRAMMER = 'PROGRAMMER',
-  DEVELOPER = 'DEVELOPER',
-  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',
-  VISITOR = 'VISITOR',
+  ADMIN = 'admin',
+  USER = 'user',
 }
 
 export enum Permission {

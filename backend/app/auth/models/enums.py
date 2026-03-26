@@ -20,14 +20,11 @@ ROLE_PERMISSIONS: dict[Role, list[Permission]] = {
         Permission.VIEW_CONFIG,
         Permission.EXPORT_REPORT,
     ],
-    Role.PROGRAMMER: [
+    Role.USER: [
         Permission.CREATE_PROJECT,
         Permission.UPDATE_PROJECT,
         Permission.VIEW_PROJECT,
         Permission.VIEW_CONFIG,
         Permission.EXPORT_REPORT,
-    ],
-    Role.VISITOR: [
-        Permission.VIEW_PROJECT,
     ],
 }

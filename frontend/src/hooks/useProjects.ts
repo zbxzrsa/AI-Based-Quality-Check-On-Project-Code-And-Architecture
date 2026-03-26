@@ -3,7 +3,9 @@
  * Uses optimized API client with caching and retry logic
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, apiPost } from '@/lib/api-client';
+
+const LIVE_REVIEW_POLL_INTERVAL = 5000;
 
 export interface Project {
   id: string;
@@ -34,6 +36,7 @@ export interface PullRequest {
   lines_deleted: number;
   created_at: string;
   analyzed_at: string | null;
+  updated_at?: string | null;
 }
 
 export interface ProjectMetrics {
@@ -101,6 +104,24 @@ export interface ProjectAnalytics {
   analysis_timestamp: string;
 }
 
+export interface ProjectIssue {
+  id: string;
+  file_path: string;
+  line_number: number | null;
+  message: string;
+  severity: string;
+  category: string | null;
+  rule_id: string | null;
+  rule_name: string | null;
+  suggested_fix: string | null;
+  created_at: string;
+}
+
+export interface ProjectIssuesResponse {
+  issues: ProjectIssue[];
+  total: number;
+}
+
 /**
  * Fetch all projects
  */
@@ -133,14 +154,42 @@ export function useProjectPullRequests(projectId: string, state: string = 'all')
   return useQuery({
     queryKey: ['projects', projectId, 'pulls', state],
     queryFn: async () => {
-      // Always skip the API client cache for PR lists so we can see
-      // real-time status changes (pending → analyzing → reviewed)
-      return apiClient.get(`/github/projects/${projectId}/pulls`, {
+      const response = await apiClient.get<
+        | { pull_requests?: Array<Record<string, unknown>> }
+        | Array<Record<string, unknown>>
+      >(`/github/projects/${projectId}/pulls`, {
         params: { state },
         skipCache: true,
       });
+
+      const pullRequests = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.pull_requests)
+          ? response.pull_requests
+          : [];
+
+      return pullRequests.map((pr) => ({
+        id: String(pr.id ?? ''),
+        project_id: projectId,
+        github_pr_number: Number(pr.github_pr_number ?? pr.number ?? 0),
+        title: String(pr.title ?? 'Untitled pull request'),
+        description: typeof pr.description === 'string' ? pr.description : null,
+        branch_name: typeof pr.branch_name === 'string' ? pr.branch_name : '',
+        commit_sha: typeof pr.commit_sha === 'string' ? pr.commit_sha : '',
+        status: String(pr.status ?? 'pending'),
+        risk_score: typeof pr.risk_score === 'number' ? pr.risk_score : null,
+        files_changed: Number(pr.files_changed ?? 0),
+        lines_added: Number(pr.lines_added ?? 0),
+        lines_deleted: Number(pr.lines_deleted ?? 0),
+        created_at: typeof pr.created_at === 'string' ? pr.created_at : new Date().toISOString(),
+        analyzed_at: typeof pr.analyzed_at === 'string' ? pr.analyzed_at : null,
+        updated_at: typeof pr.updated_at === 'string' ? pr.updated_at : null,
+      })) as PullRequest[];
     },
     enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -154,6 +203,9 @@ export function useProjectAnalytics(projectId: string) {
       return apiClient.get<ProjectAnalytics>(`/projects/${projectId}/analytics`);
     },
     enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -165,10 +217,20 @@ export function useSyncProject() {
 
   return useMutation({
     mutationFn: async (projectId: string) => {
-      return apiClient.post(`/github/projects/${projectId}/sync`);
+      const response = await apiClient.post<{ message?: string }>(`/github/projects/${projectId}/sync`);
+      const message = response?.message || '';
+
+      if (message.toLowerCase().startsWith('sync failed')) {
+        throw new Error(message);
+      }
+
+      return response;
     },
     onSuccess: (_, projectId) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'pulls'] });
+      queryClient.invalidateQueries({ queryKey: ['architecture', projectId, 'branches'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'issues'] });
     },
   });
 }
@@ -190,22 +252,7 @@ export function useCreateProject() {
       github_cli_token?: string;
       language?: string;
     }) => {
-      // Use our Next.js API route which properly forwards all data to backend
-      const response = await fetch('/api/projects/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Includes cookies for auth
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to create project' }));
-        throw new Error(error.detail || 'Failed to create project');
-      }
-
-      return response.json() as Promise<Project>;
+      return apiPost<Project>('/api/projects/create', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -246,7 +293,6 @@ export function useDeleteProject() {
   });
 }
 
-// SSH Key Management Interfaces
 export interface SSHKey {
   id: string;
   name: string;
@@ -259,7 +305,6 @@ export interface SSHKey {
   last_used_at: string | null;
 }
 
-// SSH Key Management Hooks
 export function useSSHKeys() {
   return useQuery({
     queryKey: ['ssh-keys'],
@@ -310,6 +355,9 @@ export function useProjectBranches(projectId: string) {
       return apiClient.get<BranchInfo[]>(`/architecture/${projectId}/branches`);
     },
     enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -325,6 +373,9 @@ export function useBranchArchitecture(projectId: string, branchId: string) {
       );
     },
     enabled: !!(projectId && branchId),
+    staleTime: 0,
+    refetchInterval: projectId && branchId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -342,6 +393,24 @@ export function useProjectArchitectureAnalysis(projectId: string) {
       }>(`/projects/${projectId}/architecture-analysis`);
     },
     enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useProjectIssues(projectId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'issues'],
+    queryFn: async () => {
+      return apiClient.get<ProjectIssuesResponse>(`/projects/${projectId}/issues`, {
+        skipCache: true,
+      });
+    },
+    enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -389,7 +458,6 @@ export interface BranchArchitecture {
   };
 }
 
-// Architecture Overview types
 export interface ArchOverviewNode {
   id: string;
   label: string;
@@ -445,6 +513,9 @@ export function useArchitectureOverview(projectId: string) {
       );
     },
     enabled: !!projectId,
+    staleTime: 0,
+    refetchInterval: projectId ? LIVE_REVIEW_POLL_INTERVAL : false,
+    refetchOnWindowFocus: true,
   });
 }
 

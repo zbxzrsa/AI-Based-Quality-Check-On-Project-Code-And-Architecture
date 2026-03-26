@@ -56,6 +56,89 @@ class DataLifecycleService:
         """
         self.db = db_session
         self.audit_service = AuditLoggingService(db_session)
+
+    async def _table_exists(self, table_name: str) -> bool:
+        """Check whether a database table exists in the current schema."""
+        table_check = text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = :table_name
+            )
+        """)
+        result = await self.db.execute(table_check, {"table_name": table_name})
+        return bool(result.scalar())
+
+    @staticmethod
+    def _cleanup_result(
+        *,
+        status: str,
+        deleted_count: int = 0,
+        cutoff_date: Optional[datetime] = None,
+        retention_days: Optional[int] = None,
+        dry_run: bool = False,
+        would_delete_count: Optional[int] = None,
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Build a consistent cleanup response payload."""
+        result: Dict[str, Any] = {
+            "status": status,
+            "deleted_count": deleted_count,
+            "dry_run": dry_run,
+        }
+        if cutoff_date is not None:
+            result["cutoff_date"] = cutoff_date.isoformat()
+        if retention_days is not None:
+            result["retention_days"] = retention_days
+        if would_delete_count is not None:
+            result["would_delete_count"] = would_delete_count
+        if reason is not None:
+            result["reason"] = reason
+        return result
+
+    async def _get_table_stats(
+        self,
+        *,
+        table_name: str,
+        timestamp_column: str,
+        retention_days: int,
+        expired_condition: Optional[str] = None,
+        empty_note: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return basic retention statistics for a table, or a skipped payload if absent."""
+        if not await self._table_exists(table_name):
+            stats: Dict[str, Any] = {
+                "status": "skipped",
+                "reason": f"{table_name}_table_not_found",
+                "retention_days": retention_days,
+            }
+            if empty_note:
+                stats["note"] = empty_note
+            return stats
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        expired_sql = expired_condition or f"{timestamp_column} < :cutoff"
+        query = text(f"""
+            SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE {expired_sql}) as expired,
+                MIN({timestamp_column}) as oldest,
+                MAX({timestamp_column}) as newest
+            FROM {table_name}
+        """)
+        result = await self.db.execute(query, {"cutoff": cutoff})
+        row = result.fetchone()
+
+        stats = {
+            "status": "success",
+            "total": row.total,
+            "expired": row.expired,
+            "oldest": row.oldest.isoformat() if row.oldest else None,
+            "newest": row.newest.isoformat() if row.newest else None,
+            "retention_days": retention_days,
+        }
+        if empty_note:
+            stats["note"] = empty_note
+        return stats
     
     async def cleanup_old_analysis_results(
         self,
@@ -80,6 +163,16 @@ class DataLifecycleService:
         logger.info(f"Starting analysis results cleanup (retention: {retention_days} days, cutoff: {cutoff_date})")
         
         try:
+            if not await self._table_exists("analysis_results"):
+                logger.info("Analysis results table does not exist, skipping cleanup")
+                return self._cleanup_result(
+                    status="skipped",
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                    reason="analysis_results_table_not_found",
+                )
+
             # Count records to be deleted
             count_query = text("""
                 SELECT COUNT(*) 
@@ -91,23 +184,23 @@ class DataLifecycleService:
             
             if total_count == 0:
                 logger.info("No analysis results to cleanup")
-                return {
-                    "status": "success",
-                    "deleted_count": 0,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": dry_run
-                }
+                return self._cleanup_result(
+                    status="success",
+                    deleted_count=0,
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                )
             
             if dry_run:
                 logger.info(f"DRY RUN: Would delete {total_count} analysis results")
-                return {
-                    "status": "dry_run",
-                    "would_delete_count": total_count,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": True
-                }
+                return self._cleanup_result(
+                    status="dry_run",
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=True,
+                    would_delete_count=total_count,
+                )
             
             # Get sample of records being deleted for audit log
             sample_query = text("""
@@ -148,13 +241,13 @@ class DataLifecycleService:
             
             logger.info(f"Successfully deleted {deleted_count} analysis results older than {retention_days} days")
             
-            return {
-                "status": "success",
-                "deleted_count": deleted_count,
-                "cutoff_date": cutoff_date.isoformat(),
-                "retention_days": retention_days,
-                "dry_run": False
-            }
+            return self._cleanup_result(
+                status="success",
+                deleted_count=deleted_count,
+                cutoff_date=cutoff_date,
+                retention_days=retention_days,
+                dry_run=False,
+            )
             
         except Exception as e:
             logger.error(f"Failed to cleanup analysis results: {str(e)}")
@@ -184,6 +277,16 @@ class DataLifecycleService:
         logger.info(f"Starting architectural baselines cleanup (retention: {retention_days} days)")
         
         try:
+            if not await self._table_exists("architectural_baselines"):
+                logger.info("Architectural baselines table does not exist, skipping cleanup")
+                return self._cleanup_result(
+                    status="skipped",
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                    reason="architectural_baselines_table_not_found",
+                )
+
             # Build query with optional current baseline exclusion
             if keep_current:
                 count_query = text("""
@@ -203,23 +306,23 @@ class DataLifecycleService:
             
             if total_count == 0:
                 logger.info("No architectural baselines to cleanup")
-                return {
-                    "status": "success",
-                    "deleted_count": 0,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": dry_run
-                }
+                return self._cleanup_result(
+                    status="success",
+                    deleted_count=0,
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                )
             
             if dry_run:
                 logger.info(f"DRY RUN: Would delete {total_count} architectural baselines")
-                return {
-                    "status": "dry_run",
-                    "would_delete_count": total_count,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": True
-                }
+                return self._cleanup_result(
+                    status="dry_run",
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=True,
+                    would_delete_count=total_count,
+                )
             
             # Delete old baselines
             if keep_current:
@@ -248,13 +351,13 @@ class DataLifecycleService:
             
             logger.info(f"Successfully deleted {deleted_count} architectural baselines")
             
-            return {
-                "status": "success",
-                "deleted_count": deleted_count,
-                "cutoff_date": cutoff_date.isoformat(),
-                "retention_days": retention_days,
-                "dry_run": False
-            }
+            return self._cleanup_result(
+                status="success",
+                deleted_count=deleted_count,
+                cutoff_date=cutoff_date,
+                retention_days=retention_days,
+                dry_run=False,
+            )
             
         except Exception as e:
             logger.error(f"Failed to cleanup architectural baselines: {str(e)}")
@@ -282,23 +385,16 @@ class DataLifecycleService:
         logger.info(f"Starting expired sessions cleanup (retention: {retention_days} days)")
         
         try:
-            # Check if sessions table exists
-            table_check = text("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = 'sessions'
-                )
-            """)
-            table_exists_result = await self.db.execute(table_check)
-            table_exists = table_exists_result.scalar()
-            
-            if not table_exists:
+            if not await self._table_exists("sessions"):
                 logger.info("Sessions table does not exist, skipping cleanup")
-                return {
-                    "status": "skipped",
-                    "reason": "sessions_table_not_found",
-                    "deleted_count": 0
-                }
+                return self._cleanup_result(
+                    status="skipped",
+                    deleted_count=0,
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                    reason="sessions_table_not_found",
+                )
             
             # Count expired sessions
             count_query = text("""
@@ -311,23 +407,23 @@ class DataLifecycleService:
             
             if total_count == 0:
                 logger.info("No expired sessions to cleanup")
-                return {
-                    "status": "success",
-                    "deleted_count": 0,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": dry_run
-                }
+                return self._cleanup_result(
+                    status="success",
+                    deleted_count=0,
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=dry_run,
+                )
             
             if dry_run:
                 logger.info(f"DRY RUN: Would delete {total_count} expired sessions")
-                return {
-                    "status": "dry_run",
-                    "would_delete_count": total_count,
-                    "cutoff_date": cutoff_date.isoformat(),
-                    "retention_days": retention_days,
-                    "dry_run": True
-                }
+                return self._cleanup_result(
+                    status="dry_run",
+                    cutoff_date=cutoff_date,
+                    retention_days=retention_days,
+                    dry_run=True,
+                    would_delete_count=total_count,
+                )
             
             # Delete expired sessions
             delete_query = text("""
@@ -349,13 +445,13 @@ class DataLifecycleService:
             
             logger.info(f"Successfully deleted {deleted_count} expired sessions")
             
-            return {
-                "status": "success",
-                "deleted_count": deleted_count,
-                "cutoff_date": cutoff_date.isoformat(),
-                "retention_days": retention_days,
-                "dry_run": False
-            }
+            return self._cleanup_result(
+                status="success",
+                deleted_count=deleted_count,
+                cutoff_date=cutoff_date,
+                retention_days=retention_days,
+                dry_run=False,
+            )
             
         except Exception as e:
             logger.error(f"Failed to cleanup expired sessions: {str(e)}")
@@ -431,71 +527,52 @@ class DataLifecycleService:
         """
         try:
             stats = {}
-            
-            # Analysis results statistics
-            analysis_cutoff = datetime.now(timezone.utc) - timedelta(
-                days=DataRetentionPolicy.ANALYSIS_RESULTS_RETENTION_DAYS
+
+            stats["analysis_results"] = await self._get_table_stats(
+                table_name="analysis_results",
+                timestamp_column="created_at",
+                retention_days=DataRetentionPolicy.ANALYSIS_RESULTS_RETENTION_DAYS,
             )
-            analysis_query = text("""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(*) FILTER (WHERE created_at < :cutoff) as expired,
-                    MIN(created_at) as oldest,
-                    MAX(created_at) as newest
-                FROM analysis_results
-            """)
-            analysis_result = await self.db.execute(analysis_query, {"cutoff": analysis_cutoff})
-            analysis_row = analysis_result.fetchone()
-            
-            stats["analysis_results"] = {
-                "total": analysis_row.total,
-                "expired": analysis_row.expired,
-                "oldest": analysis_row.oldest.isoformat() if analysis_row.oldest else None,
-                "newest": analysis_row.newest.isoformat() if analysis_row.newest else None,
-                "retention_days": DataRetentionPolicy.ANALYSIS_RESULTS_RETENTION_DAYS
-            }
-            
-            # Architectural baselines statistics
-            baseline_cutoff = datetime.now(timezone.utc) - timedelta(
-                days=DataRetentionPolicy.ARCHITECTURAL_BASELINES_RETENTION_DAYS
+
+            stats["architectural_baselines"] = await self._get_table_stats(
+                table_name="architectural_baselines",
+                timestamp_column="created_at",
+                retention_days=DataRetentionPolicy.ARCHITECTURAL_BASELINES_RETENTION_DAYS,
+                expired_condition="created_at < :cutoff AND is_current = false",
             )
-            baseline_query = text("""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(*) FILTER (WHERE created_at < :cutoff AND is_current = false) as expired,
-                    MIN(created_at) as oldest,
-                    MAX(created_at) as newest
-                FROM architectural_baselines
-            """)
-            baseline_result = await self.db.execute(baseline_query, {"cutoff": baseline_cutoff})
-            baseline_row = baseline_result.fetchone()
-            
-            stats["architectural_baselines"] = {
-                "total": baseline_row.total,
-                "expired": baseline_row.expired,
-                "oldest": baseline_row.oldest.isoformat() if baseline_row.oldest else None,
-                "newest": baseline_row.newest.isoformat() if baseline_row.newest else None,
-                "retention_days": DataRetentionPolicy.ARCHITECTURAL_BASELINES_RETENTION_DAYS
-            }
-            
-            # Audit logs statistics
-            audit_query = text("""
-                SELECT 
-                    COUNT(*) as total,
-                    MIN(timestamp) as oldest,
-                    MAX(timestamp) as newest
-                FROM audit_log_entries
-            """)
-            audit_result = await self.db.execute(audit_query)
-            audit_row = audit_result.fetchone()
-            
-            stats["audit_logs"] = {
-                "total": audit_row.total,
-                "oldest": audit_row.oldest.isoformat() if audit_row.oldest else None,
-                "newest": audit_row.newest.isoformat() if audit_row.newest else None,
-                "retention_days": DataRetentionPolicy.AUDIT_LOGS_RETENTION_DAYS,
-                "note": "Audit logs are never automatically deleted"
-            }
+
+            stats["expired_sessions"] = await self._get_table_stats(
+                table_name="sessions",
+                timestamp_column="created_at",
+                retention_days=DataRetentionPolicy.USER_SESSIONS_RETENTION_DAYS,
+            )
+
+            if await self._table_exists("audit_log_entries"):
+                audit_query = text("""
+                    SELECT
+                        COUNT(*) as total,
+                        MIN(timestamp) as oldest,
+                        MAX(timestamp) as newest
+                    FROM audit_log_entries
+                """)
+                audit_result = await self.db.execute(audit_query)
+                audit_row = audit_result.fetchone()
+
+                stats["audit_logs"] = {
+                    "status": "success",
+                    "total": audit_row.total,
+                    "oldest": audit_row.oldest.isoformat() if audit_row.oldest else None,
+                    "newest": audit_row.newest.isoformat() if audit_row.newest else None,
+                    "retention_days": DataRetentionPolicy.AUDIT_LOGS_RETENTION_DAYS,
+                    "note": "Audit logs are never automatically deleted"
+                }
+            else:
+                stats["audit_logs"] = {
+                    "status": "skipped",
+                    "reason": "audit_log_entries_table_not_found",
+                    "retention_days": DataRetentionPolicy.AUDIT_LOGS_RETENTION_DAYS,
+                    "note": "Audit logs are never automatically deleted"
+                }
             
             stats["generated_at"] = datetime.now(timezone.utc).isoformat()
             

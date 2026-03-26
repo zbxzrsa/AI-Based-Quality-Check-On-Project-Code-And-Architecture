@@ -13,7 +13,7 @@ import {
 import { Card } from '@/components/ui/card';
 
 interface BarChartProps {
-  data: any[];
+  data: Record<string, unknown>[];
   title: string;
   xAxisKey: string;
   bars: {

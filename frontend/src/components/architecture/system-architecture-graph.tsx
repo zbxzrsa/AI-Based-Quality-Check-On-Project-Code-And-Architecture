@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useMemo } from 'react';
 import ReactFlow, {
@@ -16,14 +16,12 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
     Monitor,
     Server,
     Database,
     HardDrive,
     Brain,
-    GitBranch,
     Activity,
     Shield,
     Search,
@@ -83,7 +81,15 @@ function getNodeIcon(type: string) {
 }
 
 // Custom System Node Component
-function SystemNode({ data }: { data: any }) {
+interface SystemNodeData {
+    label: string;
+    nodeType: string;
+    health: string;
+    description?: string;
+    nodeStyle?: { background?: string; borderColor?: string };
+}
+
+function SystemNode({ data }: { data: SystemNodeData }) {
     const healthBorder = {
         healthy: 'border-green-500',
         warning: 'border-yellow-500',
@@ -135,7 +141,15 @@ function SystemNode({ data }: { data: any }) {
 }
 
 // Group/Zone background node
-function GroupNode({ data }: { data: any }) {
+interface GroupNodeData {
+    label: string;
+    color?: string;
+    borderColor?: string;
+    width?: number;
+    height?: number;
+}
+
+function GroupNode({ data }: { data: GroupNodeData }) {
     return (
         <div
             className="rounded-2xl border-2 border-dashed"
@@ -184,7 +198,7 @@ export default function SystemArchitectureGraph({
     const initialNodes: Node[] = useMemo(() => {
         const rfNodes: Node[] = [];
 
-        // Group background nodes — positioned behind
+        // Group background nodes 鈥?positioned behind
         const groupPositions: Record<string, { x: number; y: number; w: number; h: number }> = {
             client: { x: 20, y: 0, w: 820, h: 100 },
             application: { x: 20, y: 120, w: 820, h: 200 },
@@ -314,15 +328,15 @@ export default function SystemArchitectureGraph({
                     <div className="flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 rounded-lg px-3 py-2 text-xs shadow-sm border">
                         <span className="flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-green-500" />
-                            正常
+                            Healthy
                         </span>
                         <span className="flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-yellow-500" />
-                            警告
+                            Warning
                         </span>
                         <span className="flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-red-500" />
-                            异常
+                            Critical
                         </span>
                         <span className="flex items-center gap-1 text-purple-600">
                             <span className="w-4 h-0 border-t-2 border-purple-500 border-dashed" />
@@ -334,3 +348,5 @@ export default function SystemArchitectureGraph({
         </Card>
     );
 }
+
+

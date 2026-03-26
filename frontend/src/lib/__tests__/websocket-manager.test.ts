@@ -420,7 +420,7 @@ describe('WebSocketManager', () => {
     it('should subscribe to performance updates', () => {
       manager.subscribeToPerformanceUpdates();
 
-      expect(mockSocket.emit).toHaveBeenCalledWith('subscribe:performance');
+      expect(mockSocket.emit).toHaveBeenCalledWith('subscribe:performance', undefined);
     });
 
     it('should handle project update events', () => {

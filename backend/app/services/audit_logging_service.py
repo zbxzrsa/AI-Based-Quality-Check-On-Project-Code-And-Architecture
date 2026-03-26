@@ -375,6 +375,38 @@ class AuditLoggingService:
             error_message=error_message,
             metadata=metadata or {},
         )
+
+    async def log_data_access(
+        self,
+        user_id: uuid.UUID,
+        user_email: str,
+        user_role: str,
+        action: str,
+        resource_type: str,
+        resource_id: uuid.UUID,
+        ip_address: str,
+        user_agent: str,
+        success: bool = True,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AuditLogEntry:
+        """Compatibility helper for access/export audit events."""
+        return await self._create_log_entry(
+            event_type=AuditEventType.DATA_EXPORT if action == "export" else f"data.access.{action}",
+            event_category="data",
+            severity="info" if success else "warning",
+            resource_type=resource_type,
+            resource_id=str(resource_id),
+            user_id=user_id,
+            user_email=user_email,
+            user_role=user_role,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            action=action,
+            description=f"User {user_email} performed {action} on {resource_type}:{resource_id}",
+            success=success,
+            error_message=None if success else "Data access action failed",
+            metadata=metadata or {},
+        )
     
     async def _create_log_entry(
         self,
@@ -772,3 +804,13 @@ class AuditLoggingService:
             "breaks": breaks,
             "verified_at": datetime.now(timezone.utc).isoformat(),
         }
+
+
+class AuditService:
+    """Legacy compatibility wrapper for older sync-style imports."""
+
+    @staticmethod
+    def log_action(*args, **kwargs):
+        from app.core.audit_service import UnifiedAuditService
+
+        return UnifiedAuditService.log_action(*args, **kwargs)

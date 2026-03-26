@@ -1,6 +1,7 @@
 'use client';
 
 import MainLayout from '@/components/layout/main-layout';
+import { PageHeader } from '@/components/layout/page-header';
 import { RBACGuard } from '@/components/auth/RBACGuard';
 import { Permission } from '@/types/rbac';
 import { Card } from '@/components/ui/card';
@@ -9,23 +10,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, User, Bell, Shield, Palette } from 'lucide-react';
+import { User, Bell, Shield, Palette } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
     <RBACGuard requiredPermission={Permission.MODIFY_CONFIG}>
       <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Settings className="h-8 w-8" />
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your account settings and preferences
-          </p>
-        </div>
+        <PageHeader
+          title="Settings"
+          description="Manage your account configuration, notification behavior, security options, and appearance using the same dashboard page structure."
+        />
 
         {/* Settings Tabs */}
         <Tabs defaultValue="profile" className="w-full">
@@ -50,7 +45,7 @@ export default function SettingsPage() {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -77,7 +72,7 @@ export default function SettingsPage() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Notification Preferences</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -123,7 +118,7 @@ export default function SettingsPage() {
 
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Change Password</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -142,7 +137,7 @@ export default function SettingsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Two-Factor Authentication</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Add an extra layer of security to your account
@@ -153,7 +148,7 @@ export default function SettingsPage() {
 
           {/* Appearance Tab */}
           <TabsContent value="appearance" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Theme Preferences</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">

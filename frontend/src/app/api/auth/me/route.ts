@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 // Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -16,13 +16,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     // Call backend to get current user
     const response = await fetch(`${BACKEND_URL}/api/v1/auth/me`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
-    });
+      signal: controller.signal,
+      cache: 'no-store',
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
       // Token might be expired, clear cookies
@@ -31,7 +36,7 @@ export async function GET(request: NextRequest) {
         cookieStore.delete('refresh_token');
       }
       
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ detail: 'Authentication failed' }));
       return NextResponse.json(error, { status: response.status });
     }
 
@@ -40,8 +45,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(
-      { detail: 'Internal server error' },
-      { status: 500 }
+      { detail: 'Authentication upstream unavailable' },
+      { status: 503 }
     );
   }
 }

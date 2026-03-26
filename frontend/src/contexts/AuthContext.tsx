@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Role, Permission } from '@/types/rbac';
+import { apiGet, apiPost } from '@/lib/api-client';
 
 // User type matching backend response
 type User = {
@@ -43,39 +44,13 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MODIFY_REVIEW,
     Permission.MODIFY_CONFIG,
   ],
-  [Role.DEVELOPER]: [
+  [Role.USER]: [
     Permission.VIEW_PROJECTS,
     Permission.CREATE_PROJECT,
     Permission.MODIFY_PROJECT,
     Permission.VIEW_REVIEWS,
     Permission.CREATE_REVIEW,
     Permission.MODIFY_REVIEW,
-  ],
-  [Role.REVIEWER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
-    Permission.CREATE_REVIEW,
-    Permission.MODIFY_REVIEW,
-  ],
-  [Role.COMPLIANCE_OFFICER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
-    Permission.MODIFY_CONFIG,
-  ],
-  [Role.MANAGER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_USERS,
-    Permission.VIEW_REVIEWS,
-  ],
-  [Role.PROGRAMMER]: [
-    Permission.VIEW_PROJECTS,
-    Permission.CREATE_PROJECT,
-    Permission.MODIFY_PROJECT,
-    Permission.VIEW_REVIEWS,
-  ],
-  [Role.VISITOR]: [
-    Permission.VIEW_PROJECTS,
-    Permission.VIEW_REVIEWS,
   ],
 };
 
@@ -104,33 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch current user from backend using httpOnly cookie
   const fetchCurrentUser = useCallback(async () => {
     try {
-      console.log('[AuthContext] Fetching current user from /api/auth/me');
-      
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
-        credentials: 'include', // Include httpOnly cookies
+      const userData = await apiGet<User>('/api/auth/me', {
+        cache: 'no-store',
+        timeoutMs: 8000,
       });
-
-      console.log('[AuthContext] /api/auth/me response:', response.status);
-
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('[AuthContext] User data received:', userData);
-        setUser(userData);
-        return true;
-      } else {
-        // 401 is expected when not logged in, don't log as error
-        if (response.status === 401) {
-          console.log('[AuthContext] No active session found');
-        } else {
-          const errorData = await response.text();
-          console.error('[AuthContext] Failed to fetch user:', response.status, errorData);
-        }
-        setUser(null);
-        return false;
-      }
-    } catch (error) {
-      console.error('[AuthContext] Error fetching current user:', error);
+      setUser(userData);
+      return true;
+    } catch {
       setUser(null);
       return false;
     }
@@ -139,22 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Refresh access token using refresh token in httpOnly cookie
   const refreshToken = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include', // Include httpOnly cookies
+      await apiPost('/api/auth/refresh', undefined, {
+        cache: 'no-store',
+        timeoutMs: 8000,
       });
-
-      if (response.ok) {
-        // Token refreshed successfully, fetch updated user data
-        await fetchCurrentUser();
-        return true;
-      } else {
-        // Refresh failed, user needs to log in again
-        setUser(null);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error refreshing token:', error);
+      await fetchCurrentUser();
+      return true;
+    } catch {
       setUser(null);
       return false;
     }
@@ -195,45 +141,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string, returnUrl?: string) => {
     setLoading(true);
     try {
-      console.log('[AuthContext] Starting login...', { email, returnUrl });
-      
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include httpOnly cookies
-        body: JSON.stringify({ email, password }),
-      });
-
-      console.log('[AuthContext] Login response:', response.status);
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('[AuthContext] Login failed:', error);
-        throw new Error(error.detail || error.message || 'Login failed');
-      }
-
-      const loginData = await response.json();
-      console.log('[AuthContext] Login successful:', loginData);
+      await apiPost('/api/auth/login', { email, password }, { timeoutMs: 8000 });
 
       // Fetch user data after successful login
-      console.log('[AuthContext] Fetching current user...');
       const userFetched = await fetchCurrentUser();
-      console.log('[AuthContext] User fetched:', userFetched);
       
       if (!userFetched) {
-        console.error('[AuthContext] Failed to fetch user data after login');
         throw new Error('Failed to fetch user data');
       }
       
       // Redirect to returnUrl if provided, otherwise to dashboard
       const redirectUrl = returnUrl || '/dashboard';
-      console.log('[AuthContext] Redirecting to:', redirectUrl);
       router.push(redirectUrl);
-    } catch (error) {
-      console.error('[AuthContext] Login error:', error);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -242,25 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password, name }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || error.message || 'Registration failed');
-      }
+      await apiPost('/api/auth/register', { email, password, name }, { timeoutMs: 8000 });
 
       // After successful registration, log the user in
       await login(email, password);
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -275,18 +179,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshTimerRef.current = null;
       }
 
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await apiPost('/api/auth/logout', undefined, { timeoutMs: 8000 });
 
       setUser(null);
       setRole(null);
       setPermissions([]);
       router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
     } finally {
       setLoading(false);
     }

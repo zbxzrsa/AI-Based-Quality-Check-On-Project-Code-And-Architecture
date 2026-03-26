@@ -12,7 +12,7 @@
  * **Validates: Requirements 3.1, 3.5**
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { ChevronDown, ChevronRight, MessageSquare, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import DOMPurify from 'dompurify';
 

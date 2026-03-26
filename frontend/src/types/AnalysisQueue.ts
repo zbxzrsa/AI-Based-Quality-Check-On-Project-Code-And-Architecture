@@ -43,6 +43,7 @@ export interface ScheduleResult {
 
 export interface RetrySchedule {
   taskId: string;
-  scheduledTime: Date;
   retryCount: number;
+  nextRetryTime: Date;
+  retryDelay: number;
 }

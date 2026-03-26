@@ -1,8 +1,7 @@
 'use client'
 
-import { Navbar } from './navbar'
-import { Sidebar } from './sidebar'
 import { Footer } from './footer'
+import { Sidebar } from './sidebar'
 import { cn } from '@/lib/utils'
 
 interface MainLayoutProps {
@@ -12,12 +11,13 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, className }: MainLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <div className="flex flex-1">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div className="flex min-h-0 flex-1">
         <Sidebar />
-        <main className={cn('flex-1 overflow-y-auto', className)}>
-          <div className="container py-6">{children}</div>
+        <main className={cn('min-w-0 flex-1 overflow-auto bg-background', className)}>
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <div className="space-y-6">{children}</div>
+          </div>
         </main>
       </div>
       <Footer />
@@ -25,5 +25,4 @@ export function MainLayout({ children, className }: MainLayoutProps) {
   )
 }
 
-// Default export for backward compatibility
-export default MainLayout;
+export default MainLayout

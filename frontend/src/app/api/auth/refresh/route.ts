@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 // Use BACKEND_URL for server-side (Docker network), fallback to NEXT_PUBLIC_BACKEND_URL for local dev
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const refreshToken = cookieStore.get('refresh_token')?.value;
@@ -16,6 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     // Call backend refresh endpoint
     const response = await fetch(`${BACKEND_URL}/api/v1/auth/refresh`, {
       method: 'POST',
@@ -23,14 +26,16 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
-    });
+      signal: controller.signal,
+      cache: 'no-store',
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
       // Refresh token is invalid or expired, clear cookies
       cookieStore.delete('access_token');
       cookieStore.delete('refresh_token');
       
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ detail: 'Token refresh failed' }));
       return NextResponse.json(error, { status: response.status });
     }
 
@@ -60,8 +65,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Token refresh error:', error);
     return NextResponse.json(
-      { detail: 'Internal server error' },
-      { status: 500 }
+      { detail: 'Authentication upstream unavailable' },
+      { status: 503 }
     );
   }
 }

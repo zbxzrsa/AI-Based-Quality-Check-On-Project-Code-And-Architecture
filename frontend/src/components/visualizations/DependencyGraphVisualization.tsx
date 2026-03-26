@@ -37,19 +37,8 @@ import {
   Info,
   Lock
 } from 'lucide-react';
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  ConnectionMode,
-  MarkerType,
-  Panel,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
 import { apiClientEnhanced as apiClient } from '@/lib/api-client';
+import ForceGraph2D from './ForceGraph2D';
 import { 
   validateDependencyGraph, 
   type DependencyGraph,
@@ -57,6 +46,7 @@ import {
 } from '@/lib/validations/api-schemas';
 import { ErrorHandler } from '@/lib/error-handler';
 import { featureFlagsService } from '@/lib/feature-flags';
+import { NativeWebSocketManager } from '@/lib/websocket-manager';
 
 // Types - Extended from API types for visualization
 interface GraphNode extends Omit<ApiNode, 'type'> {
@@ -86,6 +76,15 @@ interface CircularDependency {
   nodes: string[];
   severity: 'low' | 'medium' | 'high';
   description: string;
+}
+
+interface ForceGraphInstance {
+  zoom: (value: number, duration?: number) => void;
+  zoomToFit: (duration?: number) => void;
+}
+
+interface AnalysisUpdateMessage {
+  type: 'analysis_progress' | 'analysis_complete' | string;
 }
 
 interface DependencyGraphVisualizationProps {
@@ -215,8 +214,7 @@ export default function DependencyGraphVisualization({
   const [renderMode, setRenderMode] = useState<'full' | 'lod'>('full');
   
   // Refs
-  const graphRef = useRef<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const graphRef = useRef<ForceGraphInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Set render mode based on graph size
@@ -241,56 +239,51 @@ export default function DependencyGraphVisualization({
   useEffect(() => {
     if (!websocketUrl) return;
 
-    const connectWebSocket = () => {
+    const manager = new NativeWebSocketManager({
+      url: websocketUrl,
+      autoConnect: false,
+    });
+
+    const handleConnected = () => {
+      setIsConnected(true);
+      setError(null);
+    };
+
+    const handleDisconnected = () => {
+      setIsConnected(false);
+    };
+
+    const handleMessage = (rawMessage: unknown) => {
       try {
-        const ws = new WebSocket(websocketUrl);
-        
-        ws.onopen = () => {
-          console.log('WebSocket connected');
-          setIsConnected(true);
-          setError(null);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            handleWebSocketMessage(data);
-          } catch (err) {
-            console.error('Failed to parse WebSocket message:', err);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setError('WebSocket connection error');
-          setIsConnected(false);
-        };
-
-        ws.onclose = () => {
-          console.log('WebSocket disconnected');
-          setIsConnected(false);
-          // Attempt to reconnect after 5 seconds
-          setTimeout(connectWebSocket, 5000);
-        };
-
-        wsRef.current = ws;
-      } catch (err) {
-        console.error('Failed to create WebSocket:', err);
-        setError('Failed to establish WebSocket connection');
+        const data = JSON.parse(String(rawMessage)) as AnalysisUpdateMessage;
+        handleWebSocketMessage(data);
+      } catch {
+        setError('Failed to parse WebSocket message');
       }
     };
 
-    connectWebSocket();
+    const handleSocketError = () => {
+      setError('WebSocket connection error');
+      setIsConnected(false);
+    };
+
+    manager.on('connected', handleConnected);
+    manager.on('disconnected', handleDisconnected);
+    manager.on('message', handleMessage);
+    manager.on('error', handleSocketError);
+    manager.connect();
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      manager.off('connected', handleConnected);
+      manager.off('disconnected', handleDisconnected);
+      manager.off('message', handleMessage);
+      manager.off('error', handleSocketError);
+      manager.disconnect();
     };
-  }, [websocketUrl]);
+  }, [websocketUrl, handleWebSocketMessage]);
 
   // Handle WebSocket messages for real-time updates
-  const handleWebSocketMessage = useCallback((data: any) => {
+  const handleWebSocketMessage = useCallback((data: AnalysisUpdateMessage) => {
     if (data.type === 'analysis_progress' || data.type === 'analysis_complete') {
       // Refetch data when analysis updates
       refetch();
@@ -648,12 +641,12 @@ export default function DependencyGraphVisualization({
               <ForceGraph2D
                 ref={graphRef}
                 graphData={filteredData}
-                nodeLabel={(node: any) => `${node.name}${node.inCycle ? ' (In Cycle)' : ''}`}
+                nodeLabel={(node) => `${node.name}${node.inCycle ? ' (In Cycle)' : ''}`}
                 nodeColor={getNodeColor}
                 nodeRelSize={6}
-                nodeVal={(node: any) => node.size}
+                nodeVal={(node) => node.size}
                 linkColor={getLinkColor}
-                linkWidth={(link: any) => link.weight}
+                linkWidth={(link) => link.weight}
                 linkDirectionalArrowLength={3.5}
                 linkDirectionalArrowRelPos={1}
                 onNodeClick={handleNodeClick}
@@ -664,7 +657,7 @@ export default function DependencyGraphVisualization({
                 enablePanInteraction={true}
                 minZoom={0.1}
                 maxZoom={10}
-                onZoom={(zoom) => setZoomLevel(zoom.k)}
+                onZoom={(zoom: { k: number }) => setZoomLevel(zoom.k)}
               />
               
               {/* Zoom Controls Overlay */}

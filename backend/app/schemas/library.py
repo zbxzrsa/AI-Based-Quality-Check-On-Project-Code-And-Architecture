@@ -3,7 +3,7 @@ Pydantic schemas for library management
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from app.models.library import RegistryType, ProjectContext
 
@@ -41,6 +41,8 @@ class LibraryMetadata(BaseModel):
 
 class InstalledLibrary(BaseModel):
     """Installed library information"""
+    model_config = ConfigDict(from_attributes=True)
+
     id: Optional[int] = None
     project_id: str
     name: str
@@ -53,9 +55,6 @@ class InstalledLibrary(BaseModel):
     installed_by: str
     uri: str
     metadata: Optional[Dict[str, Any]] = None
-
-    class Config:
-        from_attributes = True
 
 
 # ============================================================================

@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { DashboardFormData, TimeRange } from '../types/dashboard';
+import { DashboardFormData } from '../types/dashboard';
 
 interface DashboardModalProps {
   isOpen: boolean;
@@ -27,6 +27,8 @@ export const DashboardModal: React.FC<DashboardModalProps> = ({
   availableMetrics,
   mode
 }) => {
+  type TimeUnit = NonNullable<DashboardFormData['timeRange']['unit']>;
+
   const [formData, setFormData] = useState<DashboardFormData>({
     name: '',
     description: '',
@@ -202,7 +204,7 @@ export const DashboardModal: React.FC<DashboardModalProps> = ({
                   value={formData.timeRange.unit || 'day'}
                   onChange={(e) => setFormData({
                     ...formData,
-                    timeRange: { ...formData.timeRange, unit: e.target.value as any }
+                    timeRange: { ...formData.timeRange, unit: e.target.value as TimeUnit }
                   })}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >

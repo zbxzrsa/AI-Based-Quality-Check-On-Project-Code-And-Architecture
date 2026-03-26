@@ -51,7 +51,15 @@ class PullRequest(Base):
     files_changed = Column(Integer, default=0)
     lines_added = Column(Integer, default=0)
     lines_deleted = Column(Integer, default=0)
-    status = Column(Enum(PRStatus), default=PRStatus.PENDING, nullable=False)
+    status = Column(
+        Enum(
+            PRStatus,
+            name="pr_status",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=PRStatus.PENDING,
+        nullable=False,
+    )
     risk_score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

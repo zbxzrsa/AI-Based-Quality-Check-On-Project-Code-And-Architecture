@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/main-layout';
+import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import {
   EyeOff,
   Save,
   Trash2,
+  UserCircle2,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
@@ -35,8 +37,42 @@ interface APISettings {
   openrouter_api_key_set: boolean;
   openai_api_key_set: boolean;
   anthropic_api_key_set: boolean;
+  deepseek_api_key_set: boolean;
+  google_api_key_set: boolean;
+  chatglm_api_key_set: boolean;
+  ollama_base_url: string | null;
+  ollama_model: string | null;
+  lmstudio_base_url: string | null;
+  lmstudio_model: string | null;
+  deepseek_base_url: string | null;
+  deepseek_model: string | null;
+  google_base_url: string | null;
+  google_model: string | null;
+  chatglm_base_url: string | null;
+  chatglm_model: string | null;
   default_llm_provider: string | null;
   default_llm_model: string | null;
+}
+
+interface APISettingsUpdatePayload {
+  default_llm_provider: string;
+  default_llm_model: string;
+  openrouter_api_key?: string;
+  openai_api_key?: string;
+  anthropic_api_key?: string;
+  deepseek_api_key?: string;
+  google_api_key?: string;
+  chatglm_api_key?: string;
+  ollama_base_url?: string;
+  ollama_model?: string;
+  lmstudio_base_url?: string;
+  lmstudio_model?: string;
+  deepseek_base_url?: string;
+  deepseek_model?: string;
+  google_base_url?: string;
+  google_model?: string;
+  chatglm_base_url?: string;
+  chatglm_model?: string;
 }
 
 export default function ProfilePage() {
@@ -46,6 +82,9 @@ export default function ProfilePage() {
     openrouter: false,
     openai: false,
     anthropic: false,
+    deepseek: false,
+    google: false,
+    chatglm: false,
   });
 
   // API Settings State
@@ -53,6 +92,19 @@ export default function ProfilePage() {
     openrouter_api_key_set: false,
     openai_api_key_set: false,
     anthropic_api_key_set: false,
+    deepseek_api_key_set: false,
+    google_api_key_set: false,
+    chatglm_api_key_set: false,
+    ollama_base_url: null,
+    ollama_model: null,
+    lmstudio_base_url: null,
+    lmstudio_model: null,
+    deepseek_base_url: null,
+    deepseek_model: null,
+    google_base_url: null,
+    google_model: null,
+    chatglm_base_url: null,
+    chatglm_model: null,
     default_llm_provider: null,
     default_llm_model: null,
   });
@@ -61,10 +113,35 @@ export default function ProfilePage() {
     openrouter: '',
     openai: '',
     anthropic: '',
+    deepseek: '',
+    google: '',
+    chatglm: '',
+  });
+
+  const [endpointSettings, setEndpointSettings] = useState({
+    ollama_base_url: '',
+    ollama_model: '',
+    lmstudio_base_url: '',
+    lmstudio_model: '',
+    deepseek_base_url: '',
+    deepseek_model: '',
+    google_base_url: '',
+    google_model: '',
+    chatglm_base_url: '',
+    chatglm_model: '',
   });
 
   const [defaultProvider, setDefaultProvider] = useState('openrouter');
   const [defaultModel, setDefaultModel] = useState('anthropic/claude-3.5-sonnet');
+
+  const getApiErrorMessage = (error: unknown, fallback: string) => {
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+      const response = (error as { response?: { data?: { detail?: string } } }).response;
+      return response?.data?.detail || fallback;
+    }
+
+    return fallback;
+  };
 
   const loadAPISettings = async () => {
     try {
@@ -76,7 +153,19 @@ export default function ProfilePage() {
       if (settings.default_llm_model) {
         setDefaultModel(settings.default_llm_model);
       }
-    } catch (error) {
+      setEndpointSettings({
+        ollama_base_url: settings.ollama_base_url || '',
+        ollama_model: settings.ollama_model || '',
+        lmstudio_base_url: settings.lmstudio_base_url || '',
+        lmstudio_model: settings.lmstudio_model || '',
+        deepseek_base_url: settings.deepseek_base_url || '',
+        deepseek_model: settings.deepseek_model || '',
+        google_base_url: settings.google_base_url || '',
+        google_model: settings.google_model || '',
+        chatglm_base_url: settings.chatglm_base_url || '',
+        chatglm_model: settings.chatglm_model || '',
+      });
+    } catch {
       // API settings endpoint may not exist, ignore gracefully
     }
   };
@@ -89,7 +178,7 @@ export default function ProfilePage() {
   const handleSaveAPISettings = async () => {
     setIsLoading(true);
     try {
-      const updateData: any = {
+      const updateData: APISettingsUpdatePayload = {
         default_llm_provider: defaultProvider,
         default_llm_model: defaultModel,
       };
@@ -104,6 +193,26 @@ export default function ProfilePage() {
       if (apiKeys.anthropic) {
         updateData.anthropic_api_key = apiKeys.anthropic;
       }
+      if (apiKeys.deepseek) {
+        updateData.deepseek_api_key = apiKeys.deepseek;
+      }
+      if (apiKeys.google) {
+        updateData.google_api_key = apiKeys.google;
+      }
+      if (apiKeys.chatglm) {
+        updateData.chatglm_api_key = apiKeys.chatglm;
+      }
+
+      updateData.ollama_base_url = endpointSettings.ollama_base_url;
+      updateData.ollama_model = endpointSettings.ollama_model;
+      updateData.lmstudio_base_url = endpointSettings.lmstudio_base_url;
+      updateData.lmstudio_model = endpointSettings.lmstudio_model;
+      updateData.deepseek_base_url = endpointSettings.deepseek_base_url;
+      updateData.deepseek_model = endpointSettings.deepseek_model;
+      updateData.google_base_url = endpointSettings.google_base_url;
+      updateData.google_model = endpointSettings.google_model;
+      updateData.chatglm_base_url = endpointSettings.chatglm_base_url;
+      updateData.chatglm_model = endpointSettings.chatglm_model;
 
       await apiClient.put('/user/settings/api-settings', updateData);
 
@@ -113,12 +222,19 @@ export default function ProfilePage() {
       });
 
       // Clear input fields and reload settings
-      setApiKeys({ openrouter: '', openai: '', anthropic: '' });
+      setApiKeys({
+        openrouter: '',
+        openai: '',
+        anthropic: '',
+        deepseek: '',
+        google: '',
+        chatglm: '',
+      });
       await loadAPISettings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to save API settings',
+        description: getApiErrorMessage(error, 'Failed to save API settings'),
         variant: 'destructive',
       });
     } finally {
@@ -141,10 +257,10 @@ export default function ProfilePage() {
       });
 
       await loadAPISettings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to delete API key',
+        description: getApiErrorMessage(error, 'Failed to delete API key'),
         variant: 'destructive',
       });
     } finally {
@@ -198,8 +314,13 @@ export default function ProfilePage() {
   return (
     <MainLayout>
       <div className="space-y-6">
+        <PageHeader
+          title="Profile"
+          description="Manage your personal workspace, recent review activity, and AI provider configuration inside the unified dashboard shell."
+        />
+
         {/* Profile Header */}
-        <Card className="p-6">
+        <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
               <div className="h-full w-full rounded-full bg-primary flex items-center justify-center text-primary-foreground text-3xl font-bold">
@@ -210,7 +331,10 @@ export default function ProfilePage() {
               </div>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold">{user.name}</h1>
+              <div className="flex items-center gap-2">
+                <UserCircle2 className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+                <h2 className="text-3xl font-bold">{user.name}</h2>
+              </div>
               <div className="flex items-center gap-4 mt-2 text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
@@ -228,7 +352,7 @@ export default function ProfilePage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-6">
+          <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Reviews</p>
@@ -238,7 +362,7 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved PRs</p>
@@ -248,7 +372,7 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending Reviews</p>
@@ -258,7 +382,7 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Critical Issues</p>
@@ -279,7 +403,7 @@ export default function ProfilePage() {
           </TabsList>
 
           <TabsContent value="activity" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
               <div className="space-y-4">
                 {recentActivity.map((activity) => (
@@ -316,7 +440,7 @@ export default function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="api-settings" className="space-y-4">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <div className="flex items-center gap-2 mb-6">
                 <Key className="h-5 w-5" />
                 <h3 className="text-lg font-semibold">API Configuration</h3>
@@ -338,6 +462,11 @@ export default function ProfilePage() {
                       <SelectItem value="openrouter">OpenRouter</SelectItem>
                       <SelectItem value="openai">OpenAI</SelectItem>
                       <SelectItem value="anthropic">Anthropic</SelectItem>
+                      <SelectItem value="deepseek">DeepSeek</SelectItem>
+                      <SelectItem value="google">Google Gemini</SelectItem>
+                      <SelectItem value="chatglm">ChatGLM</SelectItem>
+                      <SelectItem value="ollama">Ollama</SelectItem>
+                      <SelectItem value="lmstudio">LM Studio</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -519,6 +648,174 @@ export default function ProfilePage() {
                       </a>
                     </p>
                   </div>
+
+                  {/* DeepSeek API Key */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <Label>DeepSeek API Key</Label>
+                      {apiSettings.deepseek_api_key_set && (
+                        <Badge variant="success" className="text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Configured
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type={showKeys.deepseek ? 'text' : 'password'}
+                          value={apiKeys.deepseek}
+                          onChange={(e) => setApiKeys({ ...apiKeys, deepseek: e.target.value })}
+                          placeholder="sk-..."
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={() => setShowKeys({ ...showKeys, deepseek: !showKeys.deepseek })}
+                        >
+                          {showKeys.deepseek ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {apiSettings.deepseek_api_key_set && (
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteAPIKey('deepseek')} disabled={isLoading}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Google API Key */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Google Gemini API Key</Label>
+                      {apiSettings.google_api_key_set && (
+                        <Badge variant="success" className="text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Configured
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type={showKeys.google ? 'text' : 'password'}
+                          value={apiKeys.google}
+                          onChange={(e) => setApiKeys({ ...apiKeys, google: e.target.value })}
+                          placeholder="AIza..."
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={() => setShowKeys({ ...showKeys, google: !showKeys.google })}
+                        >
+                          {showKeys.google ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {apiSettings.google_api_key_set && (
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteAPIKey('google')} disabled={isLoading}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ChatGLM API Key */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <Label>ChatGLM API Key</Label>
+                      {apiSettings.chatglm_api_key_set && (
+                        <Badge variant="success" className="text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Configured
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type={showKeys.chatglm ? 'text' : 'password'}
+                          value={apiKeys.chatglm}
+                          onChange={(e) => setApiKeys({ ...apiKeys, chatglm: e.target.value })}
+                          placeholder="your-chatglm-key"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={() => setShowKeys({ ...showKeys, chatglm: !showKeys.chatglm })}
+                        >
+                          {showKeys.chatglm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {apiSettings.chatglm_api_key_set && (
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteAPIKey('chatglm')} disabled={isLoading}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Endpoint Settings */}
+                  <div className="space-y-3 mb-4">
+                    <Label>Local/Compatible Endpoint Settings</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input
+                        value={endpointSettings.ollama_base_url}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, ollama_base_url: e.target.value })}
+                        placeholder="Ollama base URL (e.g. http://localhost:11434)"
+                      />
+                      <Input
+                        value={endpointSettings.ollama_model}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, ollama_model: e.target.value })}
+                        placeholder="Ollama model (e.g. llama3.1)"
+                      />
+                      <Input
+                        value={endpointSettings.lmstudio_base_url}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, lmstudio_base_url: e.target.value })}
+                        placeholder="LM Studio base URL (e.g. http://localhost:1234/v1)"
+                      />
+                      <Input
+                        value={endpointSettings.lmstudio_model}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, lmstudio_model: e.target.value })}
+                        placeholder="LM Studio model"
+                      />
+                      <Input
+                        value={endpointSettings.deepseek_base_url}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, deepseek_base_url: e.target.value })}
+                        placeholder="DeepSeek base URL"
+                      />
+                      <Input
+                        value={endpointSettings.deepseek_model}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, deepseek_model: e.target.value })}
+                        placeholder="DeepSeek model"
+                      />
+                      <Input
+                        value={endpointSettings.google_base_url}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, google_base_url: e.target.value })}
+                        placeholder="Google base URL"
+                      />
+                      <Input
+                        value={endpointSettings.google_model}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, google_model: e.target.value })}
+                        placeholder="Google model"
+                      />
+                      <Input
+                        value={endpointSettings.chatglm_base_url}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, chatglm_base_url: e.target.value })}
+                        placeholder="ChatGLM base URL"
+                      />
+                      <Input
+                        value={endpointSettings.chatglm_model}
+                        onChange={(e) => setEndpointSettings({ ...endpointSettings, chatglm_model: e.target.value })}
+                        placeholder="ChatGLM model"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Save Button */}
@@ -532,7 +829,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* Security Notice */}
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <Card className="border-blue-200 bg-blue-50/90 p-4 dark:border-blue-800 dark:bg-blue-950/30">
               <div className="flex gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
@@ -548,7 +845,7 @@ export default function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="projects">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Your Projects</h3>
               <p className="text-muted-foreground">
                 Projects you're contributing to will appear here.
@@ -557,7 +854,7 @@ export default function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="achievements">
-            <Card className="p-6">
+            <Card className="border-white/70 bg-white/80 p-6 dark:border-white/10 dark:bg-slate-950/60">
               <h3 className="text-lg font-semibold mb-4">Achievements</h3>
               <p className="text-muted-foreground">
                 Your achievements and badges will appear here.

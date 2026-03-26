@@ -1,7 +1,9 @@
 """
 RBAC Project Management endpoints.
 """
+import asyncio
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
@@ -79,6 +81,27 @@ class MessageResponse(BaseModel):
     message: str
 
 
+def _serialize_project(project: Project) -> ProjectResponse:
+    return ProjectResponse(
+        id=str(getattr(project, 'id')),
+        name=getattr(project, 'name'),
+        description=getattr(project, 'description'),
+        owner_id=str(getattr(project, 'owner_id')),
+        github_repo_url=getattr(project, 'github_repo_url'),
+        github_connection_type=getattr(project, 'github_connection_type').value if getattr(project, 'github_connection_type') else "https",
+        github_ssh_key_id=str(getattr(project, 'github_ssh_key_id')) if getattr(project, 'github_ssh_key_id') else None,
+        language=getattr(project, 'language'),
+        is_active=getattr(project, 'is_active'),
+        created_at=getattr(project, 'created_at').isoformat(),
+        updated_at=getattr(project, 'updated_at').isoformat()
+    )
+
+
+def _get_request_metadata(request: Request) -> tuple[str, Optional[str]]:
+    ip_address = request.client.host if request.client else "0.0.0.0"
+    return ip_address, request.headers.get("user-agent")
+
+
 async def _validate_github_connection(project_data: CreateProjectRequest, user_id: str, db: AsyncSession):
     """Validate GitHub connection configuration."""
     if not project_data.github_repo_url:
@@ -117,54 +140,45 @@ async def _validate_github_connection(project_data: CreateProjectRequest, user_i
 
 
 # Async wrappers for RBACService methods
-async def _grant_project_access(db: AsyncSession, project_id: str, user_id: str, granted_by: str) -> bool:
-    """Async wrapper for RBACService.grant_project_access"""
+async def _run_sync_rbac(db: AsyncSession, operation_name: str, method_name: str, **kwargs) -> bool:
+    """Run sync RBAC service calls through an executor to preserve async endpoint contracts."""
     try:
-        # Use run_in_executor to call sync RBAC method
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
+        rbac_method = getattr(RBACService, method_name)
+        loop = asyncio.get_running_loop()
 
-        def sync_grant():
-            sync_session = db.sync_session
-            return RBACService.grant_project_access(
-                db=sync_session,
-                project_id=project_id,
-                user_id=user_id,
-                granted_by=granted_by
+        with ThreadPoolExecutor() as executor:
+            return await loop.run_in_executor(
+                executor,
+                lambda: rbac_method(db=db.sync_session, **kwargs),
             )
 
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            return await loop.run_in_executor(executor, sync_grant)
-
     except Exception as e:
-        logger.warning(f"Failed to grant project access: {str(e)}")
+        logger.warning(f"Failed to {operation_name}: {str(e)}")
         return False
+
+
+async def _grant_project_access(db: AsyncSession, project_id: str, user_id: str, granted_by: str) -> bool:
+    """Async wrapper for RBACService.grant_project_access"""
+    return await _run_sync_rbac(
+        db,
+        "grant project access",
+        "grant_project_access",
+        project_id=project_id,
+        user_id=user_id,
+        granted_by=granted_by,
+    )
 
 
 async def _revoke_project_access(db: AsyncSession, project_id: str, user_id: str, revoked_by: str) -> bool:
     """Async wrapper for RBACService.revoke_project_access"""
-    try:
-        # Use run_in_executor to call sync RBAC method
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-
-        def sync_revoke():
-            sync_session = db.sync_session
-            return RBACService.revoke_project_access(
-                db=sync_session,
-                project_id=project_id,
-                user_id=user_id,
-                revoked_by=revoked_by
-            )
-
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            return await loop.run_in_executor(executor, sync_revoke)
-
-    except Exception as e:
-        logger.warning(f"Failed to revoke project access: {str(e)}")
-        return False
+    return await _run_sync_rbac(
+        db,
+        "revoke project access",
+        "revoke_project_access",
+        project_id=project_id,
+        user_id=user_id,
+        revoked_by=revoked_by,
+    )
 
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -199,7 +213,7 @@ async def create_project(
             if existing_result.scalar_one_or_none():
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="该 GitHub 仓库 URL 已被关联到另一个项目，请勿重复添加"
+                    detail="This GitHub repository URL is already linked to another project."
                 )
 
         # Validate GitHub connection configuration
@@ -230,12 +244,12 @@ async def create_project(
         )
 
         db.add(new_project)
-        await db.flush()  # flush instead of commit — let get_db handle the commit
+        await db.flush()  # Flush here and let get_db handle the commit.
         await db.refresh(new_project)
 
         # Log audit event (non-critical, don't crash if it fails)
         try:
-            ip_address = request.client.host if request.client else "0.0.0.0"
+            ip_address, user_agent = _get_request_metadata(request)
             await _log_audit_action(
                 db=db,
                 user_id=current_user.user_id,
@@ -245,24 +259,12 @@ async def create_project(
                 success=True,
                 resource_type="Project",
                 resource_id=str(new_project.id),
-                user_agent=request.headers.get("user-agent")
+                user_agent=user_agent
             )
         except Exception as audit_err:
             logger.warning(f"Audit log failed (non-critical): {audit_err}")
 
-        return ProjectResponse(
-            id=str(getattr(new_project, 'id')),
-            name=getattr(new_project, 'name'),
-            description=getattr(new_project, 'description'),
-            owner_id=str(getattr(new_project, 'owner_id')),
-            github_repo_url=getattr(new_project, 'github_repo_url'),
-            github_connection_type=getattr(new_project, 'github_connection_type').value if getattr(new_project, 'github_connection_type') else "https",
-            github_ssh_key_id=str(getattr(new_project, 'github_ssh_key_id')) if getattr(new_project, 'github_ssh_key_id') else None,
-            language=getattr(new_project, 'language'),
-            is_active=getattr(new_project, 'is_active'),
-            created_at=getattr(new_project, 'created_at').isoformat(),
-            updated_at=getattr(new_project, 'updated_at').isoformat()
-        )
+        return _serialize_project(new_project)
 
     except HTTPException:
         raise
@@ -273,7 +275,7 @@ async def create_project(
             await db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="该 GitHub 仓库 URL 已被关联到另一个项目，请勿重复添加"
+                detail="This GitHub repository URL is already linked to another project."
             )
         logger.error(f"Error creating project: {type(e).__name__}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -330,19 +332,7 @@ async def list_projects(
         projects = list({p.id: p for p in list(owned_projects) + list(granted_projects)}.values())
     
     return [
-        ProjectResponse(
-            id=str(getattr(project, 'id')),
-            name=getattr(project, 'name'),
-            description=getattr(project, 'description'),
-            owner_id=str(getattr(project, 'owner_id')),
-            github_repo_url=getattr(project, 'github_repo_url'),
-            github_connection_type=getattr(project, 'github_connection_type').value if getattr(project, 'github_connection_type') else "https",
-            github_ssh_key_id=str(getattr(project, 'github_ssh_key_id')) if getattr(project, 'github_ssh_key_id') else None,
-            language=getattr(project, 'language'),
-            is_active=getattr(project, 'is_active'),
-            created_at=getattr(project, 'created_at').isoformat(),
-            updated_at=getattr(project, 'updated_at').isoformat()
-        )
+        _serialize_project(project)
         for project in projects
     ]
 
@@ -367,19 +357,7 @@ async def get_project(
             detail="Project not found"
         )
     
-    return ProjectResponse(
-        id=str(getattr(project, 'id')),
-        name=getattr(project, 'name'),
-        description=getattr(project, 'description'),
-        owner_id=str(getattr(project, 'owner_id')),
-        github_repo_url=getattr(project, 'github_repo_url'),
-        github_connection_type=getattr(project, 'github_connection_type').value if getattr(project, 'github_connection_type') else "https",
-        github_ssh_key_id=str(getattr(project, 'github_ssh_key_id')) if getattr(project, 'github_ssh_key_id') else None,
-        language=getattr(project, 'language'),
-        is_active=getattr(project, 'is_active'),
-        created_at=getattr(project, 'created_at').isoformat(),
-        updated_at=getattr(project, 'updated_at').isoformat()
-    )
+    return _serialize_project(project)
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
@@ -419,7 +397,7 @@ async def update_project(
     await db.refresh(project)
     
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address, user_agent = _get_request_metadata(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -429,22 +407,10 @@ async def update_project(
         success=True,
         resource_type="Project",
         resource_id=project_id,
-        user_agent=request.headers.get("user-agent")
+        user_agent=user_agent
     )
     
-    return ProjectResponse(
-        id=str(getattr(project, 'id')),
-        name=getattr(project, 'name'),
-        description=getattr(project, 'description'),
-        owner_id=str(getattr(project, 'owner_id')),
-        github_repo_url=getattr(project, 'github_repo_url'),
-        github_connection_type=getattr(project, 'github_connection_type').value if getattr(project, 'github_connection_type') else "https",
-        github_ssh_key_id=str(getattr(project, 'github_ssh_key_id')) if getattr(project, 'github_ssh_key_id') else None,
-        language=getattr(project, 'language'),
-        is_active=getattr(project, 'is_active'),
-        created_at=getattr(project, 'created_at').isoformat(),
-        updated_at=getattr(project, 'updated_at').isoformat()
-    )
+    return _serialize_project(project)
 
 
 @router.delete("/{project_id}", response_model=MessageResponse)
@@ -552,7 +518,7 @@ async def delete_project(
 
         # Log action
         try:
-            ip_address = request.client.host if request.client else "0.0.0.0"
+            ip_address, user_agent = _get_request_metadata(request)
             await _log_audit_action(
                 db=db,
                 user_id=current_user.user_id,
@@ -562,7 +528,7 @@ async def delete_project(
                 success=True,
                 resource_type="Project",
                 resource_id=project_id,
-                user_agent=request.headers.get("user-agent")
+                user_agent=user_agent
             )
         except Exception as audit_error:
             logger.warning(f"Failed to log audit action: {audit_error}")
@@ -618,7 +584,7 @@ async def grant_project_access(
     access_grant = result.scalar_one_or_none()
     
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address, user_agent = _get_request_metadata(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -628,7 +594,7 @@ async def grant_project_access(
         success=True,
         resource_type="ProjectAccess",
         resource_id=f"{project_id}:{access_data.user_id}",
-        user_agent=request.headers.get("user-agent")
+        user_agent=user_agent
     )
     
     return ProjectAccessResponse(
@@ -667,7 +633,7 @@ async def revoke_project_access(
         )
     
     # Log action
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address, user_agent = _get_request_metadata(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -677,7 +643,7 @@ async def revoke_project_access(
         success=True,
         resource_type="ProjectAccess",
         resource_id=f"{project_id}:{user_id}",
-        user_agent=request.headers.get("user-agent")
+        user_agent=user_agent
     )
     
     return MessageResponse(message="Project access revoked successfully")
@@ -748,7 +714,7 @@ async def create_ssh_key(
         await db.refresh(new_ssh_key)
 
         # Log audit event
-        ip_address = request.client.host if request.client else "0.0.0.0"
+        ip_address, user_agent = _get_request_metadata(request)
         await _log_audit_action(
             db=db,
             user_id=current_user.user_id,
@@ -758,7 +724,7 @@ async def create_ssh_key(
             success=True,
             resource_type="SSHKey",
             resource_id=str(new_ssh_key.id),
-            user_agent=request.headers.get("user-agent")
+            user_agent=user_agent
         )
 
         return SSHKeyResponse(
@@ -854,7 +820,7 @@ async def delete_ssh_key(
     await db.commit()
 
     # Log audit event
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address, user_agent = _get_request_metadata(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -864,7 +830,7 @@ async def delete_ssh_key(
         success=True,
         resource_type="SSHKey",
         resource_id=key_id,
-        user_agent=request.headers.get("user-agent")
+        user_agent=user_agent
     )
 
     return MessageResponse(message=f"SSH key '{ssh_key.name}' deleted successfully")
@@ -959,7 +925,7 @@ async def invite_user_to_project(
     await db.commit()
     
     # Log audit event
-    ip_address = request.client.host if request.client else "0.0.0.0"
+    ip_address, user_agent = _get_request_metadata(request)
     await _log_audit_action(
         db=db,
         user_id=current_user.user_id,
@@ -969,7 +935,7 @@ async def invite_user_to_project(
         success=True,
         resource_type="ProjectAccess",
         resource_id=f"{project_id}:{user.id}",
-        user_agent=request.headers.get("user-agent")
+        user_agent=user_agent
     )
     
     return InviteUserResponse(
@@ -979,3 +945,4 @@ async def invite_user_to_project(
         project_id=project_id,
         project_name=project.name
     )
+

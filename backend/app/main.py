@@ -17,6 +17,7 @@ from app.api.exception_handlers import register_exception_handlers
 from app.database.postgresql import init_postgres, close_postgres, get_db
 from app.database.neo4j_db import init_neo4j, close_neo4j
 from app.database.redis_db import init_redis, close_redis
+from app.database.schema_compat import reconcile_legacy_auth_schema
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
             service_version=settings.VERSION,
             environment=settings.ENVIRONMENT,
             otlp_endpoint=settings.OTLP_ENDPOINT,
+            otlp_export_enabled=settings.OTLP_EXPORT_ENABLED,
             enable_console_export=settings.TRACING_CONSOLE_EXPORT,
             sample_rate=settings.TRACING_SAMPLE_RATE,
         )
@@ -70,7 +72,7 @@ async def lifespan(app: FastAPI):
     if not testing:
         logger.info("Running startup validation...")
         try:
-            from app.services.startup_validation import run_startup_validation
+            from app.core.startup_validator import run_startup_validation
             validation_result = await run_startup_validation()
             if validation_result and not validation_result.is_valid:
                 logger.warning("Startup validation failed but continuing: %s", validation_result.errors)
@@ -137,6 +139,12 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Testing mode: Skipping database initialization in lifespan")
         postgres_available = True # Assume available as it's handled by fixtures
+
+    if postgres_available and not testing:
+        try:
+            await reconcile_legacy_auth_schema()
+        except Exception as e:
+            logger.warning("Schema compatibility reconciliation failed: %s", str(e), exc_info=True)
     
     # Apply database migrations if PostgreSQL is available (skip in testing)
     if postgres_available and not testing:

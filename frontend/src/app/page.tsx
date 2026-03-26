@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+
 import { useRouter } from 'next/navigation';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -9,12 +9,12 @@ import { Shield, Code, GitPullRequest, Users, TrendingUp, Database, Cpu, Lock } 
 
 export default function Home() {
     const router = useRouter();
-    const [stats, setStats] = useState({
+    const stats = {
         totalReviews: 1250,
         projects: 8,
         complianceScore: 94,
         securityIssues: 3
-    });
+    };
 
     const features = [
         {
@@ -165,7 +165,7 @@ export default function Home() {
                                         AI-Powered
                                     </Badge>
                                     <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                        Learn more →
+                                        Learn more {'->'}
                                     </span>
                                 </div>
                             </Card>
@@ -227,3 +227,4 @@ export default function Home() {
         </main>
     );
 }
+

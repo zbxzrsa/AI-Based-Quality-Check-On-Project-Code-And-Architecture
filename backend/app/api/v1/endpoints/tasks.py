@@ -11,7 +11,7 @@ Validates Requirements: 12.7 (Timeout handling for all external API calls)
 """
 from typing import Dict, Any, List, Optional, Annotated
 from fastapi import APIRouter, HTTPException, Query, Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.tasks.task_monitoring import (
     get_task_status,
@@ -33,6 +33,21 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 class TaskStatusResponse(BaseModel):
     """Task status response model"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "task_id": "abc-123-def-456",
+                "state": "PROGRESS",
+                "ready": False,
+                "successful": None,
+                "failed": None,
+                "progress": 50,
+                "stage": "analyzing_llm",
+                "message": "Analyzing code with LLM..."
+            }
+        }
+    )
+
     task_id: str = Field(..., description="Celery task ID")
     state: str = Field(..., description="Task state (PENDING, STARTED, PROGRESS, SUCCESS, FAILURE)")
     ready: bool = Field(..., description="Whether task has completed")
@@ -47,21 +62,6 @@ class TaskStatusResponse(BaseModel):
     traceback: Optional[str] = Field(None, description="Error traceback (if failed)")
     retry_count: Optional[int] = Field(None, description="Number of retries")
     max_retries: Optional[int] = Field(None, description="Maximum retries allowed")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "task_id": "abc-123-def-456",
-                "state": "PROGRESS",
-                "ready": False,
-                "successful": None,
-                "failed": None,
-                "progress": 50,
-                "stage": "analyzing_llm",
-                "message": "Analyzing code with LLM..."
-            }
-        }
-
 
 class TaskProgressResponse(BaseModel):
     """Task progress response model"""

@@ -1,23 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  ZoomIn, 
+import {
   ZoomOut, 
   RefreshCw, 
   Filter, 
   Layers, 
   Database, 
-  Code, 
-  FileText,
   AlertTriangle,
-  CheckCircle,
   Eye,
-  EyeOff,
   Download,
   Upload,
   TrendingUp,
@@ -25,24 +20,13 @@ import {
   Loader2,
   Lock
 } from 'lucide-react';
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  ConnectionMode,
-  MarkerType,
-  Panel,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
 import { apiClientEnhanced } from '@/lib/api-client';
 import { validateArchitectureAnalysis, type ArchitectureAnalysis } from '@/lib/validations/api-schemas';
 import { ErrorHandler } from '@/lib/error-handler';
 import { featureFlagsService } from '@/lib/feature-flags';
+import ForceGraph2D, { type ForceGraphHandle } from './ForceGraph2D';
 
-interface Node {
+interface GraphNodeModel {
   id: string;
   name: string;
   type: 'file' | 'class' | 'function' | 'module' | 'layer' | 'repository' | 'service' | 'controller';
@@ -53,14 +37,21 @@ interface Node {
   layer?: string;
   group?: string;
   cluster?: number;
+  [key: string]: unknown;
 }
 
-interface Link {
+interface GraphLinkModel {
   source: string;
   target: string;
   type: 'import' | 'inheritance' | 'dependency' | 'call' | 'containment' | 'violates';
   weight: number;
   isDrift?: boolean;
+  [key: string]: unknown;
+}
+
+interface ImportedGraphData {
+  nodes: GraphNodeModel[];
+  links: GraphLinkModel[];
 }
 
 interface Neo4jGraphVisualizationProps {
@@ -94,16 +85,16 @@ async function fetchNeo4jGraphData(analysisId: string): Promise<ArchitectureAnal
  * Transform API data to Neo4j graph component format
  * Validates Requirements: 4.1, 4.2
  */
-function transformNeo4jGraphData(data: ArchitectureAnalysis): { nodes: Node[]; links: Link[] } {
+function transformNeo4jGraphData(data: ArchitectureAnalysis): { nodes: GraphNodeModel[]; links: GraphLinkModel[] } {
   // Transform nodes from API format to component format
-  const nodes: Node[] = data.nodes.map(node => {
+  const nodes: GraphNodeModel[] = data.nodes.map(node => {
     const complexity = node.complexity || 5;
     const isDrift = node.health === 'drift' || node.health === 'unhealthy';
     
     return {
       id: node.id,
       name: node.label,
-      type: node.type as Node['type'],
+      type: node.type as GraphNodeModel['type'],
       size: 50, // Default size
       complexity,
       coupling: node.metrics?.coupling,
@@ -115,10 +106,10 @@ function transformNeo4jGraphData(data: ArchitectureAnalysis): { nodes: Node[]; l
   });
 
   // Transform edges from API format to component format
-  const links: Link[] = data.edges.map(edge => ({
+  const links: GraphLinkModel[] = data.edges.map(edge => ({
     source: edge.source,
     target: edge.target,
-    type: edge.type as Link['type'],
+    type: edge.type as GraphLinkModel['type'],
     weight: edge.is_circular ? 2 : 1,
     isDrift: edge.is_circular || edge.type === 'violates',
   }));
@@ -154,8 +145,8 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return transformNeo4jGraphData(architectureData);
   }, [architectureData]);
 
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
+  const [nodes, setNodes] = useState<GraphNodeModel[]>([]);
+  const [links, setLinks] = useState<GraphLinkModel[]>([]);
   const [filters, setFilters] = useState({
     showFiles: true,
     showClasses: true,
@@ -170,8 +161,8 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
   const [viewMode, setViewMode] = useState<'all' | 'drift' | 'complexity' | 'layers' | 'clusters'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [graphData, setGraphData] = useState<any>(null);
-  const forceGraphRef = useRef<any>(null);
+  const [graphData, setGraphData] = useState<ImportedGraphData | null>(null);
+  const forceGraphRef = useRef<ForceGraphHandle | null>(null);
   const [graphStats, setGraphStats] = useState({
     clusteringCoefficient: 0,
     averagePathLength: 0,
@@ -191,7 +182,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     }
   }, [apiNodes, apiLinks]);
 
-  const calculateGraphStats = (nodes: Node[], links: Link[]) => {
+  const calculateGraphStats = (nodes: GraphNodeModel[], links: GraphLinkModel[]) => {
     // Calculate clustering coefficient
     const clusteringCoefficient = calculateClusteringCoefficient(nodes, links);
     
@@ -212,7 +203,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     });
   };
 
-  const calculateClusteringCoefficient = (nodes: Node[], links: Link[]): number => {
+  const calculateClusteringCoefficient = (nodes: GraphNodeModel[], links: GraphLinkModel[]): number => {
     // Simplified clustering coefficient calculation
     const nodeLinks: { [key: string]: string[] } = {};
     
@@ -252,7 +243,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return nodeCount > 0 ? totalCoefficient / nodeCount : 0;
   };
 
-  const calculateAveragePathLength = (nodes: Node[], links: Link[]): number => {
+  const calculateAveragePathLength = (nodes: GraphNodeModel[], links: GraphLinkModel[]): number => {
     // Simplified average path length calculation
     // In a real implementation, this would use Dijkstra's algorithm
     const totalPaths = links.length;
@@ -261,9 +252,9 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return totalPaths > 0 ? totalDistance / totalPaths : 0;
   };
 
-  const calculateModularity = (nodes: Node[], links: Link[]): number => {
+  const calculateModularity = (nodes: GraphNodeModel[], links: GraphLinkModel[]): number => {
     // Simplified modularity calculation
-    const layerGroups = new Map<string, Node[]>();
+    const layerGroups = new Map<string, GraphNodeModel[]>();
     
     nodes.forEach(node => {
       if (node.layer) {
@@ -277,7 +268,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     let modularity = 0;
     const totalLinks = links.length;
 
-    layerGroups.forEach((groupNodes, layer) => {
+    layerGroups.forEach((groupNodes) => {
       const groupNodeIds = new Set(groupNodes.map(n => n.id));
       const internalLinks = links.filter(l => 
         groupNodeIds.has(l.source) && groupNodeIds.has(l.target)
@@ -294,7 +285,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return modularity;
   };
 
-  const calculateCouplingScore = (nodes: Node[], links: Link[]): number => {
+  const calculateCouplingScore = (nodes: GraphNodeModel[], links: GraphLinkModel[]): number => {
     // Calculate coupling based on cross-layer dependencies
     let crossLayerLinks = 0;
     let totalLinks = links.length;
@@ -353,7 +344,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
            filteredNodes.includes(targetNode);
   });
 
-  const getNodeTypeColor = (node: Node) => {
+  const getNodeTypeColor = (node: GraphNodeModel) => {
     if (node.isDrift) return '#ef4444'; // Red for drift nodes
     
     switch (node.type) {
@@ -383,7 +374,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     }
   };
 
-  const getNodeSize = (node: Node) => {
+  const getNodeSize = (node: GraphNodeModel) => {
     switch (node.type) {
       case 'layer': return node.size * 2.5;
       case 'module': return node.size * 2;
@@ -394,7 +385,7 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     }
   };
 
-  const getLinkColor = (link: Link) => {
+  const getLinkColor = (link: GraphLinkModel) => {
     if (link.isDrift) return '#ef4444'; // Red for drift
     if (link.type === 'violates') return '#ef4444'; // Red for violations
     if (link.type === 'import') return '#ef4444'; // Red
@@ -405,14 +396,14 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     return '#6b7280'; // Gray
   };
 
-  const getDriftSeverity = (node: Node) => {
+  const getDriftSeverity = (node: GraphNodeModel) => {
     if (!node.isDrift) return 'none';
     if (node.complexity && node.complexity > 15) return 'high';
     if (node.complexity && node.complexity > 10) return 'medium';
     return 'low';
   };
 
-  const handleNodeClick = (node: any) => {
+  const handleNodeClick = (node: Pick<GraphNodeModel, 'id'>) => {
     setSelectedNode(selectedNode === node.id ? null : node.id);
   };
 
@@ -434,15 +425,15 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
-        const data = JSON.parse(e.target?.result as string);
+        const data = JSON.parse(e.target?.result as string) as ImportedGraphData;
         if (data.nodes && data.links) {
           setGraphData(data);
           setNodes(data.nodes);
           setLinks(data.links);
           calculateGraphStats(data.nodes, data.links);
         }
-      } catch (err) {
-        console.error('Failed to parse imported graph data:', err);
+      } catch {
+        // Ignore malformed imports and keep current graph state.
       }
     };
     reader.readAsText(file);
@@ -450,15 +441,15 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
 
   const resetView = () => {
     if (forceGraphRef.current) {
-      forceGraphRef.current.zoomToFit(800);
+      forceGraphRef.current.zoomToFit();
     }
   };
 
   const applyForceLayout = () => {
     if (forceGraphRef.current) {
-      forceGraphRef.current.d3Force('link').distance(100);
-      forceGraphRef.current.d3Force('charge').strength(-300);
-      forceGraphRef.current.d3Force('center').strength(0.1);
+      forceGraphRef.current.d3Force().distance();
+      forceGraphRef.current.d3Force().strength();
+      forceGraphRef.current.d3Force().strength();
     }
   };
 
@@ -865,10 +856,10 @@ export default function Neo4jGraphVisualization({ analysisId, className }: Neo4j
               ref={forceGraphRef}
               graphData={{ nodes: filteredNodes, links: filteredLinks }}
               nodeLabel="name"
-              nodeColor={getNodeTypeColor}
-              nodeVal={(node: any) => getNodeSize(node)}
-              linkColor={getLinkColor}
-              linkWidth={(link: any) => (link.weight || 1) * 2}
+              nodeColor={(node) => getNodeTypeColor(node as GraphNodeModel)}
+              nodeVal={(node) => getNodeSize(node as GraphNodeModel)}
+              linkColor={(link) => getLinkColor(link as GraphLinkModel)}
+              linkWidth={(link) => ((link as GraphLinkModel).weight || 1) * 2}
               linkDirectionalArrowLength={6}
               linkDirectionalArrowRelPos={1}
               onNodeClick={handleNodeClick}

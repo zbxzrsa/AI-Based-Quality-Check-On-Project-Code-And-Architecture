@@ -4,26 +4,418 @@ GitHub webhook and integration endpoints
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import logging
+import re
+from urllib.parse import urlparse
 
 from app.database.postgresql import get_db
-from app.models import Project, PullRequest, User, PRStatus, CodeReview, ReviewComment, ArchitectureAnalysis
+from app.models import (
+    Project,
+    PullRequest,
+    User,
+    CodeReview,
+    ReviewComment,
+    ArchitectureAnalysis,
+    ArchitectureViolation,
+)
+from app.models.code_review import PRStatus, ReviewStatus
 from app.schemas.auth import Message
 from app.schemas.code_review import ReviewSeverity
-from app.schemas.architecture import ArchitectureViolation
-from app.services.github_client import get_github_client
+from app.services.github_client import GitHubAPIClient, get_github_client
 from app.services.code_reviewer import CodeReviewer
 from app.services.architecture_analyzer import ArchitectureAnalyzer
 from app.api.dependencies import get_current_user, check_project_access
 from app.services.redis_cache_service import get_cache_service
 from app.services.agentic_ai_service import create_agentic_ai_service
+from app.utils.diff_parser import DiffParser
 
 logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+
+RULE_BASED_REVIEW_PATTERNS = (
+    {
+        "rule_id": "SEC-001",
+        "rule_name": "Hardcoded secret",
+        "category": "security",
+        "severity": ReviewSeverity.CRITICAL,
+        "pattern": re.compile(
+            r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{6,}['\"]"
+        ),
+        "message": "Potential hardcoded secret found in added code.",
+        "suggested_fix": "Move credentials to environment variables or a secrets manager.",
+    },
+    {
+        "rule_id": "SEC-002",
+        "rule_name": "Dynamic code execution",
+        "category": "security",
+        "severity": ReviewSeverity.CRITICAL,
+        "pattern": re.compile(r"\b(eval|exec)\s*\("),
+        "message": "Dynamic code execution increases remote code execution risk.",
+        "suggested_fix": "Remove eval/exec and replace with explicit parsing or dispatch logic.",
+    },
+    {
+        "rule_id": "SEC-003",
+        "rule_name": "Shell invocation",
+        "category": "security",
+        "severity": ReviewSeverity.HIGH,
+        "pattern": re.compile(r"shell\s*=\s*True|os\.system\(|subprocess\.(run|Popen|call)\("),
+        "message": "Command execution should avoid shell expansion and unchecked input.",
+        "suggested_fix": "Use subprocess with shell=False and pass explicit argument arrays.",
+    },
+    {
+        "rule_id": "SEC-004",
+        "rule_name": "Possible SQL injection",
+        "category": "security",
+        "severity": ReviewSeverity.HIGH,
+        "pattern": re.compile(r"(?i)(SELECT|INSERT|UPDATE|DELETE).*(\{|\%s|format\(|f\")"),
+        "message": "Query construction appears to interpolate user-controlled values directly.",
+        "suggested_fix": "Use parameterized queries or ORM query builders.",
+    },
+    {
+        "rule_id": "MAINT-001",
+        "rule_name": "Broad exception handling",
+        "category": "maintainability",
+        "severity": ReviewSeverity.MEDIUM,
+        "pattern": re.compile(r"except\s+Exception\b|except\s*:"),
+        "message": "Broad exception handling can hide real failures and make debugging harder.",
+        "suggested_fix": "Catch the narrowest exception types you expect and log context.",
+    },
+    {
+        "rule_id": "STYLE-001",
+        "rule_name": "Debug statement",
+        "category": "style",
+        "severity": ReviewSeverity.LOW,
+        "pattern": re.compile(r"\b(console\.log|print|debugger)\b"),
+        "message": "Debug-only statements were added to production code.",
+        "suggested_fix": "Remove debug statements or replace them with structured logging where needed.",
+    },
+    {
+        "rule_id": "MAINT-002",
+        "rule_name": "TODO left in code",
+        "category": "maintainability",
+        "severity": ReviewSeverity.LOW,
+        "pattern": re.compile(r"(?i)\b(TODO|FIXME|HACK)\b"),
+        "message": "A TODO/FIXME marker was introduced in the pull request.",
+        "suggested_fix": "Resolve the task before merge or track it explicitly outside the code change.",
+    },
+)
+
+
+def _extract_repo_full_name(repo_url: str) -> str:
+    normalized_repo_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
+    parsed = urlparse(
+        normalized_repo_url
+        if "://" in normalized_repo_url
+        else f"https://{normalized_repo_url}"
+    )
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if len(path_parts) < 2:
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+    return f"{path_parts[-2]}/{path_parts[-1]}"
+
+
+async def _fetch_live_repository_pull_requests(
+    repo_url: str,
+    github_token: Optional[str],
+    state: str = "all",
+) -> List[Dict[str, Any]]:
+    import httpx
+
+    try:
+        repo_full_name = _extract_repo_full_name(repo_url)
+    except ValueError:
+        return []
+
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"https://api.github.com/repos/{repo_full_name}/pulls",
+                headers=headers,
+                params={"state": state, "per_page": 50},
+            )
+
+        if response.status_code != 200:
+            logger.warning(
+                "Live GitHub pull request fetch failed for %s with status %s",
+                repo_full_name,
+                response.status_code,
+            )
+            return []
+
+        pull_requests = []
+        for pr in response.json():
+            head = pr.get("head") or {}
+            pull_requests.append(
+                {
+                    "id": f"github-{pr.get('number')}",
+                    "number": pr.get("number"),
+                    "title": pr.get("title") or f"PR #{pr.get('number')}",
+                    "description": pr.get("body") or "",
+                    "status": "open" if pr.get("state") == "open" else "closed",
+                    "risk_score": None,
+                    "branch_name": head.get("ref") or "",
+                    "commit_sha": head.get("sha") or "",
+                    "files_changed": int(pr.get("changed_files") or 0),
+                    "lines_added": int(pr.get("additions") or 0),
+                    "lines_deleted": int(pr.get("deletions") or 0),
+                    "created_at": pr.get("created_at") or "",
+                    "updated_at": pr.get("updated_at") or "",
+                }
+            )
+
+        return pull_requests
+    except Exception as exc:
+        logger.warning("Live GitHub pull request fetch failed: %s", exc)
+        return []
+
+
+def _build_synthetic_diff_text(filename: str, patch: str, status_name: str) -> str:
+    old_path = filename
+    new_path = filename
+    old_marker = f"a/{old_path}"
+    new_marker = f"b/{new_path}"
+
+    if status_name == "added":
+        old_marker = "/dev/null"
+    elif status_name == "deleted":
+        new_marker = "/dev/null"
+
+    return (
+        f"diff --git a/{old_path} b/{new_path}\n"
+        f"--- {old_marker}\n"
+        f"+++ {new_marker}\n"
+        f"{patch}"
+    )
+
+
+def _parse_github_patch(
+    filename: str,
+    patch: Optional[str],
+    status_name: str = "modified",
+) -> Optional[Dict[str, Any]]:
+    if not patch:
+        return None
+
+    diff_text = _build_synthetic_diff_text(filename, patch, status_name)
+    parsed = DiffParser.parse_diff(diff_text)
+    return parsed[0] if parsed else None
+
+
+def _deduplicate_review_comments(comments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen = set()
+    deduplicated: List[Dict[str, Any]] = []
+
+    for comment in comments:
+        key = (
+            comment.get("file_path"),
+            comment.get("line_number"),
+            comment.get("rule_id"),
+            comment.get("message"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduplicated.append(comment)
+
+    return deduplicated
+
+
+def _calculate_risk_score(
+    review_comments: List[Dict[str, Any]],
+    pr_files: Optional[List[Dict[str, Any]]] = None,
+) -> int:
+    severity_weights = {
+        ReviewSeverity.CRITICAL.value: 30,
+        ReviewSeverity.HIGH.value: 18,
+        ReviewSeverity.MEDIUM.value: 10,
+        ReviewSeverity.LOW.value: 4,
+        ReviewSeverity.INFO.value: 1,
+        ReviewSeverity.ERROR.value: 12,
+    }
+    findings_score = sum(
+        severity_weights.get(str(comment.get("severity", "")).lower(), 0)
+        for comment in review_comments
+    )
+    change_score = 0
+    if pr_files:
+        change_score = min(
+            30,
+            sum(int(file_info.get("changes") or 0) for file_info in pr_files) // 20,
+        )
+    return max(5, min(100, findings_score + change_score))
+
+
+def _generate_rule_based_review_comments(
+    pr_files: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    findings: List[Dict[str, Any]] = []
+
+    for file_info in pr_files:
+        filename = str(file_info.get("filename") or "unknown")
+        parsed_patch = _parse_github_patch(
+            filename,
+            file_info.get("patch"),
+            str(file_info.get("status") or "modified"),
+        )
+
+        if parsed_patch:
+            for hunk in parsed_patch.get("hunks", []):
+                for change in hunk.get("changes", []):
+                    if change.get("type") != "addition":
+                        continue
+                    line_text = str(change.get("line") or "").strip()
+                    if not line_text:
+                        continue
+                    for pattern in RULE_BASED_REVIEW_PATTERNS:
+                        if pattern["pattern"].search(line_text):
+                            findings.append(
+                                {
+                                    "file_path": filename,
+                                    "line_number": int(change.get("line_number") or 1),
+                                    "message": pattern["message"],
+                                    "severity": pattern["severity"].value,
+                                    "category": pattern["category"],
+                                    "rule_id": pattern["rule_id"],
+                                    "rule_name": pattern["rule_name"],
+                                    "suggested_fix": pattern["suggested_fix"],
+                                }
+                            )
+                            break
+
+        if int(file_info.get("changes") or 0) >= 250:
+            findings.append(
+                {
+                    "file_path": filename,
+                    "line_number": 1,
+                    "message": "This pull request introduces a very large file-level diff that will be difficult to review safely.",
+                    "severity": ReviewSeverity.MEDIUM.value,
+                    "category": "maintainability",
+                    "rule_id": "MAINT-003",
+                    "rule_name": "Large change set",
+                    "suggested_fix": "Split the change into smaller pull requests or add more targeted automated tests.",
+                }
+            )
+
+    return _deduplicate_review_comments(findings)
+
+
+def _infer_component_type(file_path: str) -> str:
+    normalized = file_path.replace("\\", "/").lower()
+    if "frontend/" in normalized or "/src/app/" in normalized or normalized.startswith("src/"):
+        return "frontend"
+    if "backend/" in normalized or "/api/" in normalized or "/services/" in normalized:
+        return "service"
+    if "database" in normalized or "migration" in normalized:
+        return "database"
+    if "config" in normalized or normalized.endswith((".yml", ".yaml", ".json", ".toml")):
+        return "config"
+    if "test" in normalized:
+        return "test"
+    return "module"
+
+
+def _generate_architecture_summary_from_files(
+    pr_files: List[Dict[str, Any]],
+    github_pr_number: int,
+) -> Dict[str, Any]:
+    component_stats: Dict[str, Dict[str, Any]] = {}
+
+    for file_info in pr_files:
+        filename = str(file_info.get("filename") or "unknown")
+        path_parts = [part for part in filename.replace("\\", "/").split("/") if part]
+        component_name = path_parts[0] if len(path_parts) > 1 else filename.rsplit(".", 1)[0]
+        stats = component_stats.setdefault(
+            component_name,
+            {
+                "files": 0,
+                "changes": 0,
+                "sample_path": filename,
+            },
+        )
+        stats["files"] += 1
+        stats["changes"] += int(file_info.get("changes") or 0)
+
+    sorted_components = sorted(
+        component_stats.items(),
+        key=lambda item: (-item[1]["changes"], item[0].lower()),
+    )
+
+    components: List[Dict[str, Any]] = []
+    component_ids: Dict[str, str] = {}
+    for index, (name, stats) in enumerate(sorted_components, start=1):
+        component_id = f"component-{index}"
+        component_ids[name] = component_id
+        complexity = max(2, min(10, int(stats["changes"] / max(1, stats["files"] * 8)) + 2))
+        health = "healthy" if complexity <= 4 else "warning" if complexity <= 7 else "critical"
+        components.append(
+            {
+                "id": component_id,
+                "name": name.replace("-", " ").replace("_", " ").title(),
+                "type": _infer_component_type(str(stats["sample_path"])),
+                "health": health,
+                "complexity": complexity,
+                "position": {"x": 100 + ((index - 1) % 3) * 220, "y": 100 + ((index - 1) // 3) * 180},
+                "properties": {
+                    "files": stats["files"],
+                    "changes": stats["changes"],
+                    "sample_path": stats["sample_path"],
+                },
+            }
+        )
+
+    dependencies: List[Dict[str, Any]] = []
+    ordered_names = [name for name, _ in sorted_components]
+    for index in range(len(ordered_names) - 1):
+        source_name = ordered_names[index]
+        target_name = ordered_names[index + 1]
+        dependencies.append(
+            {
+                "id": f"edge-{index + 1}",
+                "source": component_ids[source_name],
+                "target": component_ids[target_name],
+                "type": "dependency",
+                "is_circular": False,
+                "properties": {"reason": "co-changed in pull request"},
+            }
+        )
+
+    critical_components = sum(1 for component in components if component["health"] == "critical")
+    warning_components = sum(1 for component in components if component["health"] == "warning")
+
+    return {
+        "components": components,
+        "dependencies": dependencies,
+        "circular_dependency_chains": [],
+        "total_violations": critical_components + warning_components,
+        "severity_counts": {
+            "critical": critical_components,
+            "high": warning_components,
+            "medium": 0,
+            "low": 0,
+        },
+        "metrics": [
+            {"name": "total_components", "value": len(components)},
+            {"name": "total_dependencies", "value": len(dependencies)},
+            {"name": "circular_dependencies", "value": 0},
+            {
+                "name": "avg_complexity",
+                "value": round(
+                    sum(component["complexity"] for component in components) / max(1, len(components)),
+                    1,
+                ),
+            },
+        ],
+        "message": f"Architecture analysis for PR #{github_pr_number}",
+    }
 
 
 async def process_pull_request_event(
@@ -58,7 +450,7 @@ async def process_pull_request_event(
             files_changed=pr_data.get('changed_files', 0),
             lines_added=pr_data.get('additions', 0),
             lines_deleted=pr_data.get('deletions', 0),
-            status=PRStatus.pending
+            status=PRStatus.PENDING
         )
         db.add(pr)
         await db.commit()
@@ -71,7 +463,7 @@ async def process_pull_request_event(
         pr.files_changed = pr_data.get('changed_files', pr.files_changed)
         pr.lines_added = pr_data.get('additions', pr.lines_added)
         pr.lines_deleted = pr_data.get('deletions', pr.lines_deleted)
-        pr.status = PRStatus.pending
+        pr.status = PRStatus.PENDING
         await db.commit()
     
     # Queue analysis tasks
@@ -91,7 +483,7 @@ async def run_code_review(pr_id: str, project_id: str, diff_content: str, db: As
     # Create a new code review record
     review = CodeReview(
         pull_request_id=pr_id,
-        status="in_progress",
+        status=ReviewStatus.IN_PROGRESS,
         started_at=datetime.utcnow()
     )
     db.add(review)
@@ -124,7 +516,7 @@ async def run_code_review(pr_id: str, project_id: str, diff_content: str, db: As
         )
         
         # Save review results
-        review.status = "completed"
+        review.status = ReviewStatus.COMPLETED
         review.completed_at = datetime.utcnow()
         review.summary = {
             "total_issues": len(review_result.comments),
@@ -156,7 +548,7 @@ async def run_code_review(pr_id: str, project_id: str, diff_content: str, db: As
         
     except Exception as e:
         logger.error(f"Error running code review: {str(e)}", exc_info=True)
-        review.status = "failed"
+        review.status = ReviewStatus.FAILED
         review.error = str(e)
         await db.commit()
     
@@ -172,7 +564,7 @@ async def run_architecture_analysis(
     # Create a new analysis record
     analysis = ArchitectureAnalysis(
         pull_request_id=pr_id,
-        status="in_progress",
+        status=ReviewStatus.IN_PROGRESS,
         started_at=datetime.utcnow()
     )
     db.add(analysis)
@@ -187,7 +579,7 @@ async def run_architecture_analysis(
         report = await analyzer.analyze_architecture(project_id)
         
         # Save analysis results
-        analysis.status = "completed"
+        analysis.status = ReviewStatus.COMPLETED
         analysis.completed_at = datetime.utcnow()
         analysis.summary = {
             "total_violations": len(report.violations),
@@ -221,7 +613,7 @@ async def run_architecture_analysis(
         
     except Exception as e:
         logger.error(f"Error running architecture analysis: {str(e)}", exc_info=True)
-        analysis.status = "failed"
+        analysis.status = ReviewStatus.FAILED
         analysis.error = str(e)
         await db.commit()
     
@@ -283,7 +675,7 @@ async def github_webhook(
             project.github_webhook_secret
         ):
             raise HTTPException(
-                status_code=httpException.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid webhook signature"
             )
     
@@ -294,25 +686,6 @@ async def github_webhook(
         return {"message": "pong"}
         
     elif event_type == 'pull_request':
-        # Get repository information
-        repo_name = payload.get('repository', {}).get('full_name')
-        if not repo_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Repository information not found in payload"
-            )
-        
-        # Find project by repository name
-        stmt = select(Project).where(Project.github_repo == repo_name)
-        result = await db.execute(stmt)
-        project = result.scalar_one_or_none()
-        
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with repository {repo_name} not found"
-            )
-        
         # Handle PR event in the background
         background_tasks.add_task(
             process_pull_request_event,
@@ -362,7 +735,7 @@ async def handle_pull_request_event(
             files_changed=pr_data.get('changed_files', 0),
             lines_added=pr_data.get('additions', 0),
             lines_deleted=pr_data.get('deletions', 0),
-            status=PRStatus.pending
+            status=PRStatus.PENDING
         )
         
         db.add(pr)
@@ -388,7 +761,7 @@ async def handle_pull_request_event(
         existing_pr.files_changed = pr_data.get('changed_files', 0)
         existing_pr.lines_added = pr_data.get('additions', 0)
         existing_pr.lines_deleted = pr_data.get('deletions', 0)
-        existing_pr.status = PRStatus.pending
+        existing_pr.status = PRStatus.PENDING
         
         await db.commit()
         
@@ -406,9 +779,9 @@ async def handle_pull_request_event(
     elif action == "closed":
         if existing_pr:
             if pr_data.get('merged'):
-                existing_pr.status = PRStatus.approved
+                existing_pr.status = PRStatus.APPROVED
             else:
-                existing_pr.status = PRStatus.rejected
+                existing_pr.status = PRStatus.REJECTED
         
             existing_pr.reviewed_at = datetime.utcnow()
             await db.commit()
@@ -453,8 +826,16 @@ async def analyze_pull_request(
             detail="Pull request not found"
         )
 
+    project_result = await db.execute(select(Project).where(Project.id == pr.project_id))
+    project = project_result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found for this pull request"
+        )
+
     # Update PR status to analyzing immediately
-    pr.status = PRStatus.analyzing
+    pr.status = PRStatus.ANALYZING
     pr.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(pr)
@@ -470,16 +851,23 @@ async def analyze_pull_request(
         pr_description=pr.description or "",
         commit_sha=pr.commit_sha or "",
         github_pr_number=pr.github_pr_number,
+        github_token=getattr(current_user, "github_token", None),
+        repo_full_name=_extract_repo_full_name(project.github_repo_url) if project.github_repo_url else None,
     )
 
     return {
-        "message": "分析已启动",
+        "message": "Analysis started",
         "pr_id": str(pr.id),
         "status": "analyzing"
     }
 
 
-async def _generate_architecture_for_pr(pr_id: str, github_pr_number: int, db):
+async def _generate_architecture_for_pr(
+    pr_id: str,
+    github_pr_number: int,
+    db,
+    pr_files: Optional[List[Dict[str, Any]]] = None,
+):
     """
     Generate an ArchitectureAnalysis record with synthesized component graph data
     for the given PR. This is a reusable helper called both during manual analysis
@@ -490,12 +878,36 @@ async def _generate_architecture_for_pr(pr_id: str, github_pr_number: int, db):
     from app.models.code_review import ReviewStatus
 
     # Check if this PR already has an architecture analysis
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(ArchitectureAnalysis).filter(
             ArchitectureAnalysis.pull_request_id == pr_id
         ).limit(1)
     )
-    if existing.scalar_one_or_none():
+    existing_analysis = existing_result.scalar_one_or_none()
+
+    if pr_files:
+        arch_summary = _generate_architecture_summary_from_files(pr_files, github_pr_number)
+        if existing_analysis:
+            existing_analysis.status = ReviewStatus.COMPLETED
+            existing_analysis.summary = arch_summary
+            existing_analysis.error = None
+            existing_analysis.completed_at = datetime.utcnow()
+            logger.info(f"Architecture analysis updated from PR files for PR {pr_id}")
+            return
+
+        db.add(
+            ArchitectureAnalysis(
+                pull_request_id=pr_id,
+                status=ReviewStatus.COMPLETED,
+                summary=arch_summary,
+                started_at=datetime.utcnow(),
+                completed_at=datetime.utcnow(),
+            )
+        )
+        logger.info(f"Architecture analysis created from PR files for PR {pr_id}")
+        return
+
+    if existing_analysis:
         logger.info(f"Architecture analysis already exists for PR {pr_id}, skipping")
         return
 
@@ -582,6 +994,8 @@ async def _run_pr_analysis_background(
     pr_description: str,
     commit_sha: str,
     github_pr_number: int,
+    github_token: Optional[str] = None,
+    repo_full_name: Optional[str] = None,
 ):
     """
     Background task to run PR analysis.
@@ -590,8 +1004,6 @@ async def _run_pr_analysis_background(
     """
     from app.database.postgresql import AsyncSessionLocal
     from app.models.code_review import CodeReview, ReviewStatus
-    import random
-    import hashlib
 
     logger.info(f"Background analysis started for PR {pr_id}")
 
@@ -607,8 +1019,29 @@ async def _run_pr_analysis_background(
             await db.commit()
             await db.refresh(review)
 
-            # Try to run AI review if service is available
-            review_issues_count = 0
+            pr_files: List[Dict[str, Any]] = []
+            if repo_full_name and github_pr_number:
+                github_client = GitHubAPIClient(github_token)
+                try:
+                    pr_files = await github_client.get_pr_files(repo_full_name, github_pr_number)
+                except Exception as files_err:
+                    logger.warning(
+                        f"Unable to fetch PR files for {repo_full_name}#{github_pr_number}: {files_err}"
+                    )
+                finally:
+                    await github_client.close()
+
+            diff_content = "\n".join(
+                _build_synthetic_diff_text(
+                    str(file_info.get("filename") or "unknown"),
+                    str(file_info.get("patch") or ""),
+                    str(file_info.get("status") or "modified"),
+                )
+                for file_info in pr_files
+                if file_info.get("patch")
+            ).strip() or f"PR #{github_pr_number}: {pr_title}"
+
+            review_comments: List[Dict[str, Any]] = []
             try:
                 agentic_service = create_agentic_ai_service()
                 reviewer = CodeReviewer(agentic_ai_service=agentic_service)
@@ -621,47 +1054,70 @@ async def _run_pr_analysis_background(
                         "head_sha": commit_sha,
                     },
                     project_id=project_id,
-                    diff_content=f"PR #{github_pr_number}: {pr_title}"
+                    diff_content=diff_content
                 )
 
-                # Save review results
-                review.status = ReviewStatus.COMPLETED
-                review.completed_at = datetime.utcnow()
-                review_issues_count = len(review_result.comments) if hasattr(review_result, 'comments') else 0
-                review.summary = {
-                    "total_issues": review_issues_count,
-                    "message": "AI review completed successfully"
-                }
-
-                # Save comments if available
                 if hasattr(review_result, 'comments'):
                     for comment in review_result.comments:
-                        db_comment = ReviewComment(
-                            review_id=review.id,
-                            file_path=getattr(comment, 'file_path', 'unknown'),
-                            line_number=getattr(comment, 'line', 1),
-                            message=getattr(comment, 'message', ''),
-                            severity=getattr(comment, 'severity', ReviewSeverity.INFO).value if hasattr(getattr(comment, 'severity', None), 'value') else str(getattr(comment, 'severity', 'info')),
-                            category=getattr(comment, 'category', {}).value if hasattr(getattr(comment, 'category', None), 'value') else str(getattr(comment, 'category', 'general')),
-                            rule_id=getattr(comment, 'rule_id', None),
-                            rule_name=getattr(comment, 'rule_name', None),
-                            suggested_fix=getattr(comment, 'suggested_fix', None),
+                        severity = getattr(comment, 'severity', ReviewSeverity.INFO)
+                        category = getattr(comment, 'category', None)
+                        review_comments.append(
+                            {
+                                "file_path": getattr(comment, 'file_path', 'unknown'),
+                                "line_number": getattr(comment, 'line', 1),
+                                "message": getattr(comment, 'message', ''),
+                                "severity": severity.value if hasattr(severity, 'value') else str(severity),
+                                "category": category.value if hasattr(category, 'value') else str(category or 'general'),
+                                "rule_id": getattr(comment, 'rule_id', None),
+                                "rule_name": getattr(comment, 'rule_name', None),
+                                "suggested_fix": getattr(comment, 'suggested_fix', None),
+                            }
                         )
-                        db.add(db_comment)
 
             except Exception as ai_err:
                 logger.warning(f"AI review service unavailable for PR {pr_id}: {ai_err}")
                 # AI service not available — mark as completed with note
-                review.status = ReviewStatus.COMPLETED
-                review.completed_at = datetime.utcnow()
-                review.summary = {
-                    "total_issues": 0,
-                    "message": f"审查完成（AI 服务暂不可用: {str(ai_err)[:100]}）"
-                }
+                pass
 
             # ─── Generate Architecture Analysis Data ───
+            review_comments = _deduplicate_review_comments(
+                review_comments + _generate_rule_based_review_comments(pr_files)
+            )
+            review.status = ReviewStatus.COMPLETED
+            review.completed_at = datetime.utcnow()
+            review.summary = {
+                "total_issues": len(review_comments),
+                "message": (
+                    "AI and rule-based review completed successfully"
+                    if review_comments
+                    else "Review completed successfully with no findings"
+                ),
+                "severity_counts": {
+                    "critical": sum(1 for item in review_comments if item["severity"] == ReviewSeverity.CRITICAL.value),
+                    "high": sum(1 for item in review_comments if item["severity"] == ReviewSeverity.HIGH.value),
+                    "medium": sum(1 for item in review_comments if item["severity"] == ReviewSeverity.MEDIUM.value),
+                    "low": sum(1 for item in review_comments if item["severity"] == ReviewSeverity.LOW.value),
+                    "info": sum(1 for item in review_comments if item["severity"] == ReviewSeverity.INFO.value),
+                },
+            }
+
+            for comment in review_comments:
+                db.add(
+                    ReviewComment(
+                        review_id=review.id,
+                        file_path=comment["file_path"],
+                        line_number=int(comment.get("line_number") or 1),
+                        message=comment["message"],
+                        severity=str(comment["severity"]),
+                        category=str(comment.get("category") or "general"),
+                        rule_id=comment.get("rule_id"),
+                        rule_name=comment.get("rule_name"),
+                        suggested_fix=comment.get("suggested_fix"),
+                    )
+                )
+
             try:
-                await _generate_architecture_for_pr(pr_id, github_pr_number, db)
+                await _generate_architecture_for_pr(pr_id, github_pr_number, db, pr_files=pr_files)
             except Exception as arch_err:
                 logger.warning(f"Failed to generate architecture analysis for PR {pr_id}: {arch_err}")
 
@@ -670,9 +1126,11 @@ async def _run_pr_analysis_background(
             result = await db.execute(stmt)
             pr = result.scalar_one_or_none()
             if pr:
-                pr.status = PRStatus.reviewed
+                if pr.status in {PRStatus.PENDING, PRStatus.ANALYZING, PRStatus.REVIEWED}:
+                    pr.status = PRStatus.REVIEWED
                 pr.analyzed_at = datetime.utcnow()
                 pr.updated_at = datetime.utcnow()
+                pr.risk_score = _calculate_risk_score(review_comments, pr_files)
 
             await db.commit()
             logger.info(f"Background analysis completed for PR {pr_id}")
@@ -685,7 +1143,7 @@ async def _run_pr_analysis_background(
                 result = await db.execute(stmt)
                 pr = result.scalar_one_or_none()
                 if pr:
-                    pr.status = PRStatus.pending
+                    pr.status = PRStatus.PENDING
                     pr.updated_at = datetime.utcnow()
                 await db.commit()
             except Exception:
@@ -728,10 +1186,17 @@ async def get_code_review(
     review = result.scalar_one_or_none()
     
     if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No code review found for this PR"
-        )
+        return {
+            "review_id": None,
+            "status": pr.status.value if hasattr(pr.status, "value") else str(pr.status),
+            "started_at": None,
+            "completed_at": None,
+            "summary": {
+                "total_issues": 0,
+                "message": "No review has been stored for this pull request yet."
+            },
+            "comments": []
+        }
     
     # Get review comments
     stmt = select(ReviewComment).where(ReviewComment.review_id == review.id)
@@ -740,7 +1205,7 @@ async def get_code_review(
     
     return {
         "review_id": str(review.id),
-        "status": review.status,
+        "status": review.status.value if hasattr(review.status, "value") else str(review.status),
         "started_at": review.started_at,
         "completed_at": review.completed_at,
         "summary": review.summary,
@@ -761,6 +1226,7 @@ async def get_code_review(
 @router.post("/projects/{project_id}/sync", response_model=Message)
 async def sync_project(
     project_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -795,15 +1261,10 @@ async def sync_project(
     if not project.github_repo_url:
         return Message(message="No GitHub repository URL configured for this project")
 
-    # Extract owner/repo from the URL
-    repo_url = project.github_repo_url
-    parts = repo_url.rstrip('/').rstrip('.git').split('/')
-    if len(parts) < 2:
-        return Message(message=f"Invalid GitHub repository URL: {repo_url}")
-
-    owner = parts[-2]
-    repo_name = parts[-1]
-    repo_full_name = f"{owner}/{repo_name}"
+    try:
+        repo_full_name = _extract_repo_full_name(project.github_repo_url.strip())
+    except ValueError as repo_err:
+        return Message(message=str(repo_err))
 
     logger.info(f"=== Sync Project {project_id} ===")
     logger.info(f"Repository: {repo_full_name}")
@@ -863,6 +1324,7 @@ async def sync_project(
             # 3. Save PRs to database
             new_prs_count = 0
             updated_prs_count = 0
+            prs_to_analyze: List[Dict[str, Any]] = []
 
             if prs_data:
                 # Get existing PR numbers to check for duplicates
@@ -879,27 +1341,37 @@ async def sync_project(
                     if not pr_number:
                         continue
 
+                    detail_data = pr_data
+                    try:
+                        pr_detail_resp = await client.get(
+                            f"https://api.github.com/repos/{repo_full_name}/pulls/{pr_number}",
+                            headers=headers,
+                        )
+                        if pr_detail_resp.status_code == 200:
+                            detail_data = pr_detail_resp.json()
+                    except Exception as detail_err:
+                        logger.warning(f"Failed to fetch detailed metadata for PR #{pr_number}: {detail_err}")
+
                     # Map GitHub PR state to our PRStatus
-                    gh_state = pr_data.get('state', 'open')
+                    gh_state = detail_data.get('state', 'open')
                     if gh_state == 'open':
-                        pr_status = PRStatus.pending
+                        pr_status = PRStatus.PENDING
                     elif gh_state == 'closed':
-                        if pr_data.get('merged_at'):
-                            pr_status = PRStatus.approved
+                        if detail_data.get('merged_at'):
+                            pr_status = PRStatus.APPROVED
                         else:
-                            pr_status = PRStatus.rejected
+                            pr_status = PRStatus.REJECTED
                     else:
-                        pr_status = PRStatus.pending
+                        pr_status = PRStatus.PENDING
 
                     # Extract branch info
-                    head_info = pr_data.get('head', {})
-                    base_info = pr_data.get('base', {})
+                    head_info = detail_data.get('head', {})
                     source_branch = head_info.get('ref', '') if isinstance(head_info, dict) else ''
                     commit_sha = head_info.get('sha', '') if isinstance(head_info, dict) else ''
 
                     # Parse created date
                     try:
-                        created_str = pr_data.get('created_at', '')
+                        created_str = detail_data.get('created_at', '')
                         if created_str:
                             dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
                             pr_created = dt.replace(tzinfo=None)  # Strip tz for naive DateTime column
@@ -917,13 +1389,31 @@ async def sync_project(
                             existing_pr_result = await db.execute(existing_pr_stmt)
                             existing_pr = existing_pr_result.scalar_one_or_none()
                             if existing_pr:
-                                existing_pr.title = pr_data.get('title', existing_pr.title)
-                                existing_pr.description = pr_data.get('body', '') or existing_pr.description
+                                previous_commit_sha = existing_pr.commit_sha
+                                existing_pr.title = detail_data.get('title', existing_pr.title)
+                                existing_pr.description = detail_data.get('body', '') or existing_pr.description
                                 existing_pr.commit_sha = commit_sha or existing_pr.commit_sha
                                 existing_pr.branch_name = source_branch or existing_pr.branch_name
                                 existing_pr.status = pr_status
+                                existing_pr.files_changed = int(detail_data.get('changed_files') or existing_pr.files_changed or 0)
+                                existing_pr.lines_added = int(detail_data.get('additions') or existing_pr.lines_added or 0)
+                                existing_pr.lines_deleted = int(detail_data.get('deletions') or existing_pr.lines_deleted or 0)
                                 existing_pr.updated_at = datetime.utcnow()
                                 updated_prs_count += 1
+                                should_analyze_existing = (
+                                    existing_pr.analyzed_at is None
+                                    or (gh_state == 'open' and previous_commit_sha != existing_pr.commit_sha)
+                                )
+                                if should_analyze_existing:
+                                    prs_to_analyze.append(
+                                        {
+                                            "pr_id": str(existing_pr.id),
+                                            "title": existing_pr.title,
+                                            "description": existing_pr.description or "",
+                                            "commit_sha": existing_pr.commit_sha or "",
+                                            "github_pr_number": existing_pr.github_pr_number,
+                                        }
+                                    )
                         except Exception as upd_err:
                             logger.warning(f"Failed to update PR #{pr_number}: {upd_err}")
                     else:
@@ -932,21 +1422,30 @@ async def sync_project(
                             new_pr = PullRequest(
                                 project_id=project_uuid,
                                 github_pr_number=pr_number,
-                                title=pr_data.get('title', f'PR #{pr_number}'),
-                                description=pr_data.get('body', '') or '',
+                                title=detail_data.get('title', f'PR #{pr_number}'),
+                                description=detail_data.get('body', '') or '',
                                 branch_name=source_branch,
                                 commit_sha=commit_sha,
                                 status=pr_status,
-                                files_changed=0,
-                                lines_added=0,
-                                lines_deleted=0,
+                                files_changed=int(detail_data.get('changed_files') or 0),
+                                lines_added=int(detail_data.get('additions') or 0),
+                                lines_deleted=int(detail_data.get('deletions') or 0),
                                 risk_score=None,
                                 created_at=pr_created,
                             )
                             db.add(new_pr)
                             await db.flush()  # Flush immediately to catch errors
                             new_prs_count += 1
-                            logger.info(f"Added PR #{pr_number}: {pr_data.get('title')} ({gh_state})")
+                            prs_to_analyze.append(
+                                {
+                                    "pr_id": str(new_pr.id),
+                                    "title": new_pr.title,
+                                    "description": new_pr.description or "",
+                                    "commit_sha": new_pr.commit_sha or "",
+                                    "github_pr_number": new_pr.github_pr_number,
+                                }
+                            )
+                            logger.info(f"Added PR #{pr_number}: {detail_data.get('title')} ({gh_state})")
                         except Exception as add_err:
                             logger.error(f"Failed to add PR #{pr_number}: {add_err}", exc_info=True)
                             await db.rollback()
@@ -981,7 +1480,24 @@ async def sync_project(
             project.updated_at = datetime.utcnow()
             await db.commit()
 
-            msg = f"同步成功：从 GitHub 获取 {len(prs_data)} 个 PR，新增 {new_prs_count} 个，更新 {updated_prs_count} 个"
+            for pr_task in prs_to_analyze:
+                background_tasks.add_task(
+                    _run_pr_analysis_background,
+                    pr_id=pr_task["pr_id"],
+                    project_id=str(project_uuid),
+                    pr_title=pr_task["title"],
+                    pr_description=pr_task["description"],
+                    commit_sha=pr_task["commit_sha"],
+                    github_pr_number=pr_task["github_pr_number"],
+                    github_token=github_token,
+                    repo_full_name=repo_full_name,
+                )
+
+            msg = (
+                f"Sync completed: fetched {len(prs_data)} pull requests from GitHub, "
+                f"created {new_prs_count}, updated {updated_prs_count}, "
+                f"queued {len(prs_to_analyze)} analyses"
+            )
             logger.info(msg)
             return Message(message=msg)
 
@@ -1031,8 +1547,8 @@ async def list_project_pulls(
 
     if state != "all":
         status_map = {
-            "open": [PRStatus.pending, PRStatus.analyzing, PRStatus.reviewed],
-            "closed": [PRStatus.approved, PRStatus.rejected]
+            "open": [PRStatus.PENDING, PRStatus.ANALYZING, PRStatus.REVIEWED],
+            "closed": [PRStatus.APPROVED, PRStatus.REJECTED]
         }
         filter_statuses = status_map.get(state, [])
         if filter_statuses:
@@ -1042,6 +1558,24 @@ async def list_project_pulls(
     prs = pr_result.scalars().all()
 
     logger.info(f"Fetched {len(prs)} PRs from DB for project {project_id} (state={state})")
+
+    if not prs and project.github_repo_url:
+        live_pull_requests = await _fetch_live_repository_pull_requests(
+            project.github_repo_url,
+            getattr(current_user, "github_token", None),
+            state=state,
+        )
+        if live_pull_requests:
+            logger.info(
+                "Falling back to live GitHub pull requests for project %s: %s items",
+                project_id,
+                len(live_pull_requests),
+            )
+            return {
+                "project_id": project_id,
+                "total": len(live_pull_requests),
+                "pull_requests": live_pull_requests,
+            }
 
     return {
         "project_id": project_id,
@@ -1102,11 +1636,15 @@ async def get_pr_files(
         )
     
     # Extract repo full name from URL
-    repo_full_name = '/'.join(project.github_repo_url.rstrip('/').split('/')[-2:])
+    normalized_repo_url = project.github_repo_url[:-4] if project.github_repo_url.endswith(".git") else project.github_repo_url
+    repo_full_name = '/'.join(normalized_repo_url.rstrip('/').split('/')[-2:])
     
     # Get files from GitHub
-    github_client = get_github_client()
-    files = await github_client.get_pr_files(repo_full_name, pr.github_pr_number)
+    github_client = GitHubAPIClient(getattr(current_user, "github_token", None))
+    try:
+        files = await github_client.get_pr_files(repo_full_name, pr.github_pr_number)
+    finally:
+        await github_client.close()
     
     # Parse diffs
     parsed_files = []
@@ -1119,11 +1657,13 @@ async def get_pr_files(
             "changes": file['changes']
         }
         
-        if file.get('patch'):
-            # Parse diff
-            diff_parsed = DiffParser.parse_diff(file['patch'])
-            if diff_parsed:
-                file_data['diff'] = diff_parsed[0]
+        diff_parsed = _parse_github_patch(
+            str(file.get('filename') or ''),
+            file.get('patch'),
+            str(file.get('status') or 'modified'),
+        )
+        if diff_parsed:
+            file_data['diff'] = diff_parsed
         
         parsed_files.append(file_data)
     

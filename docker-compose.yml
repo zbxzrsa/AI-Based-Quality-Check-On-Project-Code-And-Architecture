@@ -9,12 +9,12 @@ services:
   # PostgreSQL 主数据库
   postgres:
     image: postgres:16-alpine
-    container_name: ai_review_postgres
+    container_name: ai_based_quality_check_on_project_code_and_architecture_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ai_code_review}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -30,7 +30,7 @@ services:
   # Redis 缓存 & 速率限制
   redis:
     image: redis:7-alpine
-    container_name: ai_review_redis
+    container_name: ai_based_quality_check_on_project_code_and_architecture_redis
     restart: unless-stopped
     command: >
       redis-server --requirepass "${REDIS_PASSWORD:-}" --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -49,7 +49,7 @@ services:
   # Neo4j 图数据库 (架构关系分析)
   neo4j:
     image: neo4j:5-community
-    container_name: ai_review_neo4j
+    container_name: ai_based_quality_check_on_project_code_and_architecture_neo4j
     restart: unless-stopped
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j123}
@@ -75,7 +75,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile.dev
-    container_name: ai_review_backend
+    container_name: ai_based_quality_check_on_project_code_and_architecture_backend
     restart: unless-stopped
     # 覆盖 Dockerfile.dev 的 --reload，节省内存 (watchfiles 文件监控很耗内存)
     command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000" ]
@@ -88,7 +88,7 @@ services:
       NEO4J_URI: bolt://neo4j:7687
       ENVIRONMENT: development
       # Alembic 迁移使用此 URL
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-ai_code_review}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ai_code_review}
     ports:
       - "8000:8000"
     volumes:
@@ -116,12 +116,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: ai_review_frontend
+    container_name: ai_based_quality_check_on_project_code_and_architecture_frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NEXT_PUBLIC_BACKEND_URL: http://backend:8000
       NEXT_PUBLIC_GITHUB_CLIENT_ID: ${NEXT_PUBLIC_GITHUB_CLIENT_ID:-}
+      NEXT_PUBLIC_GITHUB_REDIRECT_URI: ${NEXT_PUBLIC_GITHUB_REDIRECT_URI:-http://localhost:3000/api/github/callback}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     ports:
       - "3000:3000"

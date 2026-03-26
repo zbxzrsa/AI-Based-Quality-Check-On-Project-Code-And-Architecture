@@ -102,7 +102,7 @@ async def register(
     
     # Create new user with UUID
     user = User(
-        id=str(uuid.uuid4()),  # Generate UUID for new user
+        id=uuid.uuid4(),
         email=user_data.email,
         password_hash=password_hash,
         full_name=user_data.full_name

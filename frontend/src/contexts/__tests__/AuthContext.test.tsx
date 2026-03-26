@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthContext';
-import { Role } from '@/types/rbac';
+import { Permission, Role } from '@/types/rbac';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -12,6 +12,16 @@ jest.mock('next/navigation', () => ({
 // Mock fetch
 global.fetch = jest.fn();
 
+const createMockResponse = (data: unknown, options: { ok?: boolean; status?: number; contentType?: string } = {}) => ({
+  ok: options.ok ?? true,
+  status: options.status ?? 200,
+  headers: {
+    get: (header: string) => (header.toLowerCase() === 'content-type' ? options.contentType ?? 'application/json' : null),
+  },
+  json: async () => data,
+  text: async () => (typeof data === 'string' ? data : JSON.stringify(data)),
+});
+
 describe('AuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -19,10 +29,7 @@ describe('AuthContext', () => {
   });
 
   it('should initialize with loading state', () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-    });
+    (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => undefined));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -37,15 +44,12 @@ describe('AuthContext', () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
-      name: 'Test User',
-      role: Role.PROGRAMMER,
+      full_name: 'Test User',
+      role: Role.USER,
       is_active: true,
     };
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse(mockUser));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -56,7 +60,7 @@ describe('AuthContext', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.role).toBe(Role.PROGRAMMER);
+      expect(result.current.role).toBe(Role.USER);
     });
 
     expect(result.current.user).toEqual(mockUser);
@@ -67,16 +71,13 @@ describe('AuthContext', () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
-      name: 'Test User',
-      role: Role.PROGRAMMER,
+      full_name: 'Test User',
+      role: Role.USER,
       is_active: true,
     };
 
     // Mock initial fetch (no user)
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse({ detail: 'Unauthorized' }, { ok: false, status: 401 }));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -88,14 +89,8 @@ describe('AuthContext', () => {
 
     // Mock login and subsequent user fetch
     (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
+      .mockResolvedValueOnce(createMockResponse({ success: true }))
+      .mockResolvedValueOnce(createMockResponse(mockUser));
 
     await act(async () => {
       await result.current.login('test@example.com', 'password');
@@ -107,10 +102,7 @@ describe('AuthContext', () => {
 
   it('should handle login failure', async () => {
     // Mock initial fetch (no user)
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse({ detail: 'Unauthorized' }, { ok: false, status: 401 }));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -121,11 +113,9 @@ describe('AuthContext', () => {
     });
 
     // Mock failed login
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ detail: 'Invalid credentials' }),
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      createMockResponse({ detail: 'Invalid credentials' }, { ok: false, status: 401 })
+    );
 
     await expect(
       act(async () => {
@@ -141,16 +131,13 @@ describe('AuthContext', () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
-      name: 'Test User',
-      role: Role.PROGRAMMER,
+      full_name: 'Test User',
+      role: Role.USER,
       is_active: true,
     };
 
     // Mock initial fetch with user
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse(mockUser));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -161,10 +148,7 @@ describe('AuthContext', () => {
     });
 
     // Mock logout
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true }),
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse({ success: true }));
 
     await act(async () => {
       await result.current.logout();
@@ -178,16 +162,13 @@ describe('AuthContext', () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
-      name: 'Test User',
-      role: Role.PROGRAMMER,
+      full_name: 'Test User',
+      role: Role.USER,
       is_active: true,
     };
 
     // Mock initial fetch with user
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse(mockUser));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -199,14 +180,8 @@ describe('AuthContext', () => {
 
     // Mock token refresh and user fetch
     (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUser,
-      });
+      .mockResolvedValueOnce(createMockResponse({ success: true }))
+      .mockResolvedValueOnce(createMockResponse(mockUser));
 
     await act(async () => {
       await result.current.refreshToken();
@@ -219,16 +194,13 @@ describe('AuthContext', () => {
     const mockUser = {
       id: '1',
       email: 'test@example.com',
-      name: 'Test User',
-      role: Role.PROGRAMMER,
+      full_name: 'Test User',
+      role: Role.USER,
       is_active: true,
     };
 
     // Mock initial fetch with user
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse(mockUser));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -239,10 +211,7 @@ describe('AuthContext', () => {
     });
 
     // Mock failed token refresh
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse({ detail: 'Unauthorized' }, { ok: false, status: 401 }));
 
     await act(async () => {
       await result.current.refreshToken();
@@ -256,15 +225,12 @@ describe('AuthContext', () => {
     const mockAdminUser = {
       id: '1',
       email: 'admin@example.com',
-      name: 'Admin User',
+      full_name: 'Admin User',
       role: Role.ADMIN,
       is_active: true,
     };
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockAdminUser,
-    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createMockResponse(mockAdminUser));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -279,7 +245,7 @@ describe('AuthContext', () => {
     });
 
     expect(result.current.permissions.length).toBeGreaterThan(0);
-    expect(result.current.permissions).toContain('VIEW_PROJECTS');
-    expect(result.current.permissions).toContain('CREATE_USER');
+    expect(result.current.permissions).toContain(Permission.VIEW_PROJECTS);
+    expect(result.current.permissions).toContain(Permission.CREATE_USER);
   });
 });

@@ -14,6 +14,7 @@ from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from .openrouter_provider import OpenRouterProvider
 from .lmstudio_provider import LMStudioProvider
+from .openai_compatible_provider import OpenAICompatibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,15 @@ class LLMProviderFactory:
             elif provider_type == LLMProviderType.OPENROUTER:
                 return cls._create_openrouter_provider(model, api_key, **kwargs)
             elif provider_type == LLMProviderType.LMSTUDIO:
-                return cls._create_lmstudio_provider(model, **kwargs)
+                return cls._create_lmstudio_provider(model, api_key, **kwargs)
+            elif provider_type == LLMProviderType.OLLAMA:
+                return cls._create_ollama_provider(model, api_key, **kwargs)
+            elif provider_type == LLMProviderType.DEEPSEEK:
+                return cls._create_deepseek_provider(model, api_key, **kwargs)
+            elif provider_type == LLMProviderType.GOOGLE:
+                return cls._create_google_provider(model, api_key, **kwargs)
+            elif provider_type == LLMProviderType.CHATGLM:
+                return cls._create_chatglm_provider(model, api_key, **kwargs)
             else:
                 raise ValueError(f"Unsupported provider type: {provider_type}")
                 
@@ -156,6 +165,7 @@ class LLMProviderFactory:
     def _create_lmstudio_provider(
         cls,
         model: Optional[str] = None,
+        api_key: Optional[str] = None,
         **kwargs
     ) -> LMStudioProvider:
         """Create LM Studio provider instance"""
@@ -172,6 +182,73 @@ class LLMProviderFactory:
             model=model,
             base_url=base_url,
             timeout=timeout,
+            api_key=api_key,
+        )
+
+    @staticmethod
+    def _normalize_ollama_base_url(base_url: str) -> str:
+        normalized = base_url.rstrip("/")
+        return normalized if normalized.endswith("/v1") else f"{normalized}/v1"
+
+    @classmethod
+    def _create_ollama_provider(
+        cls,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        **kwargs
+    ) -> OpenAICompatibleProvider:
+        base_url = cls._normalize_ollama_base_url(kwargs.get("base_url") or settings.OLLAMA_BASE_URL or "http://localhost:11434")
+        return OpenAICompatibleProvider(
+            provider_type=LLMProviderType.OLLAMA,
+            model=model or settings.OLLAMA_MODEL,
+            api_key=api_key,
+            base_url=base_url,
+            timeout=kwargs.get("timeout", 120),
+        )
+
+    @classmethod
+    def _create_deepseek_provider(
+        cls,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        **kwargs
+    ) -> OpenAICompatibleProvider:
+        return OpenAICompatibleProvider(
+            provider_type=LLMProviderType.DEEPSEEK,
+            model=model or settings.DEEPSEEK_MODEL,
+            api_key=api_key or settings.DEEPSEEK_API_KEY,
+            base_url=kwargs.get("base_url") or settings.DEEPSEEK_BASE_URL,
+            timeout=kwargs.get("timeout", 60),
+        )
+
+    @classmethod
+    def _create_google_provider(
+        cls,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        **kwargs
+    ) -> OpenAICompatibleProvider:
+        return OpenAICompatibleProvider(
+            provider_type=LLMProviderType.GOOGLE,
+            model=model or settings.GOOGLE_MODEL,
+            api_key=api_key or settings.GOOGLE_API_KEY,
+            base_url=kwargs.get("base_url") or settings.GOOGLE_BASE_URL,
+            timeout=kwargs.get("timeout", 60),
+        )
+
+    @classmethod
+    def _create_chatglm_provider(
+        cls,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        **kwargs
+    ) -> OpenAICompatibleProvider:
+        return OpenAICompatibleProvider(
+            provider_type=LLMProviderType.CHATGLM,
+            model=model or settings.CHATGLM_MODEL,
+            api_key=api_key or settings.CHATGLM_API_KEY,
+            base_url=kwargs.get("base_url") or settings.CHATGLM_BASE_URL,
+            timeout=kwargs.get("timeout", 60),
         )
 
     @classmethod
@@ -271,6 +348,10 @@ def get_default_llm_provider(model: Optional[str] = None) -> BaseLLMProvider:
         "openai": LLMProviderType.OPENAI,
         "anthropic": LLMProviderType.ANTHROPIC,
         "lmstudio": LLMProviderType.LMSTUDIO,
+        "ollama": LLMProviderType.OLLAMA,
+        "deepseek": LLMProviderType.DEEPSEEK,
+        "google": LLMProviderType.GOOGLE,
+        "chatglm": LLMProviderType.CHATGLM,
     }
     
     provider_type = provider_map.get(provider_name, LLMProviderType.OPENROUTER)

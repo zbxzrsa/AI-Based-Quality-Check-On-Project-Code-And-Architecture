@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
-import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/main-layout';
+import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,20 +17,19 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import {
-  Clock,
   Activity,
-  CheckCircle2,
-  XCircle,
   AlertCircle,
-  PlayCircle,
-  RotateCw,
+  CheckCircle2,
+  Clock,
   Eye,
   GitPullRequest,
+  PlayCircle,
+  RotateCw,
+  XCircle,
 } from 'lucide-react';
 import { useProjects, useProjectPullRequests } from '@/hooks/useProjects';
 import type { Project, PullRequest } from '@/hooks/useProjects';
 
-// Component for showing analysis tasks for one project
 function ProjectQueueSection({ project }: { project: Project }) {
   const router = useRouter();
   const { data: pullRequestsData = [], isLoading } = useProjectPullRequests(project.id, 'all');
@@ -46,7 +45,7 @@ function ProjectQueueSection({ project }: { project: Project }) {
       case 'closed':
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'analyzing':
-        return <PlayCircle className="h-4 w-4 text-blue-500 animate-pulse" />;
+        return <PlayCircle className="h-4 w-4 animate-pulse text-blue-500" />;
       case 'pending':
         return <Clock className="h-4 w-4 text-yellow-500" />;
       default:
@@ -59,14 +58,14 @@ function ProjectQueueSection({ project }: { project: Project }) {
       case 'approved':
       case 'merged':
       case 'reviewed':
-        return <Badge variant="success">已完成</Badge>;
+        return <Badge variant="success">Completed</Badge>;
       case 'rejected':
       case 'closed':
-        return <Badge variant="destructive">已关闭</Badge>;
+        return <Badge variant="destructive">Closed</Badge>;
       case 'analyzing':
-        return <Badge variant="default">分析中</Badge>;
+        return <Badge variant="default">Analyzing</Badge>;
       case 'pending':
-        return <Badge variant="outline">排队中</Badge>;
+        return <Badge variant="outline">Queued</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -75,8 +74,8 @@ function ProjectQueueSection({ project }: { project: Project }) {
   if (isLoading) {
     return (
       <>
-        {[1, 2].map((i) => (
-          <TableRow key={`skeleton-${project.id}-${i}`}>
+        {[1, 2].map((index) => (
+          <TableRow key={`skeleton-${project.id}-${index}`}>
             <TableCell><div className="h-4 w-24 animate-pulse rounded bg-muted" /></TableCell>
             <TableCell><div className="h-4 w-16 animate-pulse rounded bg-muted" /></TableCell>
             <TableCell><div className="h-4 w-32 animate-pulse rounded bg-muted" /></TableCell>
@@ -90,7 +89,9 @@ function ProjectQueueSection({ project }: { project: Project }) {
     );
   }
 
-  if (pullRequests.length === 0) return null;
+  if (pullRequests.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -112,17 +113,12 @@ function ProjectQueueSection({ project }: { project: Project }) {
               PR #{pr.github_pr_number}
             </div>
           </TableCell>
-          <TableCell className="max-w-[200px] truncate">
-            {pr.title}
-          </TableCell>
+          <TableCell className="max-w-[200px] truncate">{pr.title}</TableCell>
           <TableCell>{getStatusBadge(pr.status)}</TableCell>
           <TableCell>
             {pr.risk_score !== null && pr.risk_score !== undefined ? (
               <div className="flex items-center gap-2">
-                <Progress
-                  value={pr.risk_score}
-                  className="w-16 h-2"
-                />
+                <Progress value={pr.risk_score} className="h-2 w-16" />
                 <span className="text-xs">{pr.risk_score}%</span>
               </div>
             ) : (
@@ -133,7 +129,7 @@ function ProjectQueueSection({ project }: { project: Project }) {
             {new Date(pr.created_at).toLocaleString()}
           </TableCell>
           <TableCell>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" aria-label={`View ${pr.title}`}>
               <Eye className="h-4 w-4" />
             </Button>
           </TableCell>
@@ -147,68 +143,58 @@ export default function QueuePage() {
   const { data: projects = [], isLoading } = useProjects();
   const projectList: Project[] = Array.isArray(projects) ? projects : [];
 
-  // Simple counts
-  const totalProjects = projectList.length;
-
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Activity className="h-8 w-8" />
-              Analysis Queue
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Monitor code review and architecture analysis tasks
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            <RotateCw className="h-4 w-4 mr-2" />
-            刷新
-          </Button>
-        </div>
+        <PageHeader
+          title="Analysis Queue"
+          description="Monitor pull request reviews and architecture analysis activity in one place with the same dashboard rhythm used across the rest of the product."
+          actions={
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RotateCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          }
+        />
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card className="border-white/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">总项目数</p>
-                <p className="text-2xl font-bold">{totalProjects}</p>
+                <p className="text-sm text-muted-foreground">Total projects</p>
+                <p className="text-2xl font-bold">{projectList.length}</p>
               </div>
               <Activity className="h-8 w-8 text-blue-500" />
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="border-white/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">已关联仓库</p>
+                <p className="text-sm text-muted-foreground">Connected repositories</p>
                 <p className="text-2xl font-bold">
-                  {projectList.filter(p => p.github_repo_url).length}
+                  {projectList.filter((project) => project.github_repo_url).length}
                 </p>
               </div>
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="border-white/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">活跃项目</p>
+                <p className="text-sm text-muted-foreground">Active projects</p>
                 <p className="text-2xl font-bold">
-                  {projectList.filter(p => p.is_active).length}
+                  {projectList.filter((project) => project.is_active).length}
                 </p>
               </div>
               <PlayCircle className="h-8 w-8 text-blue-500" />
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="border-white/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-950/60">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">无仓库项目</p>
+                <p className="text-sm text-muted-foreground">Projects awaiting setup</p>
                 <p className="text-2xl font-bold">
-                  {projectList.filter(p => !p.github_repo_url).length}
+                  {projectList.filter((project) => !project.github_repo_url).length}
                 </p>
               </div>
               <AlertCircle className="h-8 w-8 text-yellow-500" />
@@ -216,38 +202,37 @@ export default function QueuePage() {
           </Card>
         </div>
 
-        {/* Task Queue Table */}
-        <Card>
+        <Card className="border-white/70 bg-white/80 dark:border-white/10 dark:bg-slate-950/60">
           <CardHeader>
             <CardTitle>Analysis Tasks</CardTitle>
-            <CardDescription>所有项目的 Pull Request 分析任务</CardDescription>
+            <CardDescription>Pull request analysis tasks across all projects.</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
+                {[1, 2, 3, 4, 5].map((index) => (
+                  <Skeleton key={index} className="h-12 w-full" />
                 ))}
               </div>
             ) : projectList.length === 0 ? (
-              <div className="text-center py-12">
-                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">暂无分析任务</h3>
+              <div className="py-12 text-center">
+                <Activity className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">No analysis tasks yet</h3>
                 <p className="text-sm text-muted-foreground">
-                  当项目有新的 Pull Request 时，分析任务会自动添加到队列
+                  New pull requests will appear here automatically after repository analysis begins.
                 </p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>项目</TableHead>
+                    <TableHead>Project</TableHead>
                     <TableHead>PR</TableHead>
-                    <TableHead>标题</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>风险分数</TableHead>
-                    <TableHead>提交时间</TableHead>
-                    <TableHead>操作</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Risk score</TableHead>
+                    <TableHead>Submitted</TableHead>
+                    <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

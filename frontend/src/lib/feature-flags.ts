@@ -43,6 +43,15 @@ interface FeatureFlagsConfig {
   flags: Record<string, FeatureFlag>;
 }
 
+interface WindowWithApiClient extends Window {
+  apiClient?: {
+    post: (url: string, payload: unknown) => Promise<unknown>;
+  };
+  currentUser?: {
+    id?: string;
+  };
+}
+
 interface FlagChangeLog {
   timestamp: string;
   flagKey: string;
@@ -306,8 +315,9 @@ class FeatureFlagsService {
    */
   private async sendAuditLogToBackend(log: FlagChangeLog): Promise<void> {
     // Only send if we have an API client available
-    if (typeof window !== 'undefined' && (window as any).apiClient) {
-      const apiClient = (window as any).apiClient;
+    const appWindow = typeof window !== 'undefined' ? (window as WindowWithApiClient) : undefined;
+    if (appWindow?.apiClient) {
+      const apiClient = appWindow.apiClient;
       await apiClient.post('/api/v1/audit/feature-flags', log);
     }
   }
@@ -321,13 +331,14 @@ class FeatureFlagsService {
       // Check localStorage for user session
       const userSession = localStorage.getItem('user-session');
       if (userSession) {
-        const session = JSON.parse(userSession);
+        const session = JSON.parse(userSession) as { userId?: string; id?: string };
         return session.userId || session.id;
       }
       
       // Check if auth context is available
-      if (typeof window !== 'undefined' && (window as any).currentUser) {
-        return (window as any).currentUser.id;
+      const appWindow = typeof window !== 'undefined' ? (window as WindowWithApiClient) : undefined;
+      if (appWindow?.currentUser) {
+        return appWindow.currentUser.id;
       }
     } catch (error) {
       console.error('Failed to get current user ID:', error);
@@ -642,8 +653,9 @@ class FeatureFlagsService {
    */
   private async sendABTestMetricToBackend(metric: ABTestMetric): Promise<void> {
     // Only send if we have an API client available
-    if (typeof window !== 'undefined' && (window as any).apiClient) {
-      const apiClient = (window as any).apiClient;
+    const appWindow = typeof window !== 'undefined' ? (window as WindowWithApiClient) : undefined;
+    if (appWindow?.apiClient) {
+      const apiClient = appWindow.apiClient;
       await apiClient.post('/api/v1/metrics/ab-test', metric);
     }
   }

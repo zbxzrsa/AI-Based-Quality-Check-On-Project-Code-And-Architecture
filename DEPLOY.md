@@ -1,171 +1,172 @@
-# 🐳 Docker 一键部署指南
+﻿# 馃惓 Docker 涓€閿儴缃叉寚鍗?
 
-## 环境要求
+## 鐜瑕佹眰
 
-| 软件 | 最低版本 | 说明 |
+| 杞欢 | 鏈€浣庣増鏈?| 璇存槑 |
 |------|---------|------|
-| **Docker Desktop** | 4.0+ | [下载地址](https://docs.docker.com/desktop/) |
-| **Docker Compose** | v2.0+ | Docker Desktop 自带 |
-| **Git** | 2.30+ | 用于克隆仓库 |
+| **Docker Desktop** | 4.0+ | [涓嬭浇鍦板潃](https://docs.docker.com/desktop/) |
+| **Docker Compose** | v2.0+ | Docker Desktop 鑷甫 |
+| **Git** | 2.30+ | 鐢ㄤ簬鍏嬮殕浠撳簱 |
 
-> 💡 Windows 用户请确保 Docker Desktop 已启动并显示 "Engine running" 状态
+> 馃挕 Windows 鐢ㄦ埛璇风‘淇?Docker Desktop 宸插惎鍔ㄥ苟鏄剧ず "Engine running" 鐘舵€?
 
 ---
 
-## 快速部署（3 步完成）
+## 蹇€熼儴缃诧紙3 姝ュ畬鎴愶級
 
-### 第 1 步：克隆仓库
+### 绗?1 姝ワ細鍏嬮殕浠撳簱
 
 ```bash
 git clone https://github.com/lv-g-eng/ai--reviewer.git
 cd ai--reviewer
 ```
 
-### 第 2 步：配置环境变量
+### 绗?2 姝ワ細閰嶇疆鐜鍙橀噺
 
-项目根目录已有 `.env` 文件，包含默认配置。如需自定义，可编辑以下关键项：
+椤圭洰鏍圭洰褰曞凡鏈?`.env` 鏂囦欢锛屽寘鍚粯璁ら厤缃€傚闇€鑷畾涔夛紝鍙紪杈戜互涓嬪叧閿」锛?
 
 ```bash
-# 查看并按需修改 .env
+# 鏌ョ湅骞舵寜闇€淇敼 .env
 cat .env
 ```
 
-**主要配置项说明：**
+**涓昏閰嶇疆椤硅鏄庯細**
 
-| 变量名 | 默认值 | 说明 |
+| 鍙橀噺鍚?| 榛樿鍊?| 璇存槑 |
 |--------|--------|------|
-| `POSTGRES_PASSWORD` | `postgres123` | 数据库密码 |
-| `JWT_SECRET` | `dev-secret-key...` | JWT 签名密钥（生产环境请修改） |
-| `DEEPSEEK_API_KEY` | (空) | DeepSeek AI API 密钥（可选，AI审查功能需要） |
-| `GITHUB_TOKEN` | (空) | GitHub Personal Access Token（可选，同步仓库PR需要） |
+| `POSTGRES_PASSWORD` | `postgres123` | 鏁版嵁搴撳瘑鐮?|
+| `JWT_SECRET` | `dev-secret-key...` | JWT 绛惧悕瀵嗛挜锛堢敓浜х幆澧冭淇敼锛?|
+| `DEEPSEEK_API_KEY` | (绌? | DeepSeek AI API 瀵嗛挜锛堝彲閫夛紝AI瀹℃煡鍔熻兘闇€瑕侊級 |
+| `GITHUB_TOKEN` | (绌? | GitHub Personal Access Token锛堝彲閫夛紝鍚屾浠撳簱PR闇€瑕侊級 |
 
-### 第 3 步：一键启动
+### 绗?3 姝ワ細涓€閿惎鍔?
 
-**方式一：使用启动脚本（推荐）**
+**鏂瑰紡涓€锛氫娇鐢ㄥ惎鍔ㄨ剼鏈紙鎺ㄨ崘锛?*
 ```bash
 python start_all.py --mode docker
 ```
 
-**方式二：直接使用 Docker Compose**
+**鏂瑰紡浜岋細鐩存帴浣跨敤 Docker Compose**
 ```bash
 docker compose up -d --build
 ```
 
-等待所有容器启动（约 1-2 分钟），看到以下状态表示成功：
+绛夊緟鎵€鏈夊鍣ㄥ惎鍔紙绾?1-2 鍒嗛挓锛夛紝鐪嬪埌浠ヤ笅鐘舵€佽〃绀烘垚鍔燂細
 ```
-✔ Container ai_review_postgres    Healthy
-✔ Container ai_review_redis       Healthy
-✔ Container ai_review_neo4j       Healthy
-✔ Container ai_review_backend     Healthy
-✔ Container ai_review_frontend    Created
+鉁?Container ai_based_quality_check_on_project_code_and_architecture_postgres    Healthy
+鉁?Container ai_based_quality_check_on_project_code_and_architecture_redis       Healthy
+鉁?Container ai_based_quality_check_on_project_code_and_architecture_neo4j       Healthy
+鉁?Container ai_based_quality_check_on_project_code_and_architecture_backend     Healthy
+鉁?Container ai_based_quality_check_on_project_code_and_architecture_frontend    Created
 ```
 
 ---
 
-## 访问服务
+## 璁块棶鏈嶅姟
 
-| 服务 | 地址 | 说明 |
+| 鏈嶅姟 | 鍦板潃 | 璇存槑 |
 |------|------|------|
-| **🌐 前端界面** | http://localhost:3000 | 主界面 |
-| **📡 后端 API** | http://localhost:8000 | REST API |
-| **📖 API 文档** | http://localhost:8000/docs | Swagger UI |
-| **🗄️ Neo4j 浏览器** | http://localhost:7474 | 图数据库管理 |
+| **馃寪 鍓嶇鐣岄潰** | http://localhost:3000 | 涓荤晫闈?|
+| **馃摗 鍚庣 API** | http://localhost:8000 | REST API |
+| **馃摉 API 鏂囨。** | http://localhost:8000/docs | Swagger UI |
+| **馃梽锔?Neo4j 娴忚鍣?* | http://localhost:7474 | 鍥炬暟鎹簱绠＄悊 |
 
-### 默认登录账号
-
-```
-邮箱: admin@example.com
-密码: Admin123!
-```
-
----
-
-## 服务架构
+### 榛樿鐧诲綍璐﹀彿
 
 ```
-┌─────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   Backend   │
-│  (Next.js)  │     │  (FastAPI)  │
-│  :3000      │     │  :8000      │
-└─────────────┘     └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │PostgreSQL│ │  Redis   │ │  Neo4j   │
-        │  :5432   │ │  :6379   │ │  :7687   │
-        └──────────┘ └──────────┘ └──────────┘
+閭: admin@example.com
+瀵嗙爜: Admin123!
 ```
 
 ---
 
-## 常用 Docker 命令
+## 鏈嶅姟鏋舵瀯
+
+```
+鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?    鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+鈹?  Frontend  鈹傗攢鈹€鈹€鈹€鈻垛攤   Backend   鈹?
+鈹? (Next.js)  鈹?    鈹? (FastAPI)  鈹?
+鈹? :3000      鈹?    鈹? :8000      鈹?
+鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?    鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹攢鈹€鈹€鈹€鈹€鈹€鈹?
+                           鈹?
+              鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹尖攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+              鈻?           鈻?           鈻?
+        鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+        鈹侾ostgreSQL鈹?鈹? Redis   鈹?鈹? Neo4j   鈹?
+        鈹? :5432   鈹?鈹? :6379   鈹?鈹? :7687   鈹?
+        鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?
+```
+
+---
+
+## 甯哥敤 Docker 鍛戒护
 
 ```bash
-# 查看容器状态
+# 鏌ョ湅瀹瑰櫒鐘舵€?
 docker compose ps
 
-# 查看日志（实时）
+# 鏌ョ湅鏃ュ織锛堝疄鏃讹級
 docker compose logs -f
 
-# 只看后端日志
+# 鍙湅鍚庣鏃ュ織
 docker compose logs -f backend
 
-# 停止所有服务
+# 鍋滄鎵€鏈夋湇鍔?
 docker compose down
 
-# 停止并清除数据（⚠️ 会删除数据库数据）
+# 鍋滄骞舵竻闄ゆ暟鎹紙鈿狅笍 浼氬垹闄ゆ暟鎹簱鏁版嵁锛?
 docker compose down -v
 
-# 重新构建并启动（代码更新后）
+# 閲嶆柊鏋勫缓骞跺惎鍔紙浠ｇ爜鏇存柊鍚庯級
 docker compose up -d --build
 
-# 进入后端容器调试
-docker exec -it ai_review_backend bash
+# 杩涘叆鍚庣瀹瑰櫒璋冭瘯
+docker exec -it ai_based_quality_check_on_project_code_and_architecture_backend bash
 
-# 进入数据库
-docker exec -it ai_review_postgres psql -U postgres -d ai_code_review
+# 杩涘叆鏁版嵁搴?
+docker exec -it ai_based_quality_check_on_project_code_and_architecture_postgres psql -U postgres -d ai_code_review
 ```
 
 ---
 
-## 使用流程
+## 浣跨敤娴佺▼
 
-1. **登录** → 使用默认账号登录系统
-2. **添加项目** → 在 Projects 页面添加 GitHub 仓库（需要 GitHub Token）
-3. **同步 PR** → 点击项目的 "同步" 按钮拉取 Pull Request 列表
-4. **开始审查** → 在 Pull Requests 页面点击 "开始审查" 触发 AI 代码审查
-5. **查看架构** → 在 Architecture 页面选择项目和分支查看代码架构图
+1. **鐧诲綍** 鈫?浣跨敤榛樿璐﹀彿鐧诲綍绯荤粺
+2. **娣诲姞椤圭洰** 鈫?鍦?Projects 椤甸潰娣诲姞 GitHub 浠撳簱锛堥渶瑕?GitHub Token锛?
+3. **鍚屾 PR** 鈫?鐐瑰嚮椤圭洰鐨?"鍚屾" 鎸夐挳鎷夊彇 Pull Request 鍒楄〃
+4. **寮€濮嬪鏌?* 鈫?鍦?Pull Requests 椤甸潰鐐瑰嚮 "寮€濮嬪鏌? 瑙﹀彂 AI 浠ｇ爜瀹℃煡
+5. **鏌ョ湅鏋舵瀯** 鈫?鍦?Architecture 椤甸潰閫夋嫨椤圭洰鍜屽垎鏀煡鐪嬩唬鐮佹灦鏋勫浘
 
 ---
 
-## 故障排查
+## 鏁呴殰鎺掓煡
 
-### 容器启动失败
+### 瀹瑰櫒鍚姩澶辫触
 ```bash
-# 查看详细错误日志
+# 鏌ョ湅璇︾粏閿欒鏃ュ織
 docker compose logs backend
 
-# 检查端口占用
+# 妫€鏌ョ鍙ｅ崰鐢?
 netstat -ano | findstr :8000
 netstat -ano | findstr :3000
 
-# 停止占用端口的进程后重试
+# 鍋滄鍗犵敤绔彛鐨勮繘绋嬪悗閲嶈瘯
 docker compose down
 docker compose up -d --build
 ```
 
-### 数据库连接失败
+### 鏁版嵁搴撹繛鎺ュけ璐?
 ```bash
-# 检查 PostgreSQL 容器状态
+# 妫€鏌?PostgreSQL 瀹瑰櫒鐘舵€?
 docker compose ps postgres
 
-# 手动初始化数据库扩展
-docker exec ai_review_postgres psql -U postgres -d ai_code_review -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+# 鎵嬪姩鍒濆鍖栨暟鎹簱鎵╁睍
+docker exec ai_based_quality_check_on_project_code_and_architecture_postgres psql -U postgres -d ai_code_review -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
 ```
 
-### 重置所有数据
+### 閲嶇疆鎵€鏈夋暟鎹?
 ```bash
 docker compose down -v
 docker compose up -d --build
 ```
+

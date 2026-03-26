@@ -1,11 +1,11 @@
-/**
+﻿/**
  * PullRequestList Component
  * 
  * Displays a filterable list of pull requests
  */
 
 import React, { useMemo } from 'react';
-import type { PullRequest, User } from '../types/pullRequest';
+import type { PullRequest } from '../types/pullRequest';
 
 interface PullRequestListProps {
   pullRequests: PullRequest[];
@@ -20,7 +20,6 @@ export const PullRequestList: React.FC<PullRequestListProps> = ({
   onFilterChange,
   onSelectPR,
 }) => {
-  // Filter PRs by status
   const filteredPRs = useMemo(() => {
     if (filterStatus === 'all') {
       return pullRequests;
@@ -41,12 +40,12 @@ export const PullRequestList: React.FC<PullRequestListProps> = ({
 
   const getStatusIcon = (status: PullRequest['status']) => {
     switch (status) {
-      case 'open': return '🔄';
-      case 'approved': return '✅';
-      case 'rejected': return '❌';
-      case 'merged': return '🔀';
-      case 'closed': return '🔒';
-      default: return '❓';
+      case 'open': return '[OPEN]';
+      case 'approved': return '[OK]';
+      case 'rejected': return '[X]';
+      case 'merged': return '[MERGED]';
+      case 'closed': return '[CLOSED]';
+      default: return '[?]';
     }
   };
 
@@ -109,7 +108,7 @@ export const PullRequestList: React.FC<PullRequestListProps> = ({
                   <span>{pr.author.name}</span>
                 </div>
                 <div style={styles.prBranches}>
-                  {pr.sourceBranch} → {pr.targetBranch}
+                  {pr.sourceBranch} -&gt; {pr.targetBranch}
                 </div>
               </div>
 

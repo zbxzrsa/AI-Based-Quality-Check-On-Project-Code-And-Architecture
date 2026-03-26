@@ -115,11 +115,11 @@ class RoleChecker:
 
 
 # Common role checkers
-_all_roles = [UserRole.ADMIN, UserRole.MANAGER, UserRole.REVIEWER, UserRole.PROGRAMMER, UserRole.DEVELOPER, UserRole.COMPLIANCE_OFFICER, UserRole.VISITOR]
+_all_roles = [UserRole.ADMIN, UserRole.USER]
 require_admin = RoleChecker([UserRole.ADMIN])
 require_reviewer = RoleChecker(_all_roles)
 require_compliance = RoleChecker(_all_roles)
-require_manager = RoleChecker([UserRole.ADMIN, UserRole.MANAGER])
+require_manager = RoleChecker([UserRole.ADMIN])
 
 
 async def check_project_access(

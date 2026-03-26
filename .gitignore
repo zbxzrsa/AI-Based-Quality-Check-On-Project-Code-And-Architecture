@@ -120,6 +120,8 @@ certs/
 # Temporary files
 tmp/
 temp/
+~$*.docx
+*.backup
 
 # Cache directories
 .pytest_cache/
@@ -147,6 +149,8 @@ collection_errors_summary.txt
 test-results.json
 report.json
 *.log
+backend/startup_log.txt
+backend/startup_err.txt
 
 # Coverage reports
 .coverage

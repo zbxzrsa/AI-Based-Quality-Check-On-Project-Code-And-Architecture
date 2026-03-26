@@ -1,42 +1,9 @@
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
-
-interface FooterProps {
-  className?: string
-}
-
-export function Footer({ className }: FooterProps) {
+export function Footer() {
   return (
-    <footer
-      className={cn(
-        'border-t bg-background',
-        className
-      )}
-    >
-      <div className="container flex h-16 items-center justify-between px-4">
-        <p className="text-sm text-muted-foreground">
-          © {new Date().getFullYear()} AI Code Review Platform. All rights reserved.
-        </p>
-        <nav className="flex items-center gap-4">
-          <Link
-            href="/docs"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Documentation
-          </Link>
-          <Link
-            href="/support"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Support
-          </Link>
-          <Link
-            href="/privacy"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Privacy
-          </Link>
-        </nav>
+    <footer className="border-t bg-background">
+      <div className="mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 text-sm text-muted-foreground sm:px-6 lg:px-8">
+        <span>AI Review Studio</span>
+        <span>Workspace ready</span>
       </div>
     </footer>
   )

@@ -180,17 +180,18 @@ class SecureASTVisitor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def visit_Str(self, node: ast.Str) -> None:
-        """Analyze string literals for hardcoded secrets"""
-        if self._contains_hardcoded_secret(node.s):
+    def visit_Constant(self, node: ast.Constant) -> None:
+        """Analyze string literals for hardcoded secrets."""
+        if isinstance(node.value, str) and self._contains_hardcoded_secret(node.value):
             self.issues.append(SecurityIssue(
                 issue_type="hardcoded_secret",
                 severity=AnalysisRisk.HIGH,
                 location=f"{self.filename}:{node.lineno}",
                 description="Potential hardcoded secret detected",
-                code_snippet=f'"{node.s[:20]}..."',
+                code_snippet=f'"{node.value[:20]}..."',
                 suggestion="Use environment variables or secure key management"
             ))
+        self.generic_visit(node)
 
     def visit_If(self, node: ast.If) -> None:
         """Track nesting levels"""
@@ -239,7 +240,7 @@ class SecureASTVisitor(ast.NodeVisitor):
             # Check if using string formatting instead of parameters
             if len(node.args) >= 2:
                 sql_arg = node.args[0]
-                if isinstance(sql_arg, ast.Str) and ('%' in sql_arg.s or '+' in sql_arg.s):
+                if isinstance(sql_arg, ast.Constant) and isinstance(sql_arg.value, str) and ('%' in sql_arg.value or '+' in sql_arg.value):
                     return True
 
         return False

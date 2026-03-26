@@ -1,26 +1,27 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { MainLayout } from '@/components/layout/main-layout'
 import { PageHeader } from '@/components/layout/page-header'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
+  CalendarClock,
   FolderGit2,
   GitPullRequest,
   AlertTriangle,
   TrendingUp,
   Eye,
-  Network,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
+import { apiGet } from '@/lib/api-client'
 
 // Lazy load components for better performance
 const RecentActivity = dynamic(() => import('@/components/dashboard/RecentActivity').then(mod => mod.RecentActivity), {
@@ -35,20 +36,9 @@ const QuickActions = dynamic(() => import('@/components/dashboard/QuickActions')
 
 // API service functions
 const fetchDashboardStats = async (): Promise<DashboardMetrics> => {
-  const response = await fetch('/api/dashboard/stats', {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    // Add cache control for better performance
-    next: { revalidate: 300 } // Cache for 5 minutes
+  return apiGet<DashboardMetrics>('/api/dashboard/stats', {
+    next: { revalidate: 300 },
   })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch dashboard stats: ${response.status}`)
-  }
-
-  return response.json()
 }
 
 interface DashboardStats {
@@ -79,8 +69,6 @@ interface DashboardMetrics {
 }
 
 export default function DashboardPage() {
-  const queryClient = useQueryClient()
-
   // Use React Query for data fetching with caching and error handling
   const {
     data: dashboardData,
@@ -118,6 +106,47 @@ export default function DashboardPage() {
     refetch()
   }
 
+  const overviewCards = stats ? [
+    {
+      title: 'Total Projects',
+      value: stats.totalProjects,
+      detail: `${trends?.projects ? `${trends.projects > 0 ? '+' : ''}${trends.projects}` : '0'} from last month`,
+      icon: FolderGit2,
+      valueClassName: 'text-foreground',
+      accentClassName: 'bg-blue-500',
+    },
+    {
+      title: 'Pending Reviews',
+      value: stats.pendingReviews,
+      detail: 'Requires attention',
+      icon: GitPullRequest,
+      valueClassName: 'text-foreground',
+      accentClassName: 'bg-amber-500',
+    },
+    {
+      title: 'Critical Issues',
+      value: stats.criticalIssues,
+      detail: 'Needs immediate action',
+      icon: AlertTriangle,
+      valueClassName: 'text-destructive',
+      accentClassName: 'bg-red-500',
+    },
+    {
+      title: 'Architecture Health',
+      value: `${stats.architectureHealthScore}%`,
+      detail:
+        stats.architectureHealthScore >= 80
+          ? 'Excellent'
+          : stats.architectureHealthScore >= 60
+            ? 'Good'
+            : 'Needs attention',
+      icon: TrendingUp,
+      valueClassName: getHealthScoreColor(stats.architectureHealthScore),
+      accentClassName: 'bg-emerald-500',
+      badgeClassName: getHealthScoreBg(stats.architectureHealthScore),
+    },
+  ] : []
+
   return (
     <RouteGuard>
       <MainLayout>
@@ -137,6 +166,46 @@ export default function DashboardPage() {
               </Button>
             }
           />
+
+          {stats && (
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border bg-card px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Security score
+                    </p>
+                    <p className="text-sm font-semibold">{stats.securityScore || 95}% compliance rating</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-card px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Review efficiency
+                    </p>
+                    <p className="text-sm font-semibold">{stats.reviewEfficiency || 87}% completion speed</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-card px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Last updated
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleString() : 'Just now'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Alert */}
           {error && (
@@ -193,77 +262,34 @@ export default function DashboardPage() {
               </>
             ) : stats ? (
               <>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Projects
-                    </CardTitle>
-                    <FolderGit2 className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalProjects}</div>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      <span className={trends?.projects && trends.projects > 0 ? 'text-green-600' : 'text-muted-foreground'}>
-                        {trends?.projects ? `${trends.projects > 0 ? '+' : ''}${trends.projects}` : '0'} from last month
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Pending Reviews
-                    </CardTitle>
-                    <GitPullRequest className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.pendingReviews}</div>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Eye className="h-3 w-3 mr-1" />
-                      <span>Requires attention</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Critical Issues
-                    </CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-destructive">
-                      {stats.criticalIssues}
-                    </div>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      <span>Needs immediate action</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Architecture Health
-                    </CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className={`text-2xl font-bold ${getHealthScoreColor(stats.architectureHealthScore)}`}>
-                      {stats.architectureHealthScore}%
-                    </div>
-                    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getHealthScoreBg(stats.architectureHealthScore)}`}>
-                      <span className={getHealthScoreColor(stats.architectureHealthScore)}>
-                        {stats.architectureHealthScore >= 80 ? 'Excellent' :
-                         stats.architectureHealthScore >= 60 ? 'Good' : 'Needs Attention'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                {overviewCards.map((item) => (
+                  <Card key={item.title} className="overflow-hidden">
+                    <div className={`h-1 w-full ${item.accentClassName}`} />
+                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+                      <div className="space-y-1">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          {item.title}
+                        </CardTitle>
+                        <div className={`text-3xl font-semibold ${item.valueClassName}`}>
+                          {item.value}
+                        </div>
+                      </div>
+                      <item.icon className="mt-1 h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      {item.badgeClassName ? (
+                        <div className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${item.badgeClassName}`}>
+                          <span className={item.valueClassName}>{item.detail}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Eye className="mr-1 h-3 w-3" />
+                          <span>{item.detail}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
               </>
             ) : null}
           </div>
@@ -274,42 +300,6 @@ export default function DashboardPage() {
             <QuickActions />
           </div>
 
-          {/* Performance Metrics */}
-          {stats && (
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Security Score</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.securityScore || 95}%</div>
-                  <p className="text-xs text-muted-foreground">Compliance rating</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Review Efficiency</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{stats.reviewEfficiency || 87}%</div>
-                  <p className="text-xs text-muted-foreground">Time to completion</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Last Updated</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm font-medium">
-                    {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleString() : 'Just now'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Data freshness</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
       </MainLayout>
     </RouteGuard>

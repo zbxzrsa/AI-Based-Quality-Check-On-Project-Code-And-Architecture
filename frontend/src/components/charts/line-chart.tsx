@@ -13,7 +13,7 @@ import {
 import { Card } from '@/components/ui/card';
 
 interface LineChartProps {
-  data: any[];
+  data: Record<string, unknown>[];
   title: string;
   xAxisKey: string;
   lines: {

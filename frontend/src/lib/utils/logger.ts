@@ -51,7 +51,7 @@ class LoggerImpl implements Logger {
   }
 
   private log(level: LogData['level'], message: string, data?: Record<string, unknown>): void {
-    const logData: LogData = {
+    const _logData: LogData = {
       module: this.module,
       message,
       data: this.formatData(data),
@@ -59,25 +59,8 @@ class LoggerImpl implements Logger {
       level,
     };
 
-    const prefix = `[${this.module}]`;
-    const formattedMessage = `${prefix} ${message}`;
-
-    switch (level) {
-      case 'debug':
-        if (this.isDevelopment) {
-          console.log(formattedMessage, data || '');
-        }
-        break;
-      case 'info':
-        console.log(formattedMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(formattedMessage, data || '');
-        break;
-      case 'error':
-        console.error(formattedMessage, data || '');
-        break;
-    }
+    void _logData;
+    void this.isDevelopment;
   }
 
   debug(message: string, data?: Record<string, unknown>): void {

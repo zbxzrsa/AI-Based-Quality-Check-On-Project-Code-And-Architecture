@@ -1,186 +1,148 @@
 """
-user LLM service
-
-根据userconfig动态选择 LLM provide者and API key
+User-scoped LLM provider resolution.
 """
+
 import logging
-from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, Optional
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.auth import User
-from app.services.llm.factory import LLMProviderFactory
+from app.models import User
 from app.services.llm.base import BaseLLMProvider, LLMProviderType
+from app.services.llm.factory import LLMProviderFactory
 
 logger = logging.getLogger(__name__)
 
 
+PROVIDER_ENUM_MAP: Dict[str, LLMProviderType] = {
+    "openrouter": LLMProviderType.OPENROUTER,
+    "openai": LLMProviderType.OPENAI,
+    "anthropic": LLMProviderType.ANTHROPIC,
+    "lmstudio": LLMProviderType.LMSTUDIO,
+    "ollama": LLMProviderType.OLLAMA,
+    "deepseek": LLMProviderType.DEEPSEEK,
+    "google": LLMProviderType.GOOGLE,
+    "chatglm": LLMProviderType.CHATGLM,
+}
+
+PROVIDER_KEY_FIELDS: Dict[str, str] = {
+    "openrouter": "openrouter_api_key",
+    "openai": "openai_api_key",
+    "anthropic": "anthropic_api_key",
+    "deepseek": "deepseek_api_key",
+    "google": "google_api_key",
+    "chatglm": "chatglm_api_key",
+}
+
+PROVIDER_BASE_URL_FIELDS: Dict[str, str] = {
+    "deepseek": "deepseek_base_url",
+    "google": "google_base_url",
+    "chatglm": "chatglm_base_url",
+    "ollama": "ollama_base_url",
+    "lmstudio": "lmstudio_base_url",
+}
+
+PROVIDER_MODEL_FIELDS: Dict[str, str] = {
+    "deepseek": "deepseek_model",
+    "google": "google_model",
+    "chatglm": "chatglm_model",
+    "ollama": "ollama_model",
+    "lmstudio": "lmstudio_model",
+}
+
+
+def _get_user_ai_settings(user: User) -> Dict[str, Any]:
+    return dict(getattr(user, "ai_settings", None) or {})
+
+
 class UserLLMService:
-    """
-    user LLM service
-    
-    根据userconfig动态create LLM providerInstance
-    优先级：userconfig > system默认config
-    """
-    
+    """Resolve provider/model/key per user settings with system fallback."""
+
     @staticmethod
     async def get_user_llm_provider(
         db: AsyncSession,
         user_id: str,
         provider_type: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ) -> BaseLLMProvider:
-        """
-        getuser的 LLM providerInstance
-        
-        Args:
-            db: dbSession
-            user_id: user ID
-            provider_type: 可选的provide者type，如果未指定则useuser默认config
-            model: 可选的模型名称，如果未指定则useuser默认config
-            
-        Returns:
-            config好的 LLM providerInstance
-        """
-        # getuserinfo
-        result = await db.execute(
-            select(User).filter(User.id == user_id)
-        )
+        result = await db.execute(select(User).filter(User.id == user_id))
         user = result.scalar_one_or_none()
-        
+
         if not user:
-            logger.warning(f"User {user_id} not found, using system default LLM provider")
+            logger.warning("User %s not found, using system provider", user_id)
             return UserLLMService._get_system_default_provider(provider_type, model)
-        
-        # getuser的 API set
-        metadata = user.metadata or {}
-        api_settings = metadata.get('api_settings', {})
-        
-        # 确定use的provide者type
-        if not provider_type:
-            provider_type = api_settings.get('default_llm_provider') or settings.DEFAULT_LLM_PROVIDER
-        
-        # 确定use的模型
-        if not model:
-            model = api_settings.get('default_llm_model') or settings.DEFAULT_LLM_MODEL
-        
-        # getuserconfig的 API key
-        user_api_key = None
-        if provider_type == 'openrouter':
-            user_api_key = api_settings.get('openrouter_api_key')
-        elif provider_type == 'openai':
-            user_api_key = api_settings.get('openai_api_key')
-        elif provider_type == 'anthropic':
-            user_api_key = api_settings.get('anthropic_api_key')
-        
-        # 如果user有config API key，useuser的key
-        if user_api_key:
-            logger.info(
-                f"Using user-configured API key for {provider_type}",
-                extra={"user_id": user_id, "provider": provider_type}
-            )
+
+        ai_settings = _get_user_ai_settings(user)
+
+        selected_provider = (provider_type or ai_settings.get("default_llm_provider") or settings.DEFAULT_LLM_PROVIDER).lower()
+        selected_model = model or ai_settings.get("default_llm_model") or settings.DEFAULT_LLM_MODEL
+
+        kwargs: Dict[str, Any] = {}
+        base_url_field = PROVIDER_BASE_URL_FIELDS.get(selected_provider)
+        if base_url_field and ai_settings.get(base_url_field):
+            kwargs["base_url"] = ai_settings[base_url_field]
+
+        model_field = PROVIDER_MODEL_FIELDS.get(selected_provider)
+        if model_field and ai_settings.get(model_field):
+            selected_model = ai_settings[model_field]
+
+        key_field = PROVIDER_KEY_FIELDS.get(selected_provider)
+        user_api_key = ai_settings.get(key_field) if key_field else None
+
+        if user_api_key or selected_provider in {"ollama", "lmstudio"}:
             return UserLLMService._create_provider_with_key(
-                provider_type, model, user_api_key
+                selected_provider,
+                selected_model,
+                user_api_key,
+                **kwargs,
             )
-        
-        # 否则usesystem默认config
-        logger.info(
-            f"Using system default API key for {provider_type}",
-            extra={"user_id": user_id, "provider": provider_type}
-        )
-        return UserLLMService._get_system_default_provider(provider_type, model)
-    
+
+        return UserLLMService._get_system_default_provider(selected_provider, selected_model)
+
     @staticmethod
     def _create_provider_with_key(
         provider_type: str,
         model: str,
-        api_key: str
+        api_key: Optional[str],
+        **kwargs: Any,
     ) -> BaseLLMProvider:
-        """
-        use指定的 API keycreateproviderInstance
-        
-        Args:
-            provider_type: provide者type
-            model: 模型名称
-            api_key: API key
-            
-        Returns:
-            LLM providerInstance
-        """
-        # 转换provide者type
-        provider_enum = {
-            'openrouter': LLMProviderType.OPENROUTER,
-            'openai': LLMProviderType.OPENAI,
-            'anthropic': LLMProviderType.ANTHROPIC,
-        }.get(provider_type.lower())
-        
+        provider_enum = PROVIDER_ENUM_MAP.get(provider_type.lower())
         if not provider_enum:
             raise ValueError(f"Unsupported provider type: {provider_type}")
-        
-        # createproviderInstance（不usecache，因为每itemuser的key不同）
+
         return LLMProviderFactory.create_provider(
             provider_type=provider_enum,
             model=model,
-            api_key=api_key
+            api_key=api_key,
+            **kwargs,
         )
-    
+
     @staticmethod
     def _get_system_default_provider(
         provider_type: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ) -> BaseLLMProvider:
-        """
-        getsystem默认的 LLM provide者
-        
-        Args:
-            provider_type: 可选的provide者type
-            model: 可选的模型名称
-            
-        Returns:
-            LLM providerInstance
-        """
-        provider_type = provider_type or settings.DEFAULT_LLM_PROVIDER
-        model = model or settings.DEFAULT_LLM_MODEL
-        
-        # 转换provide者type
-        provider_enum = {
-            'openrouter': LLMProviderType.OPENROUTER,
-            'openai': LLMProviderType.OPENAI,
-            'anthropic': LLMProviderType.ANTHROPIC,
-        }.get(provider_type.lower())
-        
+        selected_provider = (provider_type or settings.DEFAULT_LLM_PROVIDER).lower()
+        selected_model = model or settings.DEFAULT_LLM_MODEL
+        provider_enum = PROVIDER_ENUM_MAP.get(selected_provider)
+
         if not provider_enum:
-            raise ValueError(f"Unsupported provider type: {provider_type}")
-        
-        # use工厂createprovide者（usesystemconfig的 API key）
+            raise ValueError(f"Unsupported provider type: {selected_provider}")
+
         return LLMProviderFactory.get_provider(
             provider_type=provider_enum,
-            model=model
+            model=selected_model,
         )
-    
+
     @staticmethod
     async def get_user_api_settings(
         db: AsyncSession,
-        user_id: str
+        user_id: str,
     ) -> dict:
-        """
-        getuser的 API set
-        
-        Args:
-            db: dbSession
-            user_id: user ID
-            
-        Returns:
-            user的 API set字典
-        """
-        result = await db.execute(
-            select(User).filter(User.id == user_id)
-        )
+        result = await db.execute(select(User).filter(User.id == user_id))
         user = result.scalar_one_or_none()
-        
         if not user:
             return {}
-        
-        metadata = user.metadata or {}
-        return metadata.get('api_settings', {})
+        return _get_user_ai_settings(user)

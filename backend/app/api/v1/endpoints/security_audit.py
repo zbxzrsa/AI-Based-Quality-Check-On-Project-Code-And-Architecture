@@ -13,7 +13,7 @@ from app.schemas.security_models import (
     ProjectQualityMetrics
 )
 from app.services.security_audit_service import SecurityAuditService
-from app.models.user import User
+from app.models import User
 
 router = APIRouter(
     prefix="/security-audit",

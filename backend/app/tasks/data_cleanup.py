@@ -12,11 +12,34 @@ Validates Requirements: 11.1, 11.8
 """
 from celery import shared_task
 import logging
+import asyncio
+from typing import Any, Awaitable, Callable
 
 from app.database.postgresql import get_db
 from app.services.data_lifecycle_service import DataLifecycleService
 
 logger = logging.getLogger(__name__)
+
+
+async def _run_with_service(
+    operation: Callable[[DataLifecycleService], Awaitable[dict[str, Any]]]
+) -> dict[str, Any]:
+    """Run a service operation with a managed async database session."""
+    async for session in get_db():
+        try:
+            service = DataLifecycleService(session)
+            return await operation(service)
+        finally:
+            await session.close()
+
+
+def _run_cleanup_operation(
+    task_name: str,
+    operation: Callable[[DataLifecycleService], Awaitable[dict[str, Any]]]
+) -> dict[str, Any]:
+    """Execute an async cleanup operation in a synchronous Celery task."""
+    logger.debug("Running data cleanup operation: %s", task_name)
+    return asyncio.run(_run_with_service(operation))
 
 
 @shared_task(
@@ -43,20 +66,10 @@ def cleanup_old_analysis_results(self, dry_run: bool = False):
     logger.info(f"Starting cleanup_old_analysis_results task (dry_run={dry_run})")
     
     try:
-        # Create async session and run cleanup
-        import asyncio
-        
-        async def run_cleanup():
-            async for session in get_db():
-                try:
-                    service = DataLifecycleService(session)
-                    result = await service.cleanup_old_analysis_results(dry_run=dry_run)
-                    return result
-                finally:
-                    await session.close()
-        
-        # Run async cleanup in event loop
-        result = asyncio.run(run_cleanup())
+        result = _run_cleanup_operation(
+            "cleanup_old_analysis_results",
+            lambda service: service.cleanup_old_analysis_results(dry_run=dry_run),
+        )
         
         logger.info(f"Cleanup task completed: {result}")
         return result
@@ -90,21 +103,13 @@ def cleanup_old_architectural_baselines(self, dry_run: bool = False, keep_curren
     logger.info(f"Starting cleanup_old_architectural_baselines task (dry_run={dry_run})")
     
     try:
-        import asyncio
-        
-        async def run_cleanup():
-            async for session in get_db():
-                try:
-                    service = DataLifecycleService(session)
-                    result = await service.cleanup_old_architectural_baselines(
-                        dry_run=dry_run,
-                        keep_current=keep_current
-                    )
-                    return result
-                finally:
-                    await session.close()
-        
-        result = asyncio.run(run_cleanup())
+        result = _run_cleanup_operation(
+            "cleanup_old_architectural_baselines",
+            lambda service: service.cleanup_old_architectural_baselines(
+                dry_run=dry_run,
+                keep_current=keep_current,
+            ),
+        )
         
         logger.info(f"Cleanup task completed: {result}")
         return result
@@ -135,18 +140,10 @@ def cleanup_expired_sessions(self, dry_run: bool = False):
     logger.info(f"Starting cleanup_expired_sessions task (dry_run={dry_run})")
     
     try:
-        import asyncio
-        
-        async def run_cleanup():
-            async for session in get_db():
-                try:
-                    service = DataLifecycleService(session)
-                    result = await service.cleanup_expired_sessions(dry_run=dry_run)
-                    return result
-                finally:
-                    await session.close()
-        
-        result = asyncio.run(run_cleanup())
+        result = _run_cleanup_operation(
+            "cleanup_expired_sessions",
+            lambda service: service.cleanup_expired_sessions(dry_run=dry_run),
+        )
         
         logger.info(f"Cleanup task completed: {result}")
         return result
@@ -177,18 +174,10 @@ def verify_audit_log_retention(self):
     logger.info("Starting verify_audit_log_retention task")
     
     try:
-        import asyncio
-        
-        async def run_verification():
-            async for session in get_db():
-                try:
-                    service = DataLifecycleService(session)
-                    result = await service.verify_audit_log_retention()
-                    return result
-                finally:
-                    await session.close()
-        
-        result = asyncio.run(run_verification())
+        result = _run_cleanup_operation(
+            "verify_audit_log_retention",
+            lambda service: service.verify_audit_log_retention(),
+        )
         
         logger.info(f"Verification task completed: {result}")
         
@@ -222,18 +211,10 @@ def get_cleanup_statistics(self):
     logger.info("Starting get_cleanup_statistics task")
     
     try:
-        import asyncio
-        
-        async def run_stats():
-            async for session in get_db():
-                try:
-                    service = DataLifecycleService(session)
-                    result = await service.get_cleanup_statistics()
-                    return result
-                finally:
-                    await session.close()
-        
-        result = asyncio.run(run_stats())
+        result = _run_cleanup_operation(
+            "get_cleanup_statistics",
+            lambda service: service.get_cleanup_statistics(),
+        )
         
         logger.info(f"Statistics task completed: {result}")
         return result

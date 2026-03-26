@@ -17,6 +17,7 @@ const customJestConfig = {
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     // Mock lucide-react
     '^lucide-react$': '<rootDir>/__mocks__/lucide-react.tsx',
+    '^lucide-react/(.*)$': '<rootDir>/__mocks__/lucide-react.tsx',
   },
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
@@ -28,12 +29,16 @@ const customJestConfig = {
     '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
     '<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}',
   ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/.next/',
+    '<rootDir>/.next/standalone/',
+  ],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/(?!(lucide-react)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],

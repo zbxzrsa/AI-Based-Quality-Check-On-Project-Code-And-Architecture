@@ -8,7 +8,8 @@ and intelligent service discovery for improved reliability.
 import logging
 from typing import Dict, List, Any
 from dataclasses import dataclass
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -103,9 +104,10 @@ class ResilientSettings(BaseSettings):
     ENABLE_METRICS: bool = Field(default=True)
     METRICS_PORT: int = Field(default=9090)
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+    )
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

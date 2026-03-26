@@ -4,14 +4,9 @@ Authentication and authorization services.
 from .rbac_service import RBACService
 from app.core.audit_service import UnifiedAuditService as AuditService, AuditFilter
 
-# Import TokenPayload and AuthResult from the main models
-from app.models import User
-from app.schemas.auth import TokenResponse
-
-# Define AuthResult and TokenPayload classes here since AuthService is removed
+# Define AuthResult and TokenPayload here since the legacy AuthService module is now a shim.
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)

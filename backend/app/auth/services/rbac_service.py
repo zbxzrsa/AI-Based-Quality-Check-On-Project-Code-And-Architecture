@@ -1,10 +1,18 @@
 """
 RBAC service for role and permission management.
 """
+import logging
+from uuid import UUID
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import User, Project, ProjectAccess, Role, Permission, ROLE_PERMISSIONS
+from sqlalchemy import select
+
+from app.models import User, Project, ProjectAccess
+from app.auth.models.enums import Role, Permission, ROLE_PERMISSIONS
+
+
+logger = logging.getLogger(__name__)
 
 
 class RBACService:
@@ -23,12 +31,6 @@ class RBACService:
         Returns:
             True if user has the permission, False otherwise
         """
-        from sqlalchemy import select
-        from uuid import UUID
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        
         try:
             # Convert user_id to UUID if it's a string
             user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
@@ -91,11 +93,12 @@ class RBACService:
         Returns:
             True if user can access the project, False otherwise
         """
-        from sqlalchemy import select
-        
         try:
-            # Get user from database (IDs are stored as strings)
-            result = await db.execute(select(User).filter(User.id == user_id))
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+            project_uuid = UUID(project_id) if isinstance(project_id, str) else project_id
+
+            # Get user from database
+            result = await db.execute(select(User).filter(User.id == user_uuid))
             user = result.scalar_one_or_none()
             
             if not user or not user.is_active:
@@ -106,14 +109,14 @@ class RBACService:
                 return True
             
             # Get project from database
-            result = await db.execute(select(Project).filter(Project.id == project_id))
+            result = await db.execute(select(Project).filter(Project.id == project_uuid))
             project = result.scalar_one_or_none()
             
             if not project:
                 return False
             
             # Check if user is the project owner
-            if project.owner_id == user_id:
+            if project.owner_id == user_uuid:
                 return True
             
             # For non-owners, check if they have an explicit access grant
@@ -121,8 +124,9 @@ class RBACService:
             if permission == Permission.VIEW_PROJECT:
                 result = await db.execute(
                     select(ProjectAccess).filter(
-                        ProjectAccess.project_id == project_id,
-                        ProjectAccess.user_id == user_id
+                        ProjectAccess.project_id == project_uuid,
+                        ProjectAccess.user_id == user_uuid,
+                        ProjectAccess.revoked_at.is_(None),
                     )
                 )
                 access_grant = result.scalar_one_or_none()
@@ -135,7 +139,7 @@ class RBACService:
             
         except Exception as e:
             # Log error but don't expose details
-            logger.info("Error in can_access_project: {type(e).__name__}: {str(e)}")
+            logger.info(f"Error in can_access_project: {type(e).__name__}: {str(e)}")
             return False
     
     @staticmethod
@@ -156,24 +160,29 @@ class RBACService:
             True if access was granted successfully, False otherwise
         """
         try:
+            project_uuid = UUID(project_id) if isinstance(project_id, str) else project_id
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+            granted_by_uuid = UUID(granted_by) if isinstance(granted_by, str) else granted_by
+
             # Verify the granter has permission to grant access
-            granter = db.query(User).filter(User.id == granted_by).first()
+            granter = db.query(User).filter(User.id == granted_by_uuid).first()
             if not granter:
                 return False
             
             # Get the project
-            project = db.query(Project).filter(Project.id == project_id).first()
+            project = db.query(Project).filter(Project.id == project_uuid).first()
             if not project:
                 return False
             
             # Only admins or project owners can grant access
-            if granter.role != Role.ADMIN and project.owner_id != granted_by:
+            if granter.role != Role.ADMIN and project.owner_id != granted_by_uuid:
                 return False
             
             # Check if access grant already exists
             existing_grant = db.query(ProjectAccess).filter(
-                ProjectAccess.project_id == project_id,
-                ProjectAccess.user_id == user_id
+                ProjectAccess.project_id == project_uuid,
+                ProjectAccess.user_id == user_uuid,
+                ProjectAccess.revoked_at.is_(None),
             ).first()
             
             if existing_grant:
@@ -182,9 +191,9 @@ class RBACService:
             
             # Create new access grant
             access_grant = ProjectAccess(
-                project_id=project_id,
-                user_id=user_id,
-                granted_by=granted_by
+                project_id=project_uuid,
+                user_id=user_uuid,
+                granted_by=granted_by_uuid
             )
             db.add(access_grant)
             db.commit()
@@ -213,24 +222,29 @@ class RBACService:
             True if access was revoked successfully, False otherwise
         """
         try:
+            project_uuid = UUID(project_id) if isinstance(project_id, str) else project_id
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+            revoked_by_uuid = UUID(revoked_by) if isinstance(revoked_by, str) else revoked_by
+
             # Verify the revoker has permission to revoke access
-            revoker = db.query(User).filter(User.id == revoked_by).first()
+            revoker = db.query(User).filter(User.id == revoked_by_uuid).first()
             if not revoker:
                 return False
             
             # Get the project
-            project = db.query(Project).filter(Project.id == project_id).first()
+            project = db.query(Project).filter(Project.id == project_uuid).first()
             if not project:
                 return False
             
             # Only admins or project owners can revoke access
-            if revoker.role != Role.ADMIN and project.owner_id != revoked_by:
+            if revoker.role != Role.ADMIN and project.owner_id != revoked_by_uuid:
                 return False
             
             # Find and delete the access grant
             access_grant = db.query(ProjectAccess).filter(
-                ProjectAccess.project_id == project_id,
-                ProjectAccess.user_id == user_id
+                ProjectAccess.project_id == project_uuid,
+                ProjectAccess.user_id == user_uuid,
+                ProjectAccess.revoked_at.is_(None),
             ).first()
             
             if access_grant:
@@ -281,13 +295,16 @@ class RBACService:
             True if role was assigned successfully, False otherwise
         """
         try:
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+            assigned_by_uuid = UUID(assigned_by) if isinstance(assigned_by, str) else assigned_by
+
             # Verify the assigner is an admin
-            assigner = db.query(User).filter(User.id == assigned_by).first()
+            assigner = db.query(User).filter(User.id == assigned_by_uuid).first()
             if not assigner or assigner.role != Role.ADMIN:
                 return False
             
             # Get the user to update
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.query(User).filter(User.id == user_uuid).first()
             if not user:
                 return False
             

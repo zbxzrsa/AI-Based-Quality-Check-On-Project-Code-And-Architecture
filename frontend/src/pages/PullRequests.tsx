@@ -17,8 +17,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { LoadingState } from '../components/LoadingState';
 import { PullRequestList } from '../components/PullRequestList';
 import { PullRequestDetail } from '../components/PullRequestDetail';
-import type { PullRequest, PullRequestsProps } from '../types/pullRequest';
-import type { Comment } from '../components/CodeDiff';
+import type { PullRequest, PullRequestComment, PullRequestsProps } from '../types/pullRequest';
 import '../styles/responsive.css';
 
 /**
@@ -78,8 +77,29 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
   }, [selectedPR]);
 
   // Handle add comment
-  const handleAddComment = useCallback((comment: Comment) => {
+  const handleAddComment = useCallback((
+    fileName: string,
+    lineNumber: number,
+    content: string,
+    parentId?: string
+  ) => {
     if (!selectedPR) return;
+
+    const currentUser = {
+      id: 'current-user',
+      name: 'Current User',
+      email: 'user@example.com',
+      role: 'developer' as const,
+    };
+    const comment: PullRequestComment = {
+      id: `comment-${Date.now()}`,
+      author: currentUser,
+      content,
+      createdAt: new Date(),
+      lineNumber,
+      filePath: fileName,
+      parentId,
+    };
 
     const updatedPR = {
       ...selectedPR,
@@ -97,7 +117,7 @@ export const PullRequestsComponent: React.FC<PullRequestsProps> = ({ initialPRs 
   }, [selectedPR]);
 
   if (loading) {
-    return <LoadingState message="Loading pull requests..." />;
+    return <LoadingState text="Loading pull requests..." />;
   }
 
   if (error) {

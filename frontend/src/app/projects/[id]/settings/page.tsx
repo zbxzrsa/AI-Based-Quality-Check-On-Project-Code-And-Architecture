@@ -65,7 +65,7 @@ export default function ProjectSettingsPage() {
         title: 'Settings Saved',
         description: 'Project settings have been updated successfully',
       })
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Save Failed',

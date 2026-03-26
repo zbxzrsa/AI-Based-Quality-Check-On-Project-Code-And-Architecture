@@ -37,6 +37,11 @@ export async function POST(
     }
 
     const data = await response.json();
+
+    if (typeof data?.message === 'string' && data.message.toLowerCase().startsWith('sync failed')) {
+      return NextResponse.json(data, { status: 502 });
+    }
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error syncing project:', error);

@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "tests",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.property.test.ts",
+    "**/*.property.test.tsx",
+    "src/pages/**",
+    "src/components/PullRequestDetail.tsx",
+    "src/components/performance/PerformanceDashboard.tsx",
+    "src/components/visualizations/DependencyGraphVisualization.tsx",
+    "src/components/visualizations/DependencyGraphVisualizationLazy.tsx",
+    "src/components/visualizations/ForceGraph2D.tsx",
+    "src/components/visualizations/Neo4jGraphVisualization.tsx",
+    "src/components/visualizations/Neo4jGraphVisualizationLazy.tsx",
+    "src/lib/validations/api-schemas.ts",
+    "src/utils/taskScheduler.ts",
+    "src/utils/taskRetryScheduler.ts"
+  ]
+}

@@ -5,7 +5,7 @@
  * initial bundle size and loading performance.
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentProps } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load heavy visualization components
@@ -58,32 +58,32 @@ export const DashboardSkeleton = () => (
 );
 
 // Wrapper components with suspense
-export const LazyArchitectureGraph = (props: any) => (
+export const LazyArchitectureGraph = (props: ComponentProps<typeof ArchitectureGraph>) => (
   <Suspense fallback={<VisualizationSkeleton />}>
     <ArchitectureGraph {...props} />
   </Suspense>
 );
 
-export const LazyDependencyGraph = (props: any) => (
+export const LazyDependencyGraph = (props: ComponentProps<typeof DependencyGraph>) => (
   <Suspense fallback={<VisualizationSkeleton />}>
     <DependencyGraph {...props} />
   </Suspense>
 );
 
-export const LazyNeo4jGraphVisualization = (props: any) => (
+export const LazyNeo4jGraphVisualization = (props: ComponentProps<typeof Neo4jGraphVisualization>) => (
   <Suspense fallback={<VisualizationSkeleton />}>
     <Neo4jGraphVisualization {...props} />
   </Suspense>
 );
 
-export const LazyPerformanceDashboard = (props: any) => (
+export const LazyPerformanceDashboard = (props: ComponentProps<typeof PerformanceDashboard>) => (
   <Suspense fallback={<DashboardSkeleton />}>
     <PerformanceDashboard {...props} />
   </Suspense>
 );
 
-export const LazyProjectAnalysisDashboard = (props: any) => (
+export const LazyProjectAnalysisDashboard = () => (
   <Suspense fallback={<DashboardSkeleton />}>
-    <ProjectAnalysisDashboard {...props} />
+    <ProjectAnalysisDashboard />
   </Suspense>
 );

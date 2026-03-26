@@ -3,7 +3,7 @@ Immutable Audit Trail System
 """
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, JSON, Text, Index
+from sqlalchemy import Column, String, DateTime, JSON, Text, Index, Integer, select, func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import hashlib
@@ -21,7 +21,7 @@ class AuditLog(Base):
     - User and IP tracking
     - Searchable metadata
     """
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_trail_logs"
     
     # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -52,7 +52,7 @@ class AuditLog(Base):
     new_state = Column(JSON, nullable=True)
     
     # Additional context
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column("metadata", JSON, nullable=True)
     
     # Compliance
     compliance_frameworks = Column(JSON, nullable=True)  # ["PCI-DSS", "HIPAA"]
@@ -133,7 +133,7 @@ class AuditTrailService:
             description=description,
             previous_state=previous_state,
             new_state=new_state,
-            metadata=metadata,
+            event_metadata=metadata,
             compliance_frameworks=compliance_frameworks,
         )
         
@@ -303,5 +303,5 @@ class AuditTrailService:
             "ip_address": log.ip_address,
             "action": log.action,
             "description": log.description,
-            "metadata": log.metadata,
+            "metadata": log.event_metadata,
         }

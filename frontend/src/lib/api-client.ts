@@ -74,6 +74,30 @@ export interface ApiError {
   details?: unknown;
 }
 
+export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
+  body?: unknown;
+  timeoutMs?: number;
+  next?: {
+    revalidate?: number;
+    tags?: string[];
+  };
+}
+
+export interface ApiStreamEvent<T = unknown> {
+  data: T;
+  event?: string;
+  id?: string;
+  rawData: string;
+}
+
+export interface ApiStreamOptions<T = unknown> extends ApiFetchOptions {
+  doneToken?: string;
+  onMessage: (event: ApiStreamEvent<T>) => void | Promise<void>;
+  onOpen?: (response: Response) => void | Promise<void>;
+  onParseError?: (error: Error, rawData: string) => void;
+  parseJson?: boolean;
+}
+
 interface PendingRequest {
   promise: Promise<unknown>;
   timestamp: number;
@@ -486,7 +510,9 @@ class UnifiedAPIClient {
         await this.get(endpoint);
         logger.debug(`Cache warmed for ${endpoint}`);
       } catch (error) {
-        logger.warn(`Failed to warm cache for ${endpoint}`, error);
+        logger.warn(`Failed to warm cache for ${endpoint}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     });
 
@@ -581,6 +607,273 @@ export const getApiClient = (config?: ApiClientConfig): UnifiedAPIClient => {
   }
   return apiClient;
 };
+
+function createAbortController(timeoutMs: number, externalSignal?: AbortSignal) {
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort(externalSignal.reason);
+    } else {
+      externalSignal.addEventListener('abort', abortFromExternal, { once: true });
+    }
+  }
+
+  const timeoutId = setTimeout(() => {
+    controller.abort(new DOMException('Request timed out', 'AbortError'));
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', abortFromExternal);
+      }
+    },
+  };
+}
+
+function normalizeRequestBody(headers: HeadersInit | undefined, body: unknown) {
+  const normalizedHeaders = new Headers(headers);
+  let normalizedBody: BodyInit | null | undefined =
+    typeof body === 'string' ||
+    body instanceof FormData ||
+    body instanceof URLSearchParams ||
+    body instanceof Blob ||
+    body instanceof ArrayBuffer
+      ? body
+      : body === null
+        ? null
+        : undefined;
+
+  if (
+    body !== undefined &&
+    body !== null &&
+    typeof body === 'object' &&
+    !(body instanceof FormData) &&
+    !(body instanceof URLSearchParams) &&
+    !(body instanceof Blob) &&
+    !(body instanceof ArrayBuffer)
+  ) {
+    if (!normalizedHeaders.has('Content-Type')) {
+      normalizedHeaders.set('Content-Type', 'application/json');
+    }
+    normalizedBody = JSON.stringify(body);
+  } else if (body !== undefined && normalizedBody === undefined) {
+    normalizedBody = String(body);
+  }
+
+  return { normalizedHeaders, normalizedBody };
+}
+
+async function readResponsePayload(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => '');
+
+  return { contentType, isJson, payload };
+}
+
+function getResponseError(response: Response, payload: unknown) {
+  const detail =
+    typeof payload === 'object' && payload !== null
+      ? (payload as { detail?: string; message?: string }).detail ||
+        (payload as { detail?: string; message?: string }).message
+      : undefined;
+
+  return new Error(detail || `Request failed with status ${response.status}`);
+}
+
+export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}): Promise<T> {
+  const {
+    timeoutMs = 30000,
+    headers,
+    body,
+    credentials = 'include',
+    signal: externalSignal,
+    ...rest
+  } = options;
+
+  const { signal, cleanup } = createAbortController(timeoutMs, externalSignal ?? undefined);
+  const { normalizedHeaders, normalizedBody } = normalizeRequestBody(headers, body);
+
+  try {
+    const response = await fetch(url, {
+      ...rest,
+      credentials,
+      headers: normalizedHeaders,
+      body: normalizedBody,
+      signal,
+    });
+
+    const { payload } = await readResponsePayload(response);
+
+    if (!response.ok) {
+      throw getResponseError(response, payload);
+    }
+
+    return payload as T;
+  } finally {
+    cleanup();
+  }
+}
+
+export async function streamApiFetch<T>(url: string, options: ApiStreamOptions<T>): Promise<void> {
+  const {
+    timeoutMs = 30000,
+    headers,
+    body,
+    credentials = 'include',
+    signal: externalSignal,
+    parseJson = true,
+    doneToken = '[DONE]',
+    onMessage,
+    onOpen,
+    onParseError,
+    ...rest
+  } = options;
+
+  const { signal, cleanup } = createAbortController(timeoutMs, externalSignal ?? undefined);
+  const { normalizedHeaders, normalizedBody } = normalizeRequestBody(headers, body);
+
+  try {
+    const response = await fetch(url, {
+      ...rest,
+      credentials,
+      headers: normalizedHeaders,
+      body: normalizedBody,
+      signal,
+    });
+
+    if (!response.ok) {
+      const { payload } = await readResponsePayload(response);
+      throw getResponseError(response, payload);
+    }
+
+    await onOpen?.(response);
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentEvent: string | undefined;
+    let currentId: string | undefined;
+    let currentDataLines: string[] = [];
+    let shouldStop = false;
+
+    const flushEvent = async () => {
+      if (currentDataLines.length === 0) {
+        return;
+      }
+
+      const rawData = currentDataLines.join('\n');
+      const eventName = currentEvent;
+      const eventId = currentId;
+
+      currentEvent = undefined;
+      currentId = undefined;
+      currentDataLines = [];
+
+      if (rawData === doneToken) {
+        shouldStop = true;
+        return;
+      }
+
+      if (!parseJson) {
+        await onMessage({
+          data: rawData as T,
+          event: eventName,
+          id: eventId,
+          rawData,
+        });
+        return;
+      }
+
+      try {
+        await onMessage({
+          data: JSON.parse(rawData) as T,
+          event: eventName,
+          id: eventId,
+          rawData,
+        });
+      } catch (error) {
+        onParseError?.(error instanceof Error ? error : new Error(String(error)), rawData);
+      }
+    };
+
+    const processLine = async (line: string) => {
+      if (line === '') {
+        await flushEvent();
+        return;
+      }
+
+      if (line.startsWith(':')) {
+        return;
+      }
+
+      const separatorIndex = line.indexOf(':');
+      const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex);
+      const value = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1).trimStart();
+
+      if (field === 'event') {
+        currentEvent = value;
+      } else if (field === 'id') {
+        currentId = value;
+      } else if (field === 'data') {
+        currentDataLines.push(value);
+      }
+    };
+
+    while (!shouldStop) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        await processLine(line);
+        if (shouldStop) {
+          await reader.cancel();
+          break;
+        }
+      }
+    }
+
+    if (!shouldStop) {
+      buffer += decoder.decode();
+      if (buffer) {
+        const trailingLines = buffer.split(/\r?\n/);
+        for (const line of trailingLines) {
+          await processLine(line);
+        }
+      }
+      await flushEvent();
+    }
+  } finally {
+    cleanup();
+  }
+}
+
+export const apiGet = <T>(url: string, options?: ApiFetchOptions) =>
+  apiFetch<T>(url, { ...options, method: 'GET' });
+
+export const apiPost = <T>(url: string, body?: unknown, options?: ApiFetchOptions) =>
+  apiFetch<T>(url, { ...options, method: 'POST', body });
+
+export const apiPut = <T>(url: string, body?: unknown, options?: ApiFetchOptions) =>
+  apiFetch<T>(url, { ...options, method: 'PUT', body });
+
+export const apiDelete = <T>(url: string, options?: ApiFetchOptions) =>
+  apiFetch<T>(url, { ...options, method: 'DELETE' });
 
 // Default export
 export default apiClient;

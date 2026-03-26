@@ -11,23 +11,20 @@ Provides consistent response formatting across all API endpoints:
 from typing import Any, Optional, Dict, List
 from fastapi import status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime, timezone
 
 
 class APIResponse(BaseModel):
     """Standard API response model"""
+    model_config = ConfigDict()
+
     success: bool
     message: Optional[str] = None
     data: Optional[Any] = None
     errors: Optional[List[Dict[str, Any]]] = None
     meta: Optional[Dict[str, Any]] = None
-    timestamp: datetime = datetime.utcnow()
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PaginationMeta(BaseModel):
@@ -83,7 +80,7 @@ class ResponseBuilder:
             meta=meta
         )
         return JSONResponse(
-            content=response.dict(exclude_none=True),
+            content=response.model_dump(mode="json", exclude_none=True),
             status_code=status_code
         )
     
@@ -120,7 +117,7 @@ class ResponseBuilder:
             meta=meta
         )
         return JSONResponse(
-            content=response.dict(exclude_none=True),
+            content=response.model_dump(mode="json", exclude_none=True),
             status_code=status_code
         )
     
@@ -166,7 +163,7 @@ class ResponseBuilder:
             has_prev=page > 1
         )
         
-        meta = {"pagination": pagination.dict()}
+        meta = {"pagination": pagination.model_dump()}
         if additional_meta:
             meta.update(additional_meta)
         

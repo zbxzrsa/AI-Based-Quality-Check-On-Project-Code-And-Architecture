@@ -17,14 +17,14 @@ import ReactFlow, {
     Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Search, Maximize, Download } from 'lucide-react';
+import { Search, Download } from 'lucide-react';
 
 interface GraphNode {
     id: string;
     type: 'module' | 'class' | 'function';
     name: string;
     importance: number; // in-degree + out-degree
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 interface GraphEdge {
@@ -128,8 +128,8 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
         [graphEdges]
     );
 
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, , onNodesChange] = useNodesState(initialNodes);
+    const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
     // Filter nodes based on search and type
     const filteredNodes = useMemo(() => {
@@ -149,7 +149,7 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
     }, [edges, filteredNodes]);
 
     const onNodeClickHandler = useCallback(
-        (event: any, node: Node) => {
+        (_event: React.MouseEvent, node: Node) => {
             const graphNode = graphNodes.find((n) => n.id === node.id);
             if (graphNode && onNodeClick) {
                 onNodeClick(graphNode);
@@ -159,8 +159,14 @@ export default function DependencyGraph({ nodes: graphNodes, edges: graphEdges, 
     );
 
     const handleExport = () => {
-        // Export to SVG/PNG (implementation would use html2canvas or similar)
-        console.log('Export functionality to be implemented');
+        const dataStr = JSON.stringify({ nodes: graphNodes, edges: graphEdges }, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'dependency-graph.json';
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (

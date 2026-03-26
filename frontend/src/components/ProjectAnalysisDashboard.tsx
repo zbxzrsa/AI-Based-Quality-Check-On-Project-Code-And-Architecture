@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { streamApiFetch } from '@/lib/api-client';
 
 interface AnalysisResult {
   repositoryUrl: string;
@@ -46,6 +47,11 @@ interface AnalysisProgress {
   message: string;
 }
 
+type ServerSentEvent =
+  | { type: 'progress'; data: AnalysisProgress }
+  | { type: 'result'; data: AnalysisResult }
+  | { type: 'error'; data: { message: string } };
+
 export default function ProjectAnalysisDashboard() {
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -73,65 +79,40 @@ export default function ProjectAnalysisDashboard() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch('/api/analyze', {
+      await streamApiFetch<ServerSentEvent>('/api/analyze', {
         method: 'POST',
         headers: {
+          Accept: 'text/event-stream',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: {
           repositoryUrl: repositoryUrl.trim(),
           includeArchitectureAnalysis: true,
           includeComplexityMetrics: true,
           includeDependencyAnalysis: true
-        }),
-        signal: abortControllerRef.current.signal
+        },
+        signal: abortControllerRef.current.signal,
+        timeoutMs: 10 * 60 * 1000,
+        onMessage: async (event) => {
+          handleServerSentEvent(event.data);
+        },
+        onParseError: (parseError, rawData) => {
+          console.warn('Failed to parse SSE event:', parseError, rawData);
+        },
       });
-
-      if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-
-              try {
-                const event = JSON.parse(data);
-                handleServerSentEvent(event);
-              } catch (e) {
-                console.warn('Failed to parse SSE event:', e);
-              }
-            }
-          }
-        }
-      }
-
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.log('Analysis cancelled by user');
+        console.warn('Analysis cancelled by user');
       } else {
         setError(err instanceof Error ? err.message : 'Analysis failed');
       }
     } finally {
+      abortControllerRef.current = null;
       setIsAnalyzing(false);
     }
   };
 
-  const handleServerSentEvent = useCallback((event: any) => {
+  const handleServerSentEvent = useCallback((event: ServerSentEvent) => {
     switch (event.type) {
       case 'progress':
         setAnalysisProgress(event.data);
@@ -139,7 +120,7 @@ export default function ProjectAnalysisDashboard() {
       case 'result':
         setAnalysisResult(event.data);
         setAnalysisProgress(null);
-        console.log('Analysis complete');
+        console.warn('Analysis complete');
         break;
       case 'error':
         setError(event.data.message);
@@ -151,6 +132,7 @@ export default function ProjectAnalysisDashboard() {
   const handleCancelAnalysis = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
     setIsAnalyzing(false);
     setAnalysisProgress(null);

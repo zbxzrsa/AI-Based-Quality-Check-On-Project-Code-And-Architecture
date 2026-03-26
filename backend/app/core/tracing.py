@@ -51,6 +51,7 @@ class TracingConfig:
         service_version: str,
         environment: str,
         otlp_endpoint: Optional[str] = None,
+        otlp_export_enabled: bool = False,
         enable_console_export: bool = False,
         sample_rate: float = 1.0,
     ):
@@ -68,7 +69,8 @@ class TracingConfig:
         self.service_name = service_name
         self.service_version = service_version
         self.environment = environment
-        self.otlp_endpoint = otlp_endpoint or "http://localhost:4317"
+        self.otlp_endpoint = otlp_endpoint
+        self.otlp_export_enabled = otlp_export_enabled
         self.enable_console_export = enable_console_export
         self.sample_rate = sample_rate
         self._tracer_provider: Optional[TracerProvider] = None
@@ -97,15 +99,15 @@ class TracingConfig:
                 sampler=sampler,
             )
             
-            # Configure OTLP exporter for AWS X-Ray
-            otlp_exporter = OTLPSpanExporter(
-                endpoint=self.otlp_endpoint,
-                insecure=True,  # Use TLS in production
-            )
-            
-            # Add batch span processor for efficient export
-            span_processor = BatchSpanProcessor(otlp_exporter)
-            self._tracer_provider.add_span_processor(span_processor)
+            if self.otlp_export_enabled and self.otlp_endpoint:
+                otlp_exporter = OTLPSpanExporter(
+                    endpoint=self.otlp_endpoint,
+                    insecure=True,
+                )
+                span_processor = BatchSpanProcessor(otlp_exporter)
+                self._tracer_provider.add_span_processor(span_processor)
+            else:
+                logger.info("OTLP exporter disabled; skipping remote span export")
             
             # Add console exporter for debugging if enabled
             if self.enable_console_export:
@@ -122,7 +124,7 @@ class TracingConfig:
                 f"✅ OpenTelemetry tracing initialized: "
                 f"service={self.service_name}, "
                 f"environment={self.environment}, "
-                f"endpoint={self.otlp_endpoint}, "
+                f"endpoint={self.otlp_endpoint or 'disabled'}, "
                 f"sample_rate={self.sample_rate}"
             )
             
@@ -209,6 +211,7 @@ def setup_tracing(
     service_version: str,
     environment: str,
     otlp_endpoint: Optional[str] = None,
+    otlp_export_enabled: bool = False,
     enable_console_export: bool = False,
     sample_rate: float = 1.0,
 ) -> TracingConfig:
@@ -237,6 +240,7 @@ def setup_tracing(
         service_version=service_version,
         environment=environment,
         otlp_endpoint=otlp_endpoint,
+        otlp_export_enabled=otlp_export_enabled,
         enable_console_export=enable_console_export,
         sample_rate=sample_rate,
     )

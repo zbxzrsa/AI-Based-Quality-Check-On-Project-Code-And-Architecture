@@ -45,7 +45,7 @@ class Repository(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Store additional metadata as JSON
-    metadata = Column(JSON, default=dict, nullable=False)
+    metadata_json = Column("metadata", JSON, default=dict, nullable=False)
     
     # Relationships
     # creator = relationship("User", back_populates="repositories")

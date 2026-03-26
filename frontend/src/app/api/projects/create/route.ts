@@ -13,7 +13,6 @@ const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_U
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        console.log('[API/projects/create] Received:', JSON.stringify(body))
 
         const cookieStore = await cookies();
         const accessToken = cookieStore.get('access_token')?.value;
@@ -38,8 +37,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(data, { status: response.status })
         }
 
-        console.log('[API/projects/create] Created project:', data.id, 'with github_repo_url:', data.github_repo_url)
-
         // After successful creation, trigger a sync if the project has a github_repo_url
         if (body.github_repo_url && data.id) {
             try {
@@ -50,17 +47,16 @@ export async function POST(request: NextRequest) {
                         'Authorization': `Bearer ${accessToken}`,
                     },
                 })
-                console.log('[API/projects/create] Sync triggered for project:', data.id)
             } catch (syncError) {
                 console.warn('[API/projects/create] Sync failed (non-critical):', syncError)
             }
         }
 
         return NextResponse.json(data, { status: 201 })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[API/projects/create] Error:', error)
         return NextResponse.json(
-            { detail: error.message || 'Failed to create project' },
+            { detail: error instanceof Error ? error.message : 'Failed to create project' },
             { status: 500 }
         )
     }

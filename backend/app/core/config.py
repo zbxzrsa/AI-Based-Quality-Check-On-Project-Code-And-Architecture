@@ -86,13 +86,23 @@ class Settings(BaseSettings):
     # OpenRouter Configuration (support多模型访问)
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, description="OpenRouter API key")
     OPENROUTER_BASE_URL: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter base URL")
-    DEFAULT_LLM_PROVIDER: str = Field(default="openai", description="Default LLM provider (openai, anthropic, openrouter, lmstudio)")
+    DEFAULT_LLM_PROVIDER: str = Field(default="openai", description="Default LLM provider (openai, anthropic, openrouter, lmstudio, ollama, deepseek, google, chatglm)")
     DEFAULT_LLM_MODEL: str = Field(default="gpt-4-turbo-preview", description="Default LLM model")
 
     # DeepSeek Configuration
     DEEPSEEK_API_KEY: Optional[str] = Field(default=None, description="DeepSeek API key for AI code review")
     DEEPSEEK_BASE_URL: str = Field(default="https://api.deepseek.com", description="DeepSeek API base URL")
     DEEPSEEK_MODEL: str = Field(default="deepseek-chat", description="DeepSeek model name")
+
+    GOOGLE_API_KEY: Optional[str] = Field(default=None, description="Google Gemini API key")
+    GOOGLE_BASE_URL: str = Field(default="https://generativelanguage.googleapis.com/v1beta/openai", description="Google Gemini OpenAI-compatible base URL")
+    GOOGLE_MODEL: str = Field(default="gemini-2.0-flash", description="Google Gemini model name")
+
+    CHATGLM_API_KEY: Optional[str] = Field(default=None, description="ChatGLM API key")
+    CHATGLM_BASE_URL: str = Field(default="https://open.bigmodel.cn/api/paas/v4", description="ChatGLM OpenAI-compatible base URL")
+    CHATGLM_MODEL: str = Field(default="glm-4.5", description="ChatGLM model name")
+
+    OLLAMA_MODEL: str = Field(default="llama3.1", description="Ollama model name")
 
     # LM Studio Configuration (local inference server)
     LMSTUDIO_BASE_URL: str = Field(
@@ -221,7 +231,8 @@ class Settings(BaseSettings):
 
     # OpenTelemetry Tracing Configuration (Requirement 18.1)
     TRACING_ENABLED: bool = Field(default=True, description="Enable OpenTelemetry distributed tracing")
-    OTLP_ENDPOINT: str = Field(default="http://localhost:4317", description="OTLP collector endpoint for AWS X-Ray")
+    OTLP_EXPORT_ENABLED: bool = Field(default=False, description="Enable OTLP span export to an external collector")
+    OTLP_ENDPOINT: Optional[str] = Field(default=None, description="OTLP collector endpoint")
     TRACING_SAMPLE_RATE: float = Field(default=1.0, description="Trace sampling rate (0.0 to 1.0)")
     TRACING_CONSOLE_EXPORT: bool = Field(default=False, description="Enable console exporter for debugging")
 
@@ -470,7 +481,9 @@ class Settings(BaseSettings):
 
     def is_github_integration_enabled(self) -> bool:
         """Check if GitHub integration is enabled (Requirement 1.4)"""
-        return bool(self.GITHUB_TOKEN and self.GITHUB_WEBHOOK_SECRET)
+        has_oauth = bool(self.GITHUB_CLIENT_ID and self.GITHUB_CLIENT_SECRET)
+        has_automation = bool(self.GITHUB_TOKEN and self.GITHUB_WEBHOOK_SECRET)
+        return has_oauth or has_automation
 
     def is_openai_enabled(self) -> bool:
         """Check if OpenAI integration is enabled (Requirement 1.4)"""
@@ -495,6 +508,14 @@ class Settings(BaseSettings):
     def is_deepseek_enabled(self) -> bool:
         """Check if DeepSeek AI integration is enabled"""
         return bool(self.DEEPSEEK_API_KEY)
+
+    def is_google_enabled(self) -> bool:
+        """Check if Google Gemini integration is enabled"""
+        return bool(self.GOOGLE_API_KEY)
+
+    def is_chatglm_enabled(self) -> bool:
+        """Check if ChatGLM integration is enabled"""
+        return bool(self.CHATGLM_API_KEY)
 
     def is_ssl_enabled(self) -> bool:
         """Check if SSL/TLS is enabled (Requirement 8.5)"""
@@ -612,8 +633,8 @@ class Settings(BaseSettings):
             )
         
         # Check OTLP endpoint
-        if self.TRACING_ENABLED and not self.OTLP_ENDPOINT:
-            warnings.append("OTLP_ENDPOINT is required when TRACING_ENABLED is true")
+        if self.TRACING_ENABLED and self.OTLP_EXPORT_ENABLED and not self.OTLP_ENDPOINT:
+            warnings.append("OTLP_ENDPOINT is required when OTLP_EXPORT_ENABLED is true")
         
         return warnings
 

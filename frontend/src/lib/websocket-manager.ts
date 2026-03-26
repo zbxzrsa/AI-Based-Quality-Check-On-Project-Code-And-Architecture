@@ -31,6 +31,17 @@ interface ConnectionMetrics {
   latency: number;
 }
 
+interface NativeWebSocketConfig {
+  url: string;
+  autoConnect?: boolean;
+  reconnection?: boolean;
+  reconnectionAttempts?: number;
+  reconnectionDelay?: number;
+  maxReconnectionDelay?: number;
+}
+
+type WebSocketEventPayload = Record<string, unknown> | string | number | boolean | null;
+
 export class WebSocketManager extends EventEmitter {
   private socket: Socket | null = null;
   private config: Required<WebSocketConfig>;
@@ -94,7 +105,6 @@ export class WebSocketManager extends EventEmitter {
       this.emit('connected');
       this.startHeartbeat();
       
-      console.log('🔗 WebSocket connected');
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -104,15 +114,12 @@ export class WebSocketManager extends EventEmitter {
       this.emit('disconnected', reason);
       this.stopHeartbeat();
       
-      console.log('🔌 WebSocket disconnected:', reason);
-      
       if (this.config.reconnection && reason !== 'io client disconnect') {
         this.scheduleReconnect();
       }
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ WebSocket connection error:', error);
       this.emit('error', error);
       
       if (this.config.reconnection) {
@@ -122,7 +129,6 @@ export class WebSocketManager extends EventEmitter {
 
     this.socket.on('reconnect', () => {
       this.emit('reconnected');
-      console.log('🔄 WebSocket reconnected');
     });
 
     // Handle incoming messages
@@ -146,7 +152,6 @@ export class WebSocketManager extends EventEmitter {
     }
 
     if (this.metrics.reconnectAttempts >= this.config.reconnectionAttempts) {
-      console.error('❌ Max reconnection attempts reached');
       this.emit('maxReconnectAttemptsReached');
       return;
     }
@@ -159,8 +164,6 @@ export class WebSocketManager extends EventEmitter {
       this.config.maxReconnectionDelay
     );
 
-    console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.metrics.reconnectAttempts}/${this.config.reconnectionAttempts})`);
-    
     this.emit('reconnecting', this.metrics.reconnectAttempts, delay);
 
     this.reconnectTimeout = setTimeout(() => {
@@ -202,9 +205,8 @@ export class WebSocketManager extends EventEmitter {
     this.emit('disconnected', 'manual disconnect');
   }
 
-  send(event: string, data?: any): boolean {
+  send(event: string, data?: WebSocketEventPayload): boolean {
     if (!this.socket || this.connectionState !== 'connected') {
-      console.warn('⚠️ Cannot send message: WebSocket not connected');
       return false;
     }
 
@@ -212,7 +214,6 @@ export class WebSocketManager extends EventEmitter {
       this.socket.emit(event, data);
       return true;
     } catch (error) {
-      console.error('❌ Failed to send message:', error);
       this.emit('error', error);
       return false;
     }
@@ -231,23 +232,23 @@ export class WebSocketManager extends EventEmitter {
   }
 
   // Convenience methods for common events
-  onProjectUpdate(callback: (data: any) => void): void {
+  onProjectUpdate(callback: (data: WebSocketEventPayload) => void): void {
     this.on('project:updated', callback);
   }
 
-  onReviewUpdate(callback: (data: any) => void): void {
+  onReviewUpdate(callback: (data: WebSocketEventPayload) => void): void {
     this.on('review:updated', callback);
   }
 
-  onLibraryUpdate(callback: (data: any) => void): void {
+  onLibraryUpdate(callback: (data: WebSocketEventPayload) => void): void {
     this.on('library:updated', callback);
   }
 
-  onSystemAlert(callback: (data: any) => void): void {
+  onSystemAlert(callback: (data: WebSocketEventPayload) => void): void {
     this.on('system:alert', callback);
   }
 
-  onPerformanceUpdate(callback: (data: any) => void): void {
+  onPerformanceUpdate(callback: (data: WebSocketEventPayload) => void): void {
     this.on('performance:update', callback);
   }
 
@@ -294,4 +295,131 @@ export function useWebSocket() {
     subscribe: manager.on.bind(manager),
     unsubscribe: manager.off.bind(manager),
   };
+}
+
+export class NativeWebSocketManager extends EventEmitter {
+  private socket: WebSocket | null = null;
+  private config: Required<NativeWebSocketConfig>;
+  private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
+  private reconnectAttempts = 0;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private manualDisconnect = false;
+
+  constructor(config: NativeWebSocketConfig) {
+    super();
+
+    this.config = {
+      url: config.url,
+      autoConnect: config.autoConnect ?? true,
+      reconnection: config.reconnection ?? true,
+      reconnectionAttempts: config.reconnectionAttempts ?? 5,
+      reconnectionDelay: config.reconnectionDelay ?? 1000,
+      maxReconnectionDelay: config.maxReconnectionDelay ?? 30000,
+    };
+
+    if (this.config.autoConnect) {
+      this.connect();
+    }
+  }
+
+  connect(): void {
+    if (this.connectionState === 'connected' || this.connectionState === 'connecting') {
+      return;
+    }
+
+    this.manualDisconnect = false;
+    this.connectionState = this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting';
+    this.emit(this.connectionState);
+
+    try {
+      this.socket = new WebSocket(this.config.url);
+      this.setupEventHandlers();
+    } catch (error) {
+      this.emit('error', error);
+      this.scheduleReconnect();
+    }
+  }
+
+  private setupEventHandlers(): void {
+    if (!this.socket) return;
+
+    this.socket.onopen = () => {
+      this.connectionState = 'connected';
+      this.reconnectAttempts = 0;
+      this.emit('connected');
+    };
+
+    this.socket.onmessage = (event) => {
+      this.emit('message', event.data);
+    };
+
+    this.socket.onerror = (event) => {
+      this.emit('error', event);
+    };
+
+    this.socket.onclose = (event) => {
+      this.socket = null;
+      this.connectionState = 'disconnected';
+      this.emit('disconnected', event);
+
+      if (!this.manualDisconnect && this.config.reconnection) {
+        this.scheduleReconnect();
+      }
+    };
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    if (this.reconnectAttempts >= this.config.reconnectionAttempts) {
+      this.emit('maxReconnectAttemptsReached');
+      return;
+    }
+
+    this.reconnectAttempts += 1;
+    const delay = Math.min(
+      this.config.reconnectionDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.config.maxReconnectionDelay
+    );
+
+    this.connectionState = 'reconnecting';
+    this.emit('reconnecting', this.reconnectAttempts, delay);
+    this.reconnectTimeout = setTimeout(() => this.connect(), delay);
+  }
+
+  disconnect(): void {
+    this.manualDisconnect = true;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+
+    this.connectionState = 'disconnected';
+  }
+
+  send(data: string): boolean {
+    if (!this.socket || this.connectionState !== 'connected') {
+      return false;
+    }
+
+    this.socket.send(data);
+    return true;
+  }
+
+  getConnectionState(): string {
+    return this.connectionState;
+  }
+
+  isConnected(): boolean {
+    return this.connectionState === 'connected';
+  }
 }

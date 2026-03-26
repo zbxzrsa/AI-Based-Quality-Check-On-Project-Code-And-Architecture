@@ -29,7 +29,7 @@ async def get_slow_queries(
     """
     Get slow database queries.
     
-    Requires admin or reviewer role.
+    Requires admin role.
     
     Args:
         limit: Maximum number of slow queries to return
@@ -38,10 +38,10 @@ async def get_slow_queries(
         List of slow queries with details
     """
     # Check permissions
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and reviewers can view slow queries"
+            detail="Only admins can view slow queries"
         )
     
     try:
@@ -67,15 +67,15 @@ async def get_slow_query_stats(
     """
     Get slow query statistics and analysis.
     
-    Requires admin or reviewer role.
+    Requires admin role.
     
     Returns:
         Slow query statistics with recommendations
     """
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and reviewers can view query statistics"
+            detail="Only admins can view query statistics"
         )
     
     try:
@@ -100,15 +100,15 @@ async def get_monitor_stats(
     """
     Get statistics from the slow query monitor.
     
-    Requires admin or reviewer role.
+    Requires admin role.
     
     Returns:
         Monitor statistics including total slow queries, average time, etc.
     """
-    if current_user.role.value not in ["ADMIN", "REVIEWER"]:
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and reviewers can view monitor statistics"
+            detail="Only admins can view monitor statistics"
         )
     
     try:
@@ -141,7 +141,7 @@ async def clear_monitor_entries(
     Returns:
         Success message
     """
-    if current_user.role.value != "ADMIN":
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can clear monitor entries"
@@ -177,7 +177,7 @@ async def configure_threshold(
     Returns:
         Success message
     """
-    if current_user.role.value != "ADMIN":
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can configure threshold"

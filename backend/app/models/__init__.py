@@ -58,11 +58,20 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole, name='user_role'), nullable=False, default=UserRole.VISITOR)
+    role = Column(
+        SQLEnum(
+            UserRole,
+            name='user_role',
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=False,
+        default=UserRole.USER,
+    )
     full_name = Column(String(255))
     is_active = Column(Boolean, default=True)
     github_token = Column(String(500), nullable=True)
     github_username = Column(String(255), nullable=True, index=True)
+    ai_settings = Column(JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -92,7 +101,14 @@ class Project(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     github_repo_url = Column(String(500), unique=True)
-    github_connection_type = Column(SQLEnum(GitHubConnectionType), default=GitHubConnectionType.HTTPS)
+    github_connection_type = Column(
+        SQLEnum(
+            GitHubConnectionType,
+            name='github_connection_type',
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=GitHubConnectionType.HTTPS,
+    )
     github_ssh_key_id = Column(UUID(as_uuid=True), ForeignKey("ssh_keys.id"), nullable=True)
     github_cli_token = Column(String(500), nullable=True)  # Encrypted GitHub CLI token
     github_webhook_secret = Column(String(255))

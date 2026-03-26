@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '@/providers';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from '@/components/ui/toaster';
+import { ClientToaster } from '@/components/providers/client-toaster';
 import BackendStatusBanner from '@/components/common/backend-status';
 import '@/styles/globals.css';
 
@@ -146,7 +146,7 @@ export default function RootLayout({
                             <BackendStatusBanner />
                         </AuthProvider>
                     </Providers>
-                    <Toaster />
+                    <ClientToaster />
                 </ThemeProvider>
             </body>
         </html>

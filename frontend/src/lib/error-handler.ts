@@ -251,7 +251,7 @@ export class ErrorHandler {
   private static sendToMonitoring(logData: Record<string, unknown>): void {
     // TODO: Integrate with monitoring service (Sentry, DataDog, etc.)
     // Example: Sentry.captureException(logData);
-    console.log('[Monitoring] Error logged:', logData);
+    void logData;
   }
 
   /**
@@ -266,7 +266,7 @@ export class ErrorHandler {
       ...logData,
     };
 
-    console.error(JSON.stringify(structuredLog));
+    void structuredLog;
   }
 
   /**
@@ -297,9 +297,8 @@ export class ErrorHandler {
         },
         body: JSON.stringify(payload),
       });
-    } catch (error) {
+    } catch {
       // Graceful degradation - don't fail if error reporting fails
-      console.warn('[Error Handler] Failed to report error to backend:', error);
     }
   }
 
@@ -373,7 +372,6 @@ export class ErrorHandler {
 
           // Wait before retrying (exponential backoff)
           const delay = delayMs * Math.pow(2, attempt);
-          console.log(`[Error Handler] Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }

@@ -1,11 +1,11 @@
 """
-projectanalyze统计 API endpoint
+Project analytics API endpoints.
 
-provideproject的 AI reviewData、architectureanalyze、code质量指标等
+Provides analytics, architecture insights, and performance metrics for a project.
 """
 from typing import Annotated, Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -13,6 +13,7 @@ import logging
 
 from app.database.postgresql import get_db
 from app.auth import TokenPayload, require_project_access, Permission
+from app.models import Project, User
 from app.models.code_review import (
     PullRequest,
     CodeReview,
@@ -36,8 +37,190 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _get_project_and_github_token(
+    db: AsyncSession,
+    project_id: str,
+    user_id: str,
+) -> tuple[Project | None, Optional[str]]:
+    project_result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = project_result.scalar_one_or_none()
+
+    user_result = await db.execute(select(User).filter(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+
+    return project, getattr(user, "github_token", None)
+
+
+async def _fetch_live_github_issues(
+    repo_url: str,
+    github_token: Optional[str],
+    limit: int,
+) -> list[Dict[str, Any]]:
+    import httpx
+    from urllib.parse import urlparse
+
+    normalized_repo_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
+    parsed = urlparse(
+        normalized_repo_url if "://" in normalized_repo_url else f"https://{normalized_repo_url}"
+    )
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if len(path_parts) < 2:
+        return []
+
+    repo_full_name = f"{path_parts[-2]}/{path_parts[-1]}"
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"https://api.github.com/repos/{repo_full_name}/issues",
+                headers=headers,
+                params={"state": "all", "per_page": max(1, min(limit, 100))},
+            )
+
+        if response.status_code != 200:
+            logger.warning(
+                "Live GitHub issues fetch failed for %s with status %s",
+                repo_full_name,
+                response.status_code,
+            )
+            return []
+
+        issues: list[Dict[str, Any]] = []
+        for issue in response.json():
+            if issue.get("pull_request"):
+                continue
+
+            labels = [
+                str(label.get("name") or "").strip()
+                for label in (issue.get("labels") or [])
+                if isinstance(label, dict)
+            ]
+            labels_lower = [label.lower() for label in labels]
+
+            category = "security" if any(
+                keyword in label
+                for label in labels_lower
+                for keyword in ("security", "vulnerability", "hotspot", "cve")
+            ) else "github-issue"
+
+            severity = "high" if category == "security" else "medium" if any(
+                keyword in label
+                for label in labels_lower
+                for keyword in ("bug", "defect", "error")
+            ) else "low"
+
+            issues.append(
+                {
+                    "id": f"github-issue-{issue.get('number')}",
+                    "file_path": f"GitHub Issue #{issue.get('number')}",
+                    "line_number": None,
+                    "message": issue.get("title") or f"Issue #{issue.get('number')}",
+                    "severity": severity,
+                    "category": category,
+                    "rule_id": None,
+                    "rule_name": ", ".join(labels[:3]) or "GitHub issue",
+                    "suggested_fix": issue.get("body"),
+                    "created_at": issue.get("created_at") or datetime.utcnow().isoformat(),
+                }
+            )
+
+        return issues
+    except Exception as exc:
+        logger.warning("Live GitHub issues fetch failed: %s", exc)
+        return []
+
+
+def _default_project_analytics(project_id: str) -> Dict[str, Any]:
+    return {
+        "project_id": project_id,
+        "metrics": {
+            "code_quality": 75,
+            "security_rating": 80,
+            "architecture_health": 75,
+            "test_coverage": 70,
+            "overall_health": 75
+        },
+        "dependency_stats": {
+            "total": 0,
+            "circular": 0,
+            "outdated": 0,
+            "dependency_issues": 0
+        },
+        "performance_metrics": {
+            "avg_build_time": "0m",
+            "avg_test_time": "0m",
+            "avg_analysis_time": "2m",
+            "pr_review_time_avg": "0h"
+        },
+        "issue_stats": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "security": 0,
+            "performance": 0,
+            "code_style": 0,
+            "best_practices": 0,
+            "total": 0
+        },
+        "trends": {
+            "code_quality_change": 0,
+            "test_coverage_change": 0,
+            "issues_change": 0
+        },
+        "recent_reviews": [],
+        "total_prs": 0,
+        "reviewed_prs": 0,
+        "analysis_timestamp": datetime.utcnow().isoformat()
+    }
+
+
+async def _get_project_pull_requests(db: AsyncSession, project_id: str) -> list[PullRequest]:
+    pr_result = await db.execute(
+        select(PullRequest).filter(PullRequest.project_id == project_id)
+    )
+    return list(pr_result.scalars().all())
+
+
+async def _get_project_architecture_violations(
+    db: AsyncSession,
+    prs: list[PullRequest],
+) -> list[ArchitectureViolation]:
+    if not prs:
+        return []
+
+    violations_result = await db.execute(
+        select(ArchitectureViolation)
+        .join(ArchitectureAnalysis)
+        .filter(ArchitectureAnalysis.pull_request_id.in_(pr.id for pr in prs))
+    )
+    return list(violations_result.scalars().all())
+
+
+async def _build_project_architecture_context(
+    db: AsyncSession,
+    project_id: str,
+    analytics: Dict[str, Any],
+) -> tuple[list[PullRequest], list[ArchitectureViolation], Dict[str, Any]]:
+    prs = await _get_project_pull_requests(db, project_id)
+    violations = await _get_project_architecture_violations(db, prs)
+    architecture_data = {
+        "project_id": project_id,
+        "total_prs": len(prs),
+        "analyzed_prs": sum(1 for pr in prs if getattr(pr, 'analyzed_at', None) is not None),
+        "violations_count": len(violations),
+        "metrics": analytics.get("metrics", {}),
+        "dependency_stats": analytics.get("dependency_stats", {}),
+        "issue_stats": analytics.get("issue_stats", {}),
+    }
+    return prs, violations, architecture_data
+
+
 class ProjectMetrics(BaseModel):
-    """project指标response模型"""
+    """Project metrics response model."""
     code_quality: int
     security_rating: int
     architecture_health: int
@@ -46,7 +229,7 @@ class ProjectMetrics(BaseModel):
 
 
 class ProjectAnalytics(BaseModel):
-    """projectanalyzedataresponse模型"""
+    """Project analytics response model."""
     project_id: str
     metrics: ProjectMetrics
     total_prs: int
@@ -67,70 +250,22 @@ async def get_project_analytics(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    getproject的 AI reviewanalyzedata
+    Return the aggregated analytics payload for a project.
     
-    包括：
-    - code质量指标
-    - 安全评级  
-    - architecture健康度
-    - testCoverage率
-    - 问题统计
-    - dependencyanalyze
-    - 性能指标
-    - 最近的reviewrecord
-    - 趋势analyze
+    Includes code quality, security, architecture, testing, issue, dependency,
+    performance, review history, and trend information.
+
+    Falls back to a default analytics payload when the analysis service fails.
     """
     try:
-        # use新的analyzeserviceget完整的projectanalyze
+        # Prefer the consolidated project analysis service for the full payload.
         service = ProjectAnalysisService(db)
         analytics = await service.get_complete_project_analytics(project_id)
         return analytics
     except Exception as e:
         import logging
         logging.error(f"Error fetching analytics for project {project_id}: {str(e)}")
-        # Return default analytics if error
-        return {
-            "project_id": project_id,
-            "metrics": {
-                "code_quality": 75,
-                "security_rating": 80,
-                "architecture_health": 75,
-                "test_coverage": 70,
-                "overall_health": 75
-            },
-            "dependency_stats": {
-                "total": 0,
-                "circular": 0,
-                "outdated": 0,
-                "dependency_issues": 0
-            },
-            "performance_metrics": {
-                "avg_build_time": "0m",
-                "avg_test_time": "0m",
-                "avg_analysis_time": "2m",
-                "pr_review_time_avg": "0h"
-            },
-            "issue_stats": {
-                "critical": 0,
-                "high": 0,
-                "medium": 0,
-                "low": 0,
-                "security": 0,
-                "performance": 0,
-                "code_style": 0,
-                "best_practices": 0,
-                "total": 0
-            },
-            "trends": {
-                "code_quality_change": 0,
-                "test_coverage_change": 0,
-                "issues_change": 0
-            },
-            "recent_reviews": [],
-            "total_prs": 0,
-            "reviewed_prs": 0,
-            "analysis_timestamp": datetime.utcnow().isoformat()
-        }
+        return _default_project_analytics(project_id)
 
 
 @router.get("/{project_id}/issues", response_model=Dict[str, Any])
@@ -143,24 +278,33 @@ async def get_project_issues(
     limit: int = 50
 ):
     """
-    getproject的所有问题列表
+    Return issue records for all pull requests that belong to the project.
     
-    可以按严重程度andclass别筛选
+    Supports optional severity and category filtering.
     """
-    # getproject的所有 PR
-    pr_result = await db.execute(
-        select(PullRequest).filter(PullRequest.project_id == project_id)
-    )
-    prs = pr_result.scalars().all()
+    # Load all pull requests that belong to the project.
+    prs = await _get_project_pull_requests(db, project_id)
     pr_ids = [pr.id for pr in prs]
     
     if not pr_ids:
+        project, github_token = await _get_project_and_github_token(db, project_id, current_user.user_id)
+        live_issues = (
+            await _fetch_live_github_issues(project.github_repo_url, github_token, limit)
+            if project and project.github_repo_url
+            else []
+        )
+
+        if severity:
+            live_issues = [issue for issue in live_issues if issue.get("severity") == severity]
+        if category:
+            live_issues = [issue for issue in live_issues if issue.get("category") == category]
+
         return {
-            'issues': [],
-            'total': 0
+            'issues': live_issues,
+            'total': len(live_issues)
         }
     
-    # 构建query
+    # Build the issue query.
     query = select(ReviewComment).join(CodeReview).filter(
         CodeReview.pull_request_id.in_(pr_ids)
     )
@@ -191,6 +335,24 @@ async def get_project_issues(
             'created_at': comment.created_at.isoformat()
         })
     
+    if not issues:
+        project, github_token = await _get_project_and_github_token(db, project_id, current_user.user_id)
+        live_issues = (
+            await _fetch_live_github_issues(project.github_repo_url, github_token, limit)
+            if project and project.github_repo_url
+            else []
+        )
+
+        if severity:
+            live_issues = [issue for issue in live_issues if issue.get("severity") == severity]
+        if category:
+            live_issues = [issue for issue in live_issues if issue.get("category") == category]
+
+        return {
+            'issues': live_issues,
+            'total': len(live_issues)
+        }
+
     return {
         'issues': issues,
         'total': len(issues)
@@ -204,13 +366,10 @@ async def get_project_architecture(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    getproject的architectureanalyzedata
+    Return architecture violations for the project.
     """
-    # getproject的所有 PR
-    pr_result = await db.execute(
-        select(PullRequest).filter(PullRequest.project_id == project_id)
-    )
-    prs = pr_result.scalars().all()
+    # Load all pull requests that belong to the project.
+    prs = await _get_project_pull_requests(db, project_id)
     pr_ids = [pr.id for pr in prs]
     
     if not pr_ids:
@@ -221,15 +380,10 @@ async def get_project_architecture(
             'by_severity': {}
         }
     
-    # getarchitecture违规
-    violations_result = await db.execute(
-        select(ArchitectureViolation)
-        .join(ArchitectureAnalysis)
-        .filter(ArchitectureAnalysis.pull_request_id.in_(pr_ids))
-    )
-    violations = violations_result.scalars().all()
+    # Load architecture violations linked to the project pull requests.
+    violations = await _get_project_architecture_violations(db, prs)
     
-    # 统计违规typeand严重程度
+    # Aggregate violations by type and severity.
     by_type = {}
     by_severity = {}
     
@@ -247,7 +401,7 @@ async def get_project_architecture(
             'suggested_fix': violation.suggested_fix
         })
         
-        # 统计
+        # Update aggregate counters.
         by_type[violation.type] = by_type.get(violation.type, 0) + 1
         by_severity[violation.severity] = by_severity.get(violation.severity, 0) + 1
     
@@ -261,7 +415,7 @@ async def get_project_architecture(
 
 # Performance Metrics Models
 class PerformanceMetric(BaseModel):
-    """单item性能指标data点"""
+    """Single performance metric data point."""
     timestamp: str
     metric_name: str
     value: float = Field(..., ge=0, description="Metric value must be non-negative")
@@ -270,13 +424,14 @@ class PerformanceMetric(BaseModel):
 
 
 class TimeRange(BaseModel):
-    """时间范围"""
+    """Requested metrics time range."""
     start: str
     end: str
     
-    @validator('start', 'end')
-    def validate_datetime(cls, v):
-        """verify日期时间format"""
+    @field_validator('start', 'end')
+    @classmethod
+    def validate_datetime(cls, v: str) -> str:
+        """Validate ISO 8601 datetime strings."""
         try:
             datetime.fromisoformat(v.replace('Z', '+00:00'))
             return v
@@ -285,7 +440,7 @@ class TimeRange(BaseModel):
 
 
 class MetricsCollection(BaseModel):
-    """性能指标集合"""
+    """Collection of performance metric series."""
     response_time: List[PerformanceMetric] = []
     throughput: List[PerformanceMetric] = []
     error_rate: List[PerformanceMetric] = []
@@ -294,7 +449,7 @@ class MetricsCollection(BaseModel):
 
 
 class MetricsAggregations(BaseModel):
-    """性能指标聚合data"""
+    """Aggregated performance metric values."""
     avg_response_time: float = Field(..., ge=0, le=10000, description="Average response time in ms (0-10000)")
     p95_response_time: float = Field(..., ge=0, le=10000, description="P95 response time in ms (0-10000)")
     p99_response_time: float = Field(..., ge=0, le=10000, description="P99 response time in ms (0-10000)")
@@ -303,7 +458,7 @@ class MetricsAggregations(BaseModel):
 
 
 class PerformanceDashboardData(BaseModel):
-    """性能仪表板dataresponse模型"""
+    """Performance dashboard response model."""
     api_version: str = "1.0.0"
     project_id: str
     time_range: TimeRange
@@ -326,16 +481,11 @@ async def get_performance_metrics(
     )
 ):
     """
-    getproject的性能指标data
+    Return time-series performance metrics for the project.
     
-    包括：
-    - response时间 (response_time)
-    - 吞吐量 (throughput)
-    - error率 (error_rate)
-    - CPUuse率 (cpu_usage)
-    - 内存use率 (memory_usage)
+    Includes response time, throughput, error rate, CPU usage, and memory usage.
     
-    support时间范围filter，默认return最近7day的data。
+    Supports a bounded time range and defaults to the most recent seven days.
     
     Requirements: 2.4, 3.7
     """
@@ -524,43 +674,26 @@ async def get_project_architecture_analysis(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    getproject的AIgenerate的architectureanalyze，包括优势and建议
+    Generate project architecture strengths and recommendations.
     """
     try:
-        # getproject的基本infoandarchitecturedata
+        # Load project analytics and architecture context for AI analysis.
         service = ProjectAnalysisService(db)
         analytics = await service.get_complete_project_analytics(project_id)
 
-        # getPRandarchitecture违规data用于AIanalyze
-        pr_result = await db.execute(
-            select(PullRequest).filter(PullRequest.project_id == project_id)
+        # Load project pull requests and architecture violations for AI analysis.
+        _, violations, architecture_data = await _build_project_architecture_context(
+            db,
+            project_id,
+            analytics,
         )
-        prs = pr_result.scalars().all()
-
-        violations_result = await db.execute(
-            select(ArchitectureViolation)
-            .join(ArchitectureAnalysis)
-            .filter(ArchitectureAnalysis.pull_request_id.in_(pr.id for pr in prs))
-        )
-        violations = violations_result.scalars().all()
-
-        # 构建architecturedata用于AIanalyze
-        architecture_data = {
-            "project_id": project_id,
-            "total_prs": len(prs),
-            "analyzed_prs": sum(1 for pr in prs if getattr(pr, 'analyzed_at', None) is not None),
-            "violations_count": len(violations),
-            "metrics": analytics.get("metrics", {}),
-            "dependency_stats": analytics.get("dependency_stats", {}),
-            "issue_stats": analytics.get("issue_stats", {}),
-        }
 
         # useAIgeneratearchitectureanalyze
         if llm_service.is_initialized():
             try:
                 ai_insights = await llm_service.generate_architecture_insights(architecture_data)
 
-                # 解析AIresponse为结构化data
+                # Normalize the AI response into a stable payload shape.
                 strengths = ai_insights.get("strengths", [])
                 recommendations = ai_insights.get("recommendations", [])
 
@@ -572,9 +705,9 @@ async def get_project_architecture_analysis(
                 }
             except Exception as ai_error:
                 logger.warning(f"AI architecture analysis failed: {ai_error}")
-                # 回退到基于规则的analyze
+                # Fall back to rule-based analysis when AI generation fails.
 
-        # 基于规则的回退analyze
+        # Use rule-based analysis when AI is unavailable.
         strengths, recommendations = await _generate_rule_based_architecture_analysis(analytics, list(violations))
 
         return {
@@ -586,17 +719,25 @@ async def get_project_architecture_analysis(
 
     except Exception as e:
         logger.error(f"Error generating architecture analysis for project {project_id}: {str(e)}")
-        # return默认analyze
+        # Return a stable fallback analysis payload.
         return {
-            "strengths": ["project结构良好", "code组织有序"],
-            "recommendations": ["考虑增加更多integrationtest", "定期进行codereview"],
+            "strengths": [
+                "The project structure is organized and easy to follow.",
+                "Code ownership and module boundaries are reasonably clear.",
+            ],
+            "recommendations": [
+                "Expand integration test coverage for critical workflows.",
+                "Schedule regular pull request reviews to keep quality stable.",
+            ],
             "analysis_timestamp": datetime.utcnow().isoformat(),
             "ai_generated": False
         }
 
 
-async def _generate_rule_based_architecture_analysis(analytics: Dict[str, Any], violations: List[Any]) -> tuple:
-    """基于规则generatearchitectureanalyze"""
+async def _generate_rule_based_architecture_analysis(
+    analytics: Dict[str, Any], violations: List[Any]
+) -> tuple[list[str], list[str]]:
+    """Generate architecture strengths and recommendations from analytics signals."""
     strengths = []
     recommendations = []
 
@@ -604,42 +745,44 @@ async def _generate_rule_based_architecture_analysis(analytics: Dict[str, Any], 
     dependency_stats = analytics.get("dependency_stats", {})
     issue_stats = analytics.get("issue_stats", {})
 
-    # 基于指标add优势
     if metrics.get("code_quality", 0) > 75:
-        strengths.append("code质量良好，符合最佳实践")
+        strengths.append("Code quality is strong and aligns with current best practices.")
 
     if metrics.get("security_rating", 0) > 80:
-        strengths.append("安全性评分较高，风险控制到位")
+        strengths.append("Security posture is strong with limited visible risk exposure.")
 
     if metrics.get("architecture_health", 0) > 70:
-        strengths.append("architecture健康度良好，设计合理")
+        strengths.append("Architecture health is stable and the current design is coherent.")
 
     if metrics.get("test_coverage", 0) > 60:
-        strengths.append("testCoverage率充足")
+        strengths.append("Test coverage is at a healthy baseline for ongoing delivery.")
 
-    # 基于dependencyanalyze
     if dependency_stats.get("circular", 0) == 0:
-        strengths.append("无循环dependency，architecture清晰")
+        strengths.append("No circular dependencies were detected, which keeps the architecture readable.")
 
-    # 基于问题统计add建议
     if issue_stats.get("critical", 0) > 0:
-        recommendations.append("存在严重问题，need立即修复")
+        recommendations.append("Address critical issues immediately to reduce delivery and security risk.")
 
     if dependency_stats.get("outdated", 0) > 0:
-        recommendations.append("存在过时的dependency，needupdate")
+        recommendations.append("Update outdated dependencies to avoid unsupported versions and known defects.")
 
     if len(violations) > 0:
-        recommendations.append("存在architecture违规，needreview")
+        recommendations.append("Review recorded architecture violations and resolve the highest-impact ones first.")
 
     if metrics.get("test_coverage", 100) < 70:
-        recommendations.append("testCoverage率不足，建议增加test")
+        recommendations.append("Increase test coverage for critical paths before the next release cycle.")
 
-    # 默认content
     if not strengths:
-        strengths = ["project结构合理", "code组织良好"]
+        strengths = [
+            "The project structure is serviceable and easy to navigate.",
+            "Code is grouped into consistent modules that support maintenance.",
+        ]
 
     if not recommendations:
-        recommendations = ["定期进行codereview", "保持良好的testCoverage率"]
+        recommendations = [
+            "Keep a regular pull request review cadence to maintain code quality.",
+            "Preserve current test coverage as new features are added.",
+        ]
 
     return strengths, recommendations
 

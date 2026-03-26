@@ -22,17 +22,21 @@ export function BackendStatusProvider({ children }: { children: React.ReactNode 
       // Health endpoint is at root level, not under /api/v1
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
       const baseUrl = apiUrl.replace('/api/v1', '');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       
       const response = await fetch(`${baseUrl}/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-      });
+        signal: controller.signal,
+        cache: 'no-store',
+      }).finally(() => clearTimeout(timeoutId));
       
       setIsOnline(response.ok);
       setLastChecked(new Date());
-    } catch (error) {
+    } catch {
       setIsOnline(false);
       setLastChecked(new Date());
     } finally {

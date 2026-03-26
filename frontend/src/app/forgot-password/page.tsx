@@ -19,6 +19,14 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>
 
+const getAxiosErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.detail || fallback
+  }
+
+  return fallback
+}
+
 export default function ForgotPasswordPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -46,11 +54,11 @@ export default function ForgotPasswordPage() {
         title: 'Email Sent',
         description: 'Check your email for password reset instructions',
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.response?.data?.detail || 'Failed to send reset email',
+        description: getAxiosErrorMessage(error, 'Failed to send reset email'),
       })
     } finally {
       setIsLoading(false)

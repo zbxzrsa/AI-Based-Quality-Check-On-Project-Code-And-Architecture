@@ -3,9 +3,9 @@ Pydantic schemas for security scan results and audit logging
 Structures results from Bandit, TruffleHog, Safety, and other security tools
 """
 from typing import List, Dict, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Severity(str, Enum):
@@ -50,7 +50,8 @@ class BanditIssue(BaseModel):
     code: str = Field("", description="Code snippet where issue occurs")
     more_info: str = Field("", description="Additional information URL")
 
-    @validator('issue_severity', pre=True)
+    @field_validator('issue_severity', mode='before')
+    @classmethod
     def normalize_severity(cls, v):
         return v.upper() if isinstance(v, str) else v
 
@@ -140,7 +141,7 @@ class SecurityScanResult(BaseModel):
     scan_id: str = Field(..., description="Unique scan identifier")
     tool: ScanTool = Field(..., description="Security scanning tool used")
     target: str = Field(..., description="Scan target (e.g., 'backend/app', 'frontend/src')")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When scan was performed")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="When scan was performed")
     duration_seconds: float = Field(..., description="Scan duration in seconds")
 
     # Tool-specific results
@@ -218,7 +219,7 @@ class AuditLogEntry(BaseModel):
     action: str = Field(..., description="Action performed (scan, review, etc.)")
     entity_type: str = Field(..., description="Entity type (security_scan, pr_review, etc.)")
     entity_id: str = Field(..., description="Entity identifier")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When action occurred")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="When action occurred")
 
     # Security scan specific fields
     scan_result: Optional[SecurityScanResult] = Field(None, description="Security scan results")

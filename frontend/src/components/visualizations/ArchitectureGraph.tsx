@@ -232,7 +232,7 @@ export default function ArchitectureGraph({ analysisId, className }: Architectur
     return 'low';
   };
 
-  const handleNodeClick = (node: any) => {
+  const handleNodeClick = (node: Pick<Node, 'id'>) => {
     setSelectedNode(selectedNode === node.id ? null : node.id);
   };
 
@@ -248,13 +248,11 @@ export default function ArchitectureGraph({ analysisId, className }: Architectur
   };
 
   const resetView = () => {
-    // Placeholder for reset view functionality
-    console.log('Reset view');
+    setSelectedNode(null);
   };
 
   const applyForceLayout = () => {
-    // Placeholder for force layout functionality
-    console.log('Apply force layout');
+    setSelectedNode(null);
   };
 
   return (

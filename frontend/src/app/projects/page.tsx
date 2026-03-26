@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { MainLayout } from '@/components/layout/main-layout'
 import { PageHeader } from '@/components/layout/page-header'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,12 +25,10 @@ import {
   GitBranch,
   Clock,
   AlertTriangle,
-  CheckCircle,
   Settings,
   RefreshCw,
   Filter,
-  Download,
-  Upload
+  Download
 } from 'lucide-react'
 import { useProjects } from '@/hooks/useProjects'
 import { AddProjectModal } from '@/components/projects/add-project-modal'
@@ -213,9 +211,9 @@ function ProjectListCard({ project, onClick }: ProjectCardProps) {
 
 function ProjectsPageContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { toast } = useToast()
   const { data: projects = [], isLoading, error, refetch, isRefetching } = useProjects()
+  const [isHydrated, setIsHydrated] = useState(false)
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchTerm, setSearchTerm] = useState('')
@@ -224,18 +222,26 @@ function ProjectsPageContent() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedLanguage, setSelectedLanguage] = useState('all')
 
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
   // Debounce search for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   // Handle GitHub connection success/error from URL params
   useEffect(() => {
-    const githubConnected = searchParams?.get('github_connected')
-    const error = searchParams?.get('error')
-    const errorDescription = searchParams?.get('error_description')
-    const errorDetail = searchParams?.get('error_detail')
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const currentUrl = new URL(window.location.href)
+    const githubConnected = currentUrl.searchParams.get('github_connected')
+    const error = currentUrl.searchParams.get('error')
+    const errorDescription = currentUrl.searchParams.get('error_description')
+    const errorDetail = currentUrl.searchParams.get('error_detail')
 
     if (githubConnected === 'true') {
-      console.log('[Projects Page] GitHub connected successfully')
       toast({
         title: 'GitHub Connected',
         description: 'Your GitHub account has been connected successfully',
@@ -257,14 +263,13 @@ function ProjectsPageContent() {
 
     // Clean up URL params
     if (githubConnected || error) {
-      const url = new URL(window.location.href)
-      url.searchParams.delete('github_connected')
-      url.searchParams.delete('error')
-      url.searchParams.delete('error_description')
-      url.searchParams.delete('error_detail')
-      window.history.replaceState({}, '', url.toString())
+      currentUrl.searchParams.delete('github_connected')
+      currentUrl.searchParams.delete('error')
+      currentUrl.searchParams.delete('error_description')
+      currentUrl.searchParams.delete('error_detail')
+      window.history.replaceState({}, '', currentUrl.toString())
     }
-  }, [searchParams, toast])
+  }, [toast])
 
   // Memoize filtered and sorted projects for performance
   const filteredProjects = useMemo(() => {
@@ -329,6 +334,19 @@ function ProjectsPageContent() {
     URL.revokeObjectURL(url)
   }, [filteredProjects])
 
+  if (!isHydrated) {
+    return (
+      <MainLayout>
+        <div className="space-y-6">
+          <PageHeader title="Projects" description="Loading..." />
+          <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
+            Loading projects...
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
     <MainLayout>
       <div className="space-y-6" role="main" aria-labelledby="projects-title">
@@ -365,6 +383,11 @@ function ProjectsPageContent() {
         <AddProjectModal
           open={showCreateModal}
           onClose={() => setShowCreateModal(false)}
+          existingProjects={projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            github_repo_url: project.github_repo_url,
+          }))}
         />
 
         {/* Error Alert */}
@@ -387,7 +410,7 @@ function ProjectsPageContent() {
         {/* Filters and Controls */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4" role="search" aria-label="Project filters">
+            <div className="flex flex-col gap-4 lg:flex-row" role="search" aria-label="Project filters">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -401,9 +424,9 @@ function ProjectsPageContent() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-32" aria-label="Filter by status">
+                  <SelectTrigger className="w-full sm:w-32" aria-label="Filter by status">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -414,7 +437,7 @@ function ProjectsPageContent() {
                 </Select>
 
                 <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                  <SelectTrigger className="w-32" aria-label="Filter by language">
+                  <SelectTrigger className="w-full sm:w-32" aria-label="Filter by language">
                     <SelectValue placeholder="Language" />
                   </SelectTrigger>
                   <SelectContent>
@@ -426,7 +449,7 @@ function ProjectsPageContent() {
                 </Select>
 
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-40" aria-label="Sort projects by">
+                  <SelectTrigger className="w-full sm:w-40" aria-label="Sort projects by">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -436,7 +459,7 @@ function ProjectsPageContent() {
                   </SelectContent>
                 </Select>
 
-                <div className="flex gap-1 border rounded-md p-1" role="group" aria-label="View mode">
+                <div className="flex gap-1 rounded-md border p-1" role="group" aria-label="View mode">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
                     size="sm"
@@ -476,10 +499,8 @@ function ProjectsPageContent() {
 
         {/* Projects Grid/List */}
         {isLoading ? (
-          <div className={viewMode === 'grid' ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-3' : 'space-y-4'}>
-            {[...Array(6)].map((_, i) => (
-              viewMode === 'grid' ? <ProjectCardSkeleton key={i} /> : <ProjectListSkeleton key={i} />
-            ))}
+          <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
+            Loading projects...
           </div>
         ) : filteredProjects.length === 0 ? (
           <Card>
@@ -557,28 +578,5 @@ function ProjectsPageContent() {
 }
 
 export default function ProjectsPage() {
-  return (
-    <Suspense fallback={
-      <MainLayout>
-        <div className="space-y-6">
-          <PageHeader title="Projects" description="Loading..." />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-full" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-20 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </MainLayout>
-    }>
-      <ProjectsPageContent />
-    </Suspense>
-  )
+  return <ProjectsPageContent />
 }

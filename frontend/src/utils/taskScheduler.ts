@@ -6,7 +6,7 @@
  * verifyRequirement: 5.1
  */
 
-import { AnalysisTask } from '../pages/AnalysisQueue';
+import { AnalysisTask } from '../types/AnalysisQueue';
 
 /**
  * 调度器config

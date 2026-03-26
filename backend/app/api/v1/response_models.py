@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 """
 Unified API response models
 """
-from typing import Generic, TypeVar, Optional, Any
+from typing import Generic, TypeVar, Optional, Any, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
 

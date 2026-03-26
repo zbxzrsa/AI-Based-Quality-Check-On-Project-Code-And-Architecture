@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 // In Docker: NEXT_PUBLIC_BACKEND_URL=http://backend:8000
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://backend:8000';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating project:', error);
     return NextResponse.json(
-      { detail: `Internal server error: ${error.message}` },
+      { detail: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }

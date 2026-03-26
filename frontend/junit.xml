@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="31" failures="0" errors="0" time="1.751">
+  <testsuite name="WebSocketManager" errors="0" failures="0" skipped="0" timestamp="2026-03-24T15:53:47" time="0.675" tests="25">
+    <testcase classname="WebSocketManager › Initialization" name="should create WebSocket connection with autoConnect" time="0.008">
+    </testcase>
+    <testcase classname="WebSocketManager › Initialization" name="should not connect when autoConnect is false" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Initialization" name="should use custom timeout" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection Events" name="should emit connecting event when connecting" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection Events" name="should emit connected event on successful connection" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection Events" name="should emit disconnected event on disconnect" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection Events" name="should emit error event on connection error" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Reconnection Logic" name="should attempt reconnection after disconnect" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Reconnection Logic" name="should use exponential backoff for reconnection" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Reconnection Logic" name="should stop reconnecting after max attempts" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Reconnection Logic" name="should not reconnect on manual disconnect" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Message Sending" name="should send message when connected" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Message Sending" name="should not send message when disconnected" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Message Sending" name="should handle send errors gracefully" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Heartbeat" name="should send ping messages periodically when connected" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Heartbeat" name="should stop heartbeat on disconnect" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Metrics" name="should track connection metrics" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Metrics" name="should track message count" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Metrics" name="should track latency from pong events" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Convenience Methods" name="should subscribe to project updates" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Convenience Methods" name="should unsubscribe from project updates" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Convenience Methods" name="should subscribe to performance updates" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Convenience Methods" name="should handle project update events" time="0.002">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection State" name="should return correct connection state" time="0.003">
+    </testcase>
+    <testcase classname="WebSocketManager › Connection State" name="should return correct isConnected status" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="NativeWebSocketManager" errors="0" failures="0" skipped="0" timestamp="2026-03-24T15:53:48" time="0.147" tests="4">
+    <testcase classname="NativeWebSocketManager" name="connects and emits connected for native websocket connections" time="0.002">
+    </testcase>
+    <testcase classname="NativeWebSocketManager" name="emits message events for incoming websocket payloads" time="0.002">
+    </testcase>
+    <testcase classname="NativeWebSocketManager" name="reconnects after unexpected close with exponential backoff" time="0.002">
+    </testcase>
+    <testcase classname="NativeWebSocketManager" name="does not reconnect after manual disconnect" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="api-client streaming helpers" errors="0" failures="0" skipped="0" timestamp="2026-03-24T15:53:48" time="0.14" tests="2">
+    <testcase classname="api-client streaming helpers" name="streamApiFetch parses SSE messages and stops at the done token" time="0.006">
+    </testcase>
+    <testcase classname="api-client streaming helpers" name="apiFetch respects an external abort signal" time="0.007">
+    </testcase>
+  </testsuite>
+</testsuites>

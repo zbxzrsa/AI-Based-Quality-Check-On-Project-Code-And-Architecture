@@ -58,6 +58,13 @@ class ProjectAnalysisService:
             "test_coverage": test_coverage,
             "overall_health": overall_health
         }
+
+    def _normalize_pr_status(self, pr: Any) -> str:
+        """Return a lowercase status string regardless of enum or raw-string input."""
+        status = getattr(pr, "status", "")
+        if hasattr(status, "value"):
+            return str(status.value).lower()
+        return str(status).split(".")[-1].lower()
     
     async def get_complete_project_analytics(self, project_id: str) -> Dict[str, Any]:
         """
@@ -106,7 +113,12 @@ class ProjectAnalysisService:
                 "trends": trends,
                 "recent_reviews": recent_reviews,
                 "total_prs": len(prs),
-                "reviewed_prs": sum(1 for pr in prs if getattr(pr, 'analyzed_at', None)),
+                "reviewed_prs": sum(
+                    1
+                    for pr in prs
+                    if getattr(pr, "analyzed_at", None)
+                    or self._normalize_pr_status(pr) in ["reviewed", "approved", "merged", "closed"]
+                ),
                 "analysis_timestamp": datetime.utcnow().isoformat()
             }
         except Exception as e:
@@ -158,8 +170,12 @@ class ProjectAnalysisService:
                           violations: Sequence[Any], project_id: str = '') -> Dict[str, int]:
         """Calculate quality metrics based on PR and review data"""
         # Consider PRs as reviewed if they have been analyzed or have a completed status
-        reviewed_prs = [pr for pr in prs if getattr(pr, 'analyzed_at', None) or 
-                       getattr(pr, 'status', '').lower() in ['reviewed', 'approved', 'merged', 'closed']]
+        reviewed_prs = [
+            pr
+            for pr in prs
+            if getattr(pr, "analyzed_at", None)
+            or self._normalize_pr_status(pr) in ["reviewed", "approved", "merged", "closed"]
+        ]
         
         if not reviewed_prs:
             # If no reviewed PRs, but we have PRs, calculate basic metrics from PR data
@@ -241,8 +257,12 @@ class ProjectAnalysisService:
             }
         
         # Consider PRs as analyzed if they have been analyzed or have a completed status
-        analyzed_prs = [pr for pr in prs if getattr(pr, 'analyzed_at', None) or 
-                       getattr(pr, 'status', '').lower() in ['reviewed', 'approved', 'merged', 'closed']]
+        analyzed_prs = [
+            pr
+            for pr in prs
+            if getattr(pr, "analyzed_at", None)
+            or self._normalize_pr_status(pr) in ["reviewed", "approved", "merged", "closed"]
+        ]
         
         build_times = []
         for pr in analyzed_prs:
@@ -299,8 +319,12 @@ class ProjectAnalysisService:
         current_violations = await self._get_architecture_violations(project_id)
         
         # Consider PRs as analyzed based on status
-        analyzed_prs = [pr for pr in current_prs if getattr(pr, 'analyzed_at', None) or 
-                       getattr(pr, 'status', '').lower() in ['reviewed', 'approved', 'merged', 'closed']]
+        analyzed_prs = [
+            pr
+            for pr in current_prs
+            if getattr(pr, "analyzed_at", None)
+            or self._normalize_pr_status(pr) in ["reviewed", "approved", "merged", "closed"]
+        ]
         
         current_quality = 100 - (len(current_comments) / max(1, len(analyzed_prs)) * 5) if analyzed_prs else 70
         current_coverage = 100 - (len(current_violations) / max(1, len(analyzed_prs)) * 15) if analyzed_prs else 65
@@ -319,7 +343,12 @@ class ProjectAnalysisService:
         # Sort by analyzed date or creation date for PRs that haven't been analyzed yet
         analyzed_prs = []
         for pr in prs:
-            if getattr(pr, 'analyzed_at', None) or getattr(pr, 'status', '').lower() in ['reviewed', 'approved', 'merged', 'closed']:
+            if getattr(pr, "analyzed_at", None) or self._normalize_pr_status(pr) in [
+                "reviewed",
+                "approved",
+                "merged",
+                "closed",
+            ]:
                 analyzed_prs.append(pr)
         
         # Sort by analyzed date if available, otherwise by creation date
@@ -336,7 +365,7 @@ class ProjectAnalysisService:
                 "pr_id": str(getattr(pr, 'id', '')),
                 "pr_number": getattr(pr, 'github_pr_number', 0),
                 "title": getattr(pr, 'title', ''),
-                "status": str(getattr(pr, 'status', '')),
+                "status": self._normalize_pr_status(pr),
                 "risk_score": getattr(pr, 'risk_score', None),
                 "files_changed": getattr(pr, 'files_changed', 0),
                 "lines_added": getattr(pr, 'lines_added', 0),

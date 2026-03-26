@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * Architecture Evolution Timeline using D3.js
@@ -20,6 +20,8 @@ interface TimelineEvent {
     type: 'release' | 'refactor' | 'migration';
 }
 
+type MetricKey = 'coupling' | 'complexity' | 'coverage' | 'loc';
+
 interface ArchitectureTimelineProps {
     data: TimelineDataPoint[];
     events?: TimelineEvent[];
@@ -35,11 +37,11 @@ export default function ArchitectureTimeline({
 }: ArchitectureTimelineProps) {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const formatMonthYear = d3.timeFormat('%b %Y');
 
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
 
-        // Clear previous content
         d3.select(svgRef.current).selectAll('*').remove();
 
         const margin = { top: 20, right: 120, bottom: 60, left: 60 };
@@ -55,7 +57,6 @@ export default function ArchitectureTimeline({
 
         const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Scales
         const xScale = d3
             .scaleTime()
             .domain(d3.extent(data, (d) => d.date) as [Date, Date])
@@ -67,8 +68,7 @@ export default function ArchitectureTimeline({
             .nice()
             .range([innerHeight, 0]);
 
-        // Axes
-        const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(d3.timeFormat('%b %Y') as any);
+        const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat((value) => formatMonthYear(new Date(value.valueOf())));
         const yAxis = d3.axisLeft(yScale);
 
         g.append('g')
@@ -80,44 +80,28 @@ export default function ArchitectureTimeline({
 
         g.append('g').attr('class', 'y-axis').call(yAxis).selectAll('text').style('fill', 'currentColor');
 
-        // Grid lines
         g.append('g')
             .attr('class', 'grid')
             .attr('opacity', 0.1)
-            .call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat('' as any));
+            .call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(() => ''));
 
-        // Line generators
-        const lineGenerators = {
-            coupling: d3
-                .line<TimelineDataPoint>()
-                .x((d) => xScale(d.date))
-                .y((d) => yScale(d.coupling))
-                .curve(d3.curveMonotoneX),
-            complexity: d3
-                .line<TimelineDataPoint>()
-                .x((d) => xScale(d.date))
-                .y((d) => yScale(d.complexity))
-                .curve(d3.curveMonotoneX),
-            coverage: d3
-                .line<TimelineDataPoint>()
-                .x((d) => xScale(d.date))
-                .y((d) => yScale(d.coverage))
-                .curve(d3.curveMonotoneX),
-            loc: d3
-                .line<TimelineDataPoint>()
-                .x((d) => xScale(d.date))
-                .y((d) => yScale(d.loc / 100))
-                .curve(d3.curveMonotoneX),
+        const lineGenerators: Record<MetricKey, d3.Line<TimelineDataPoint>> = {
+            coupling: d3.line<TimelineDataPoint>().x((d) => xScale(d.date)).y((d) => yScale(d.coupling)).curve(d3.curveMonotoneX),
+            complexity: d3.line<TimelineDataPoint>().x((d) => xScale(d.date)).y((d) => yScale(d.complexity)).curve(d3.curveMonotoneX),
+            coverage: d3.line<TimelineDataPoint>().x((d) => xScale(d.date)).y((d) => yScale(d.coverage)).curve(d3.curveMonotoneX),
+            loc: d3.line<TimelineDataPoint>().x((d) => xScale(d.date)).y((d) => yScale(d.loc / 100)).curve(d3.curveMonotoneX),
         };
 
-        const metrics = [
+        const metrics: Array<{ key: MetricKey; color: string; label: string }> = [
             { key: 'coupling', color: '#ef4444', label: 'Coupling Score' },
             { key: 'complexity', color: '#f59e0b', label: 'Complexity' },
             { key: 'coverage', color: '#10b981', label: 'Test Coverage' },
-            { key: 'loc', color: '#3b82f6', label: 'LOC (÷100)' },
+            { key: 'loc', color: '#3b82f6', label: 'LOC (/100)' },
         ];
 
-        // Draw lines
+        const getMetricValue = (point: TimelineDataPoint, key: MetricKey) => (key === 'loc' ? point.loc / 100 : point[key]);
+        const getMetricDisplayValue = (point: TimelineDataPoint, key: MetricKey) => (key === 'loc' ? point.loc : point[key]);
+
         metrics.forEach((metric) => {
             g.append('path')
                 .datum(data)
@@ -125,10 +109,9 @@ export default function ArchitectureTimeline({
                 .attr('fill', 'none')
                 .attr('stroke', metric.color)
                 .attr('stroke-width', 2)
-                .attr('d', lineGenerators[metric.key as keyof typeof lineGenerators]);
+                .attr('d', lineGenerators[metric.key]);
         });
 
-        // Add dots
         metrics.forEach((metric) => {
             g.selectAll(`.dot-${metric.key}`)
                 .data(data)
@@ -136,18 +119,17 @@ export default function ArchitectureTimeline({
                 .append('circle')
                 .attr('class', `dot-${metric.key}`)
                 .attr('cx', (d) => xScale(d.date))
-                .attr('cy', (d) => yScale(d[metric.key as keyof TimelineDataPoint] as number || 0))
+                .attr('cy', (d) => yScale(getMetricValue(d, metric.key)))
                 .attr('r', 3)
                 .attr('fill', metric.color)
                 .style('cursor', 'pointer')
-                .on('mouseover', function (_event, d: any) {
+                .on('mouseover', function (_event, d: TimelineDataPoint) {
                     d3.select(this).attr('r', 5);
 
-                    // Tooltip
                     const tooltip = g
                         .append('g')
                         .attr('class', 'tooltip')
-                        .attr('transform', `translate(${xScale(d.date)},${yScale(d[metric.key]) - 40})`);
+                        .attr('transform', `translate(${xScale(d.date)},${yScale(getMetricValue(d, metric.key)) - 40})`);
 
                     tooltip
                         .append('rect')
@@ -163,7 +145,7 @@ export default function ArchitectureTimeline({
                         .attr('text-anchor', 'middle')
                         .attr('fill', 'white')
                         .attr('font-size', '12px')
-                        .text(`${metric.label}: ${d[metric.key]}`);
+                        .text(`${metric.label}: ${getMetricDisplayValue(d, metric.key)}`);
                 })
                 .on('mouseout', function () {
                     d3.select(this).attr('r', 3);
@@ -171,7 +153,6 @@ export default function ArchitectureTimeline({
                 });
         });
 
-        // Event markers
         events.forEach((event) => {
             const x = xScale(event.date);
 
@@ -194,43 +175,24 @@ export default function ArchitectureTimeline({
                 .text(event.label);
         });
 
-        // Legend
-        const legend = g
-            .append('g')
-            .attr('class', 'legend')
-            .attr('transform', `translate(${innerWidth + 10}, 0)`);
+        const legend = g.append('g').attr('class', 'legend').attr('transform', `translate(${innerWidth + 10}, 0)`);
 
         metrics.forEach((metric, i) => {
             const legendRow = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
-
             legendRow.append('line').attr('x1', 0).attr('x2', 20).attr('stroke', metric.color).attr('stroke-width', 2);
-
-            legendRow
-                .append('text')
-                .attr('x', 25)
-                .attr('y', 4)
-                .attr('font-size', '12px')
-                .attr('fill', 'currentColor')
-                .text(metric.label);
+            legendRow.append('text').attr('x', 25).attr('y', 4).attr('font-size', '12px').attr('fill', 'currentColor').text(metric.label);
         });
 
-        // Brush for date range selection
         const brush = d3
             .brushX()
             .extent([
                 [0, 0],
                 [innerWidth, innerHeight],
             ])
-            .on('end', (event) => {
-                if (event.selection) {
-                    const [x0, x1] = event.selection;
-                    const dateRange = [xScale.invert(x0), xScale.invert(x1)];
-                    console.log('Selected date range:', dateRange);
-                }
-            });
+            .on('end', () => undefined);
 
         g.append('g').attr('class', 'brush').call(brush);
-    }, [data, events, width, height]);
+    }, [data, events, width, height, formatMonthYear]);
 
     return (
         <div ref={containerRef} className="w-full overflow-x-auto">

@@ -1,10 +1,10 @@
 /**
  * Pull Request Types
- * 
+ *
  * Shared type definitions for pull request related components
  */
 
-import type { FileDiff, Comment } from '../components/CodeDiff';
+import type { FileDiff } from '../components/CodeDiff';
 
 export interface User {
   id: string;
@@ -19,6 +19,17 @@ export interface Approver {
   status: 'pending' | 'approved' | 'rejected';
   comment?: string;
   timestamp: Date;
+}
+
+export interface PullRequestComment {
+  id: string;
+  author: User;
+  content: string;
+  createdAt: Date;
+  lineNumber: number;
+  filePath: string;
+  replies?: PullRequestComment[];
+  parentId?: string;
 }
 
 export interface PullRequest {
@@ -38,7 +49,7 @@ export interface PullRequest {
     totalDeletions: number;
     totalChanges: number;
   };
-  comments: Comment[];
+  comments: PullRequestComment[];
   createdAt: Date;
   updatedAt: Date;
 }

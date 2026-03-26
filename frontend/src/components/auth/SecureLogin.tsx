@@ -30,6 +30,19 @@ export default function SecureLogin() {
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  const getErrorStatus = (error: unknown) =>
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { status?: number } }).response?.status
+      : undefined;
+
+  const getErrorDetail = (error: unknown) =>
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      : undefined;
+
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : 'Login failed. Please check your connection and try again.';
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -91,20 +104,21 @@ export default function SecureLogin() {
     try {
       await login(formData.email, formData.password);
       // Successful login - AuthContext will handle redirect
-    } catch (error: any) {
-      console.error('Login failed:', error);
+    } catch (error: unknown) {
       const newAttemptCount = attemptCount + 1;
       setAttemptCount(newAttemptCount);
+      const errorStatus = getErrorStatus(error);
+      const errorDetail = getErrorDetail(error);
 
       // Handle different error types
-      if (error.response?.status === 429) {
+      if (errorStatus === 429) {
         setErrors({ general: 'Too many login attempts. Please try again later.' });
         setIsLocked(true);
         setLockoutTime(new Date(Date.now() + 15 * 60 * 1000)); // 15 minutes
-      } else if (error.response?.status === 403) {
-        setErrors({ general: error.response.data.detail || 'Account is locked.' });
+      } else if (errorStatus === 403) {
+        setErrors({ general: errorDetail || 'Account is locked.' });
         setIsLocked(true);
-      } else if (error.response?.status === 401) {
+      } else if (errorStatus === 401) {
         setErrors({ general: 'Invalid email or password.' });
         
         // Client-side lockout after 5 attempts
@@ -113,18 +127,17 @@ export default function SecureLogin() {
           setLockoutTime(new Date(Date.now() + 15 * 60 * 1000));
           setErrors({ general: 'Too many failed attempts. Account locked for 15 minutes.' });
         }
-      } else if (error.response?.status === 500) {
+      } else if (errorStatus === 500) {
         // Handle server errors, including token issues
-        const errorDetail = error.response.data.detail || 'Server error occurred.';
-        if (errorDetail.includes('No token received')) {
+        const detail = errorDetail || 'Server error occurred.';
+        if (detail.includes('No token received')) {
           setErrors({ general: 'Authentication service error. Please try again or contact support.' });
         } else {
-          setErrors({ general: errorDetail });
+          setErrors({ general: detail });
         }
       } else {
         // Handle network errors or other issues
-        const errorMessage = error.message || 'Login failed. Please check your connection and try again.';
-        setErrors({ general: errorMessage });
+        setErrors({ general: getErrorMessage(error) });
       }
     } finally {
       setIsLoading(false);

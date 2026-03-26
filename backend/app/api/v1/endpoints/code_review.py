@@ -5,7 +5,7 @@ Provides code review feature using user-configured API key.
 """
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Path
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 import re
@@ -35,8 +35,9 @@ class TriggerReviewRequest(BaseModel):
     pr_id: str = Field(..., description="Pull request UUID")
     force: bool = Field(default=False, description="Force re-review even if already reviewed")
 
-    @validator('pr_id')
-    def validate_pr_id(cls, v):
+    @field_validator('pr_id')
+    @classmethod
+    def validate_pr_id(cls, v: str) -> str:
         """Verify PR ID format."""
         if not is_valid_uuid(v):
             raise ValueError(f"Invalid UUID format: {v}. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
@@ -269,8 +270,9 @@ class CodeReviewComment(BaseModel):
     suggestion: Optional[str] = None
     code_snippet: Optional[str] = None
 
-    @validator('severity')
-    def validate_severity(cls, v):
+    @field_validator('severity')
+    @classmethod
+    def validate_severity(cls, v: str) -> str:
         """Verify severity value."""
         valid_severities = ['info', 'warning', 'error', 'critical']
         if v.lower() not in valid_severities:
@@ -298,8 +300,9 @@ class CodeReviewResponse(BaseModel):
     completed_at: Optional[str] = None
     api_version: str = Field(default=API_VERSION, description="API version for backward compatibility")
 
-    @validator('status')
-    def validate_status(cls, v):
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
         """Verify status value."""
         valid_statuses = ['pending', 'in_progress', 'completed', 'failed']
         if v not in valid_statuses:

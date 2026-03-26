@@ -1,13 +1,13 @@
 /**
  * PullRequestDetail Component
- * 
+ *
  * Displays detailed view of a pull request with code diff
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { PullRequest, User } from '../types/pullRequest';
-import type { Comment } from '../components/CodeDiff';
+import type { PullRequest, PullRequestComment } from '../types/pullRequest';
+import type { Comment as CodeDiffComment } from '../components/CodeDiff';
 import { ApprovalActions } from './ApprovalActions';
 
 const CodeDiff = dynamic(() => import('../components/CodeDiff').then(mod => ({ default: mod.default })), {
@@ -19,7 +19,7 @@ interface PullRequestDetailProps {
   pullRequest: PullRequest;
   onBack: () => void;
   onApprovalSubmit: (decision: 'approved' | 'rejected', comment?: string) => void;
-  onAddComment: (comment: Comment) => void;
+  onAddComment: (fileName: string, lineNumber: number, content: string, parentId?: string) => void;
 }
 
 export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
@@ -29,6 +29,28 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
   onAddComment,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'comments'>('overview');
+  const codeDiffComments = useMemo<CodeDiffComment[]>(
+    () =>
+      pullRequest.comments.map((comment): CodeDiffComment => ({
+        id: comment.id,
+        author: comment.author.name,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        lineNumber: comment.lineNumber,
+        fileName: comment.filePath,
+        parentId: comment.parentId,
+        replies: comment.replies?.map((reply) => ({
+          id: reply.id,
+          author: reply.author.name,
+          content: reply.content,
+          createdAt: reply.createdAt,
+          lineNumber: reply.lineNumber,
+          fileName: reply.filePath,
+          parentId: reply.parentId,
+        })),
+      })),
+    [pullRequest.comments]
+  );
 
   const getStatusColor = (status: PullRequest['status']) => {
     switch (status) {
@@ -140,7 +162,7 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
     <div style={styles.filesTab}>
       <CodeDiff
         files={pullRequest.diff.files}
-        comments={pullRequest.comments}
+        comments={codeDiffComments}
         onAddComment={onAddComment}
       />
     </div>
@@ -153,7 +175,7 @@ export const PullRequestDetail: React.FC<PullRequestDetailProps> = ({
         <p style={styles.noComments}>No comments yet.</p>
       ) : (
         <div style={styles.commentsList}>
-          {pullRequest.comments.map((comment) => (
+          {pullRequest.comments.map((comment: PullRequestComment) => (
             <div key={comment.id} style={styles.comment}>
               <div style={styles.commentHeader}>
                 <img

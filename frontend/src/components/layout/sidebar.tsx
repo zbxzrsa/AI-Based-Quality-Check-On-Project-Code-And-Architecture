@@ -3,60 +3,65 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import {
-  LayoutDashboard,
-  FolderGit2,
-  GitPullRequest,
-  Network,
-  Activity,
-  Settings,
-  Users,
-  TrendingUp,
-} from 'lucide-react'
+import { primaryNavigation, secondaryNavigation } from './navigation'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Projects', href: '/projects', icon: FolderGit2 },
-  { name: 'Pull Requests', href: '/reviews', icon: GitPullRequest },
-  { name: 'Architecture', href: '/architecture', icon: Network },
-  { name: 'Analysis Queue', href: '/queue', icon: Activity },
-  { name: 'Metrics', href: '/metrics', icon: TrendingUp },
-]
-
-interface SidebarProps {
-  className?: string
-}
-
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname()
 
+  const isActive = (href: string) =>
+    pathname === href || pathname?.startsWith(href + '/')
+
   return (
-    <aside
-      className={cn(
-        'flex h-full w-64 shrink-0 flex-col border-r bg-background',
-        className
-      )}
-    >
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href || (pathname && pathname.startsWith(item.href + '/'))
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          )
-        })}
-      </nav>
+    <aside className="w-64 shrink-0 border-r bg-muted/20">
+      <div className="sticky top-0 p-4">
+        <div className="space-y-6">
+          <div>
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Main
+            </p>
+            <nav className="space-y-1">
+              {primaryNavigation.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                    isActive(item.href)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          <div>
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Personal
+            </p>
+            <nav className="space-y-1">
+              {secondaryNavigation.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                    isActive(item.href)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </div>
     </aside>
   )
 }

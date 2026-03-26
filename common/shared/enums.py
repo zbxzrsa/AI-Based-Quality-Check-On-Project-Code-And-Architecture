@@ -14,13 +14,8 @@ from enum import Enum
 
 class Role(str, Enum):
     """User roles in the system - consolidated from multiple sources"""
-    ADMIN = "ADMIN"                    # Full system control
-    MANAGER = "MANAGER"                # Project oversight & ROI
-    REVIEWER = "REVIEWER"              # Read/Write analysis
-    PROGRAMMER = "PROGRAMMER"          # CRUD own branch
-    DEVELOPER = "DEVELOPER"            # Developer role (alias for PROGRAMMER)
-    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"  # Compliance officer
-    VISITOR = "VISITOR"                # Read-only grants
+    ADMIN = "admin"                    # Full system control
+    USER = "user"                      # Standard authenticated user
 
 
 class Permission(str, Enum):

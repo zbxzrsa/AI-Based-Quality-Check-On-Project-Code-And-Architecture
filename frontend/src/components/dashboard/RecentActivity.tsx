@@ -15,16 +15,64 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ isLoading }: RecentActivityProps) {
+    const activities = [
+        {
+            id: 'review-complete',
+            icon: GitPullRequest,
+            iconClassName: 'bg-primary/10 text-primary',
+            title: 'New PR review completed',
+            target: 'user-auth-service',
+            time: '2 minutes ago',
+            badge: { label: 'Passed', variant: 'success' as const },
+        },
+        {
+            id: 'architecture-warning',
+            icon: AlertTriangle,
+            iconClassName: 'bg-yellow-500/10 text-yellow-600',
+            title: 'Architecture drift detected',
+            target: 'payment-service',
+            time: '15 minutes ago',
+            badge: { label: 'Warning', variant: 'warning' as const },
+        },
+        {
+            id: 'project-added',
+            icon: FolderGit2,
+            iconClassName: 'bg-green-500/10 text-green-600',
+            title: 'New project added',
+            target: 'api-gateway',
+            time: '1 hour ago',
+            badge: { label: 'New', variant: 'default' as const },
+        },
+        {
+            id: 'security-critical',
+            icon: AlertTriangle,
+            iconClassName: 'bg-red-500/10 text-red-600',
+            title: 'Critical security issue found',
+            target: 'auth-service',
+            time: '3 hours ago',
+            badge: { label: 'Critical', variant: 'destructive' as const },
+        },
+        {
+            id: 'architecture-done',
+            icon: Network,
+            iconClassName: 'bg-blue-500/10 text-blue-600',
+            title: 'Architecture analysis completed',
+            target: 'microservices',
+            time: '5 hours ago',
+            badge: { label: 'Info', variant: 'info' as const },
+        },
+    ]
+
     return (
         <Card className="col-span-4">
-            <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
+            <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Recent Activity</CardTitle>
                 <CardDescription>
                     Latest updates from your projects
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {isLoading ? (
                         <>
                             {[...Array(5)].map((_, i) => (
@@ -38,72 +86,20 @@ export function RecentActivity({ isLoading }: RecentActivityProps) {
                             ))}
                         </>
                     ) : (
-                        <>
-                            <div className="flex items-start space-x-4">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <GitPullRequest className="h-5 w-5 text-primary" />
+                        activities.map((activity) => (
+                            <div key={activity.id} className="flex items-start gap-4 rounded-lg border p-4">
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${activity.iconClassName}`}>
+                                    <activity.icon className="h-5 w-5" />
                                 </div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium">
-                                        New PR review completed for <span className="text-primary">user-auth-service</span>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    <p className="text-sm font-medium text-foreground">
+                                        {activity.title} for <span className="text-primary">{activity.target}</span>
                                     </p>
-                                    <p className="text-xs text-muted-foreground">2 minutes ago</p>
+                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
                                 </div>
-                                <Badge variant="success">Passed</Badge>
+                                <Badge variant={activity.badge.variant}>{activity.badge.label}</Badge>
                             </div>
-
-                            <div className="flex items-start space-x-4">
-                                <div className="h-10 w-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium">
-                                        Architecture drift detected in <span className="text-primary">payment-service</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">15 minutes ago</p>
-                                </div>
-                                <Badge variant="warning">Warning</Badge>
-                            </div>
-
-                            <div className="flex items-start space-x-4">
-                                <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                                    <FolderGit2 className="h-5 w-5 text-green-600" />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium">
-                                        New project <span className="text-primary">api-gateway</span> added
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">1 hour ago</p>
-                                </div>
-                                <Badge>New</Badge>
-                            </div>
-
-                            <div className="flex items-start space-x-4">
-                                <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                                    <AlertTriangle className="h-5 w-5 text-red-600" />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium">
-                                        Critical security issue found in <span className="text-primary">auth-service</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">3 hours ago</p>
-                                </div>
-                                <Badge variant="destructive">Critical</Badge>
-                            </div>
-
-                            <div className="flex items-start space-x-4">
-                                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                    <Network className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium">
-                                        Architecture analysis completed for <span className="text-primary">microservices</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">5 hours ago</p>
-                                </div>
-                                <Badge variant="info">Info</Badge>
-                            </div>
-                        </>
+                        ))
                     )}
                 </div>
             </CardContent>

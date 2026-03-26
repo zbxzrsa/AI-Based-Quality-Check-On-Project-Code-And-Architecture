@@ -1,7 +1,7 @@
 """Add missing GitHub connection columns to projects table
 
 Revision ID: 010_add_github_columns
-Revises: 009_add_audit_log_entries
+Revises: 008
 Create Date: 2026-03-07
 
 This migration adds the missing GitHub connection columns to the projects table:

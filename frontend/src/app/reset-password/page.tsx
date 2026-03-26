@@ -29,6 +29,14 @@ const resetPasswordSchema = z.object({
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>
 
+const getAxiosErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.detail || fallback
+  }
+
+  return fallback
+}
+
 function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -101,11 +109,11 @@ function ResetPasswordForm() {
         description: 'You can now login with your new password',
       })
       router.push('/login')
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Reset Failed',
-        description: error.response?.data?.detail || 'Failed to reset password',
+        description: getAxiosErrorMessage(error, 'Failed to reset password'),
       })
     } finally {
       setIsLoading(false)

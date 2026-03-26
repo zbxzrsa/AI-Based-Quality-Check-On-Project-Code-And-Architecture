@@ -28,7 +28,7 @@ export const ArchitectureNodeSchema = z.object({
   metrics: z.record(z.string(), z.number()).optional(),
 });
 
-export type ArchitectureNode = z.infer<typeof ArchitectureNodeSchema>;
+export type ArchitectureNode = z.output<typeof ArchitectureNodeSchema>;
 
 /**
  * Architecture Edge Schema
@@ -43,7 +43,7 @@ export const ArchitectureEdgeSchema = z.object({
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 
-export type ArchitectureEdge = z.infer<typeof ArchitectureEdgeSchema>;
+export type ArchitectureEdge = z.output<typeof ArchitectureEdgeSchema>;
 
 /**
  * Architecture Metrics Schema
@@ -57,7 +57,7 @@ export const ArchitectureMetricsSchema = z.object({
   avg_complexity: z.number().nonnegative().optional(),
 });
 
-export type ArchitectureMetrics = z.infer<typeof ArchitectureMetricsSchema>;
+export type ArchitectureMetrics = z.output<typeof ArchitectureMetricsSchema>;
 
 /**
  * Architecture Analysis Response Schema
@@ -77,7 +77,7 @@ export const ArchitectureAnalysisSchema = z.object({
   api_version: z.string().optional().default('1.0.0'),
 });
 
-export type ArchitectureAnalysis = z.infer<typeof ArchitectureAnalysisSchema>;
+export type ArchitectureAnalysis = z.output<typeof ArchitectureAnalysisSchema>;
 
 // ============================================================================
 // Dependency Graph Schemas
@@ -96,7 +96,7 @@ export const DependencyGraphNodeSchema = z.object({
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 
-export type DependencyGraphNode = z.infer<typeof DependencyGraphNodeSchema>;
+export type DependencyGraphNode = z.output<typeof DependencyGraphNodeSchema>;
 
 /**
  * Dependency Graph Edge Schema
@@ -111,7 +111,7 @@ export const DependencyGraphEdgeSchema = z.object({
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 
-export type DependencyGraphEdge = z.infer<typeof DependencyGraphEdgeSchema>;
+export type DependencyGraphEdge = z.output<typeof DependencyGraphEdgeSchema>;
 
 /**
  * Dependency Graph Metrics Schema
@@ -124,7 +124,7 @@ export const DependencyGraphMetricsSchema = z.object({
   avg_dependencies_per_node: z.number().nonnegative().optional(),
 });
 
-export type DependencyGraphMetrics = z.infer<typeof DependencyGraphMetricsSchema>;
+export type DependencyGraphMetrics = z.output<typeof DependencyGraphMetricsSchema>;
 
 /**
  * Dependency Graph Response Schema
@@ -143,7 +143,7 @@ export const DependencyGraphSchema = z.object({
   api_version: z.string().optional().default('1.0.0'),
 });
 
-export type DependencyGraph = z.infer<typeof DependencyGraphSchema>;
+export type DependencyGraph = z.output<typeof DependencyGraphSchema>;
 
 // ============================================================================
 // Performance Metrics Schemas
@@ -161,7 +161,7 @@ export const PerformanceMetricSchema = z.object({
   tags: z.record(z.string(), z.string()).optional(),
 });
 
-export type PerformanceMetric = z.infer<typeof PerformanceMetricSchema>;
+export type PerformanceMetric = z.output<typeof PerformanceMetricSchema>;
 
 /**
  * Time Range Schema
@@ -171,7 +171,7 @@ export const TimeRangeSchema = z.object({
   end: z.string().datetime(),
 });
 
-export type TimeRange = z.infer<typeof TimeRangeSchema>;
+export type TimeRange = z.output<typeof TimeRangeSchema>;
 
 /**
  * Metrics Collection Schema
@@ -184,7 +184,7 @@ export const MetricsCollectionSchema = z.object({
   memory_usage: z.array(PerformanceMetricSchema),
 });
 
-export type MetricsCollection = z.infer<typeof MetricsCollectionSchema>;
+export type MetricsCollection = z.output<typeof MetricsCollectionSchema>;
 
 /**
  * Metrics Aggregations Schema
@@ -197,7 +197,7 @@ export const MetricsAggregationsSchema = z.object({
   total_errors: z.number().int().nonnegative(),
 });
 
-export type MetricsAggregations = z.infer<typeof MetricsAggregationsSchema>;
+export type MetricsAggregations = z.output<typeof MetricsAggregationsSchema>;
 
 /**
  * Performance Dashboard Data Schema
@@ -210,7 +210,7 @@ export const PerformanceDashboardDataSchema = z.object({
   aggregations: MetricsAggregationsSchema,
 });
 
-export type PerformanceDashboardData = z.infer<typeof PerformanceDashboardDataSchema>;
+export type PerformanceDashboardData = z.output<typeof PerformanceDashboardDataSchema>;
 
 // ============================================================================
 // Code Review Schemas
@@ -230,7 +230,7 @@ export const CodeReviewCommentSchema = z.object({
   code_snippet: z.string().optional(),
 });
 
-export type CodeReviewComment = z.infer<typeof CodeReviewCommentSchema>;
+export type CodeReviewComment = z.output<typeof CodeReviewCommentSchema>;
 
 /**
  * Code Review Summary Schema
@@ -242,7 +242,7 @@ export const CodeReviewSummarySchema = z.object({
   categories: z.array(z.string()),
 });
 
-export type CodeReviewSummary = z.infer<typeof CodeReviewSummarySchema>;
+export type CodeReviewSummary = z.output<typeof CodeReviewSummarySchema>;
 
 /**
  * Code Review Response Schema
@@ -259,7 +259,7 @@ export const CodeReviewSchema = z.object({
   api_version: z.string().optional().default('1.0.0'),
 });
 
-export type CodeReview = z.infer<typeof CodeReviewSchema>;
+export type CodeReview = z.output<typeof CodeReviewSchema>;
 
 // ============================================================================
 // Validation Helper Functions
@@ -284,7 +284,7 @@ export class ValidationError extends Error {
 /**
  * Validate data against a schema (throws on error)
  */
-export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
+export function validate<T>(schema: z.ZodType<T>, data: unknown): T {
   try {
     return schema.parse(data);
   } catch (error) {
@@ -303,7 +303,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
  * Safely validate data against a schema (returns result object)
  */
 export function safeValidate<T>(
-  schema: z.ZodSchema<T>,
+  schema: z.ZodType<T>,
   data: unknown
 ): { success: true; data: T } | { success: false; error: z.ZodError } {
   const result = schema.safeParse(data);
@@ -322,27 +322,27 @@ export function safeValidate<T>(
  * Validate architecture analysis response
  */
 export function validateArchitectureAnalysis(data: unknown): ArchitectureAnalysis {
-  return validate(ArchitectureAnalysisSchema, data);
+  return ArchitectureAnalysisSchema.parse(data) as ArchitectureAnalysis;
 }
 
 /**
  * Validate dependency graph response
  */
 export function validateDependencyGraph(data: unknown): DependencyGraph {
-  return validate(DependencyGraphSchema, data);
+  return DependencyGraphSchema.parse(data) as DependencyGraph;
 }
 
 /**
  * Validate performance dashboard data
  */
 export function validatePerformanceDashboardData(data: unknown): PerformanceDashboardData {
-  return validate(PerformanceDashboardDataSchema, data);
+  return PerformanceDashboardDataSchema.parse(data) as PerformanceDashboardData;
 }
 
 /**
  * Validate code review response
  */
 export function validateCodeReview(data: unknown): CodeReview {
-  return validate(CodeReviewSchema, data);
+  return CodeReviewSchema.parse(data) as CodeReview;
 }
 

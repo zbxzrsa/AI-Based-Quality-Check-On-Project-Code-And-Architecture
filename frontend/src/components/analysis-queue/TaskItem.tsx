@@ -1,5 +1,5 @@
-import React from 'react';
-import { AnalysisTask, ScheduleResult, RetrySchedule } from '../../types/AnalysisQueue';
+﻿import React from 'react';
+import { AnalysisTask, RetrySchedule } from '../../types/AnalysisQueue';
 import {
   getTaskTypeText,
   getStatusColor,
@@ -72,13 +72,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             {getStatusText(task.status)}
           </span>
           {isScheduledToExecute && task.status === 'pending' && (
-            <span style={styles.scheduledBadge}>
-              ⏱️ Scheduled
-            </span>
+            <span style={styles.scheduledBadge}>Scheduled</span>
           )}
           {retrySchedule && (
             <span style={styles.retryBadge}>
-              🔄 Retry {task.retryCount + 1}/{task.maxRetries}
+              Retry {task.retryCount + 1}/{task.maxRetries}
             </span>
           )}
         </div>
@@ -101,7 +99,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               data-testid={`increase-priority-${task.id}`}
               title="Increase priority"
             >
-              ▲
+              +
             </button>
             <span style={styles.priorityValue}>{task.priority}</span>
             <button
@@ -117,7 +115,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               data-testid={`decrease-priority-${task.id}`}
               title="Decrease priority"
             >
-              ▼
+              -
             </button>
           </div>
           <input
@@ -151,7 +149,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </div>
           {estimatedCompletion && (
             <div style={styles.estimatedCompletionContainer}>
-              <span style={styles.estimatedCompletionLabel}>⏱️ Est. completion:</span>
+              <span style={styles.estimatedCompletionLabel}>Est. completion:</span>
               <span 
                 style={styles.estimatedCompletionValue}
                 data-testid={`task-estimated-completion-${task.id}`}
@@ -168,7 +166,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
       {retrySchedule && retryStatusText && (
         <div style={styles.retryInfo}>
-          <span style={styles.retryIcon}>🔄</span>
+          <span style={styles.retryIcon}>Retry</span>
           <span style={styles.retryText}>{retryStatusText}</span>
         </div>
       )}
@@ -202,7 +200,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
       {task.error && (
         <div style={styles.errorInfo}>
-          <span style={styles.errorIcon}>⚠️</span>
+          <span style={styles.errorIcon}>Error</span>
           <span style={styles.errorMessage}>{task.error.message}</span>
         </div>
       )}

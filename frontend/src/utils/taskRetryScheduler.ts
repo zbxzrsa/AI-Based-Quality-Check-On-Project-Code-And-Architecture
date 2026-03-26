@@ -8,7 +8,7 @@
  * verifyRequirement: 5.2
  */
 
-import { AnalysisTask } from '../pages/AnalysisQueue';
+import { AnalysisTask } from '../types/AnalysisQueue';
 
 /**
  * retry延迟config（ms）

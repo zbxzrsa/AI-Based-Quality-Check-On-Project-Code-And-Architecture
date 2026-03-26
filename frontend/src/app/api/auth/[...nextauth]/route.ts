@@ -14,7 +14,16 @@ if (!envValidation.valid && process.env.NODE_ENV === 'development') {
   console.warn('[NextAuth] Environment configuration issues:', envValidation.errors);
 }
 
-export const authOptions: NextAuthOptions = {
+type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  accessToken: string;
+  refreshToken: string;
+};
+
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -31,19 +40,11 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[NextAuth] Starting authentication for:', credentials.email);
-          }
-
           // Use the authentication service utility
           const user = await authenticateUser({
             username: credentials.email,
             password: credentials.password,
           });
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[NextAuth] Authentication successful for:', user.email);
-          }
 
           return {
             id: user.id,
@@ -90,7 +91,14 @@ export const authOptions: NextAuthOptions = {
       
       // Initialize user object if it doesn't exist
       if (!session.user) {
-        session.user = {} as any;
+        session.user = {
+          id: '',
+          email: '',
+          name: '',
+          role: 'user',
+          accessToken: '',
+          refreshToken: '',
+        } satisfies SessionUser;
       }
       
       session.user.id = token.id as string;

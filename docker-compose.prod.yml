@@ -101,6 +101,8 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
         NEXT_PUBLIC_BACKEND_URL: http://backend:8000
+        NEXT_PUBLIC_GITHUB_CLIENT_ID: ${NEXT_PUBLIC_GITHUB_CLIENT_ID:-}
+        NEXT_PUBLIC_GITHUB_REDIRECT_URI: ${NEXT_PUBLIC_GITHUB_REDIRECT_URI:-http://localhost:3000/api/github/callback}
     container_name: ai_review_frontend
     restart: always
     depends_on:

@@ -18,7 +18,14 @@ import { Card } from '@/components/ui/card';
 import type { GraphNode, GraphEdge } from '@/hooks/useProjects';
 
 // Custom node component
-function CustomNode({ data }: { data: any }) {
+interface ArchitectureNodeData {
+  label: string;
+  type?: string;
+  health: string;
+  complexity?: number;
+}
+
+function CustomNode({ data }: { data: ArchitectureNodeData }) {
   const getHealthColor = (health: string) => {
     switch (health) {
       case 'healthy':

@@ -5,7 +5,7 @@ Provides architecture analysis data for project branches.
 """
 from typing import Annotated, List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Path
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
@@ -15,6 +15,7 @@ import base64
 
 from app.database.postgresql import get_db
 from app.auth import TokenPayload, get_current_user, require_project_access, Permission
+from app.models import Project, User
 from app.models.code_review import (
     PullRequest,
     ArchitectureAnalysis,
@@ -25,6 +26,223 @@ router = APIRouter()
 
 # API version constant
 API_VERSION = "1.0.0"
+
+
+async def _get_project_and_github_token(
+    db: AsyncSession,
+    project_id: str,
+    user_id: str,
+) -> tuple[Project | None, Optional[str]]:
+    project_result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = project_result.scalar_one_or_none()
+
+    user_result = await db.execute(select(User).filter(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+
+    return project, getattr(user, "github_token", None)
+
+
+async def _fetch_live_repository_branches(
+    repo_url: str,
+    github_token: Optional[str],
+) -> List["BranchInfo"]:
+    import httpx
+    from urllib.parse import urlparse
+
+    normalized_repo_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
+    parsed = urlparse(
+        normalized_repo_url if "://" in normalized_repo_url else f"https://{normalized_repo_url}"
+    )
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if len(path_parts) < 2:
+        return []
+
+    repo_full_name = f"{path_parts[-2]}/{path_parts[-1]}"
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"https://api.github.com/repos/{repo_full_name}/branches",
+                headers=headers,
+                params={"per_page": 100},
+            )
+
+        if response.status_code != 200:
+            return []
+
+        branches: List["BranchInfo"] = []
+        for branch in response.json():
+            branch_name = str(branch.get("name") or "unknown")
+            branch_id_encoded = base64.urlsafe_b64encode(
+                branch_name.encode("utf-8")
+            ).decode("ascii").rstrip("=")
+            commit = branch.get("commit") or {}
+            commit_sha = str(commit.get("sha") or "")
+
+            branches.append(
+                BranchInfo(
+                    id=branch_id_encoded,
+                    name=branch_name,
+                    last_commit=commit_sha[:12] if commit_sha else "GitHub branch",
+                    last_commit_date="",
+                    author="GitHub",
+                    components_count=0,
+                    complexity=0,
+                    health_status="healthy",
+                    circular_dependencies=0,
+                )
+            )
+
+        return branches
+    except Exception:
+        return []
+
+
+def _health_status_from_violation_count(violations_count: int) -> str:
+    if violations_count == 0:
+        return "healthy"
+    if violations_count < 5:
+        return "warning"
+    return "critical"
+
+
+async def _get_latest_analysis_for_pull_request(
+    db: AsyncSession,
+    pull_request_id: Any,
+) -> Optional[ArchitectureAnalysis]:
+    analysis_result = await db.execute(
+        select(ArchitectureAnalysis)
+        .filter(ArchitectureAnalysis.pull_request_id == pull_request_id)
+        .order_by(ArchitectureAnalysis.started_at.desc())
+        .limit(1)
+    )
+    return analysis_result.scalar_one_or_none()
+
+
+async def _get_latest_project_analysis(
+    db: AsyncSession,
+    project_id: Any,
+    branch_name: Optional[str] = None,
+) -> Optional[ArchitectureAnalysis]:
+    query = (
+        select(ArchitectureAnalysis)
+        .join(PullRequest)
+        .filter(PullRequest.project_id == project_id)
+    )
+
+    if branch_name:
+        query = query.filter(PullRequest.branch_name == branch_name)
+
+    analysis_result = await db.execute(
+        query.order_by(ArchitectureAnalysis.started_at.desc()).limit(1)
+    )
+    return analysis_result.scalar_one_or_none()
+
+
+async def _get_analysis_violations(
+    db: AsyncSession,
+    analysis_id: Any,
+) -> List[ArchitectureViolation]:
+    violations_result = await db.execute(
+        select(ArchitectureViolation)
+        .filter(ArchitectureViolation.analysis_id == analysis_id)
+    )
+    return list(violations_result.scalars().all())
+
+
+async def _count_analysis_violations(
+    db: AsyncSession,
+    analysis_id: Any,
+) -> int:
+    violations_result = await db.execute(
+        select(func.count(ArchitectureViolation.id))
+        .filter(ArchitectureViolation.analysis_id == analysis_id)
+    )
+    return violations_result.scalar() or 0
+
+
+async def _count_violations_for_pull_requests(
+    db: AsyncSession,
+    pull_request_ids: List[Any],
+    violation_type: Optional[str] = None,
+) -> int:
+    if not pull_request_ids:
+        return 0
+
+    query = (
+        select(func.count(ArchitectureViolation.id))
+        .join(ArchitectureAnalysis)
+        .filter(ArchitectureAnalysis.pull_request_id.in_(pull_request_ids))
+    )
+
+    if violation_type:
+        query = query.filter(ArchitectureViolation.type == violation_type)
+
+    violations_result = await db.execute(query)
+    return violations_result.scalar() or 0
+
+
+def _get_violation_components(
+    violations: List[ArchitectureViolation],
+    *,
+    sort_components: bool = False,
+) -> List[str]:
+    components: List[str] = []
+    seen = set()
+
+    for violation in violations:
+        for component in (violation.component, violation.related_component):
+            if component and component not in seen:
+                seen.add(component)
+                components.append(component)
+
+    return sorted(components) if sort_components else components
+
+
+def _build_graph_from_violations(
+    violations: List[ArchitectureViolation],
+    *,
+    edge_type: str,
+    sort_components: bool = False,
+) -> tuple[List["GraphNode"], List["GraphEdge"]]:
+    components = _get_violation_components(violations, sort_components=sort_components)
+    component_to_id = {
+        component: str(idx + 1) for idx, component in enumerate(components)
+    }
+
+    nodes = [
+        GraphNode(
+            id=component_to_id[component],
+            label=component,
+            type='Component',
+            health='critical' if any(
+                v.component == component and v.severity == 'critical'
+                for v in violations
+            ) else 'warning',
+            complexity=5,
+            position={'x': 100 + (idx % 3) * 200, 'y': 100 + (idx // 3) * 200},
+        )
+        for idx, component in enumerate(components)
+    ]
+
+    edges = []
+    for idx, violation in enumerate(violations):
+        if violation.component and violation.related_component:
+            source = component_to_id.get(violation.component)
+            target = component_to_id.get(violation.related_component)
+            if source and target:
+                edges.append(GraphEdge(
+                    id=f'e{idx + 1}',
+                    source=source,
+                    target=target,
+                    type=edge_type,
+                    is_circular=(violation.type == 'circular_dependency'),
+                ))
+
+    return nodes, edges
 
 
 class BranchInfo(BaseModel):
@@ -62,6 +280,48 @@ class GraphEdge(BaseModel):
     properties: Optional[Dict[str, Any]] = None
 
 
+def _default_graph_position(index: int) -> Dict[str, float]:
+    return {'x': 100 + (index % 3) * 200, 'y': 100 + (index // 3) * 200}
+
+
+def _build_architecture_graph_from_summary(
+    summary: Dict[str, Any],
+    *,
+    include_extended_fields: bool,
+) -> tuple[List["GraphNode"], List["GraphEdge"], List[List[str]]]:
+    if not isinstance(summary, dict):
+        return [], [], []
+
+    nodes = []
+    components = summary.get('components', [])
+    for idx, component in enumerate(components):
+        nodes.append(GraphNode(
+            id=str(component.get('id', idx + 1)) if include_extended_fields else str(idx + 1),
+            label=component.get('name', f'Component {idx + 1}'),
+            type=component.get('type', 'Unknown'),
+            health=component.get('health', 'healthy'),
+            complexity=component.get('complexity', 5),
+            position=component.get('position', _default_graph_position(idx)) if include_extended_fields else _default_graph_position(idx),
+            properties=component.get('properties') if include_extended_fields else None,
+            metrics=component.get('metrics') if include_extended_fields else None,
+        ))
+
+    edges = []
+    dependencies = summary.get('dependencies', [])
+    for idx, dep in enumerate(dependencies):
+        edges.append(GraphEdge(
+            id=dep.get('id', f'e{idx + 1}') if include_extended_fields else f'e{idx + 1}',
+            source=str(dep.get('source')) if include_extended_fields else str(dep.get('source', 1)),
+            target=str(dep.get('target')) if include_extended_fields else str(dep.get('target', 2)),
+            type=dep.get('type', 'default') if include_extended_fields else 'default',
+            is_circular=dep.get('is_circular', False),
+            properties=dep.get('properties') if include_extended_fields else None,
+        ))
+
+    circular_dependency_chains = summary.get('circular_dependency_chains', []) if include_extended_fields else []
+    return nodes, edges, circular_dependency_chains
+
+
 class ArchitectureMetrics(BaseModel):
     """Architecture metrics model."""
     total_nodes: int = Field(ge=0)
@@ -85,8 +345,9 @@ class ArchitectureAnalysisResponse(BaseModel):
     updated_at: str
     api_version: str = Field(default=API_VERSION, description="API version for backward compatibility")
 
-    @validator('status')
-    def validate_status(cls, v):
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
         """Verify status value."""
         valid_statuses = ['pending', 'in_progress', 'processing', 'completed', 'failed']
         if v not in valid_statuses:
@@ -122,6 +383,9 @@ async def get_project_branches(
     prs = pr_result.scalars().all()
 
     if not prs:
+        project, github_token = await _get_project_and_github_token(db, project_id, current_user.user_id)
+        if project and project.github_repo_url:
+            return await _fetch_live_repository_branches(project.github_repo_url, github_token)
         return []
 
     # Group by branch name
@@ -143,46 +407,26 @@ async def get_project_branches(
 
         # Get architecture violations for this branch
         pr_ids = [pr.id for pr in prs_list]
-        violations_result = await db.execute(
-            select(func.count(ArchitectureViolation.id))
-            .join(ArchitectureAnalysis)
-            .filter(ArchitectureAnalysis.pull_request_id.in_(pr_ids))
-        )
-        violations_count = violations_result.scalar() or 0
+        violations_count = await _count_violations_for_pull_requests(db, pr_ids)
 
         # Calculate circular dependency count
-        circular_deps_result = await db.execute(
-            select(func.count(ArchitectureViolation.id))
-            .join(ArchitectureAnalysis)
-            .filter(
-                ArchitectureAnalysis.pull_request_id.in_(pr_ids),
-                ArchitectureViolation.type == 'circular_dependency'
-            )
+        circular_deps = await _count_violations_for_pull_requests(
+            db,
+            pr_ids,
+            violation_type='circular_dependency',
         )
-        circular_deps = circular_deps_result.scalar() or 0
 
         # Calculate average complexity (based on risk score)
         avg_risk = sum(pr.risk_score for pr in prs_list if pr.risk_score) / len(prs_list) if prs_list else 0
         complexity = int(avg_risk / 10) if avg_risk else 5
 
         # Determine health status
-        if violations_count == 0:
-            health_status = 'healthy'
-        elif violations_count < 5:
-            health_status = 'warning'
-        else:
-            health_status = 'critical'
+        health_status = _health_status_from_violation_count(violations_count)
 
         # Get actual component count from architecture analysis summary
         arch_components_count = 0
         for pr_item in prs_list:
-            arch_result = await db.execute(
-                select(ArchitectureAnalysis)
-                .filter(ArchitectureAnalysis.pull_request_id == pr_item.id)
-                .order_by(ArchitectureAnalysis.started_at.desc())
-                .limit(1)
-            )
-            arch = arch_result.scalar_one_or_none()
+            arch = await _get_latest_analysis_for_pull_request(db, pr_item.id)
             if arch and arch.summary and isinstance(arch.summary, dict):
                 components = arch.summary.get('components', [])
                 if components:
@@ -241,29 +485,39 @@ async def get_branch_architecture(
     latest_pr = pr_result.scalar_one_or_none()
 
     if not latest_pr:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Branch {branch_name} not found"
+        return BranchArchitecture(
+            branch_info=BranchInfo(
+                id=branch_id,
+                name=branch_name,
+                last_commit="GitHub branch",
+                last_commit_date="",
+                author="GitHub",
+                components_count=0,
+                complexity=0,
+                health_status="healthy",
+                circular_dependencies=0,
+            ),
+            nodes=[],
+            edges=[],
+            statistics={
+                'total_components': 0,
+                'total_dependencies': 0,
+                'circular_dependencies': 0,
+                'avg_complexity': 0,
+                'violations_count': 0,
+                'critical_violations': 0,
+                'high_violations': 0,
+            }
         )
 
     # Get architecture analysis data
-    analysis_result = await db.execute(
-        select(ArchitectureAnalysis)
-        .filter(ArchitectureAnalysis.pull_request_id == latest_pr.id)
-        .order_by(ArchitectureAnalysis.started_at.desc())
-        .limit(1)
-    )
-    analysis = analysis_result.scalar_one_or_none()
+    analysis = await _get_latest_analysis_for_pull_request(db, latest_pr.id)
 
     # Get architecture violations
     violations = []
     circular_deps = 0
     if analysis:
-        violations_result = await db.execute(
-            select(ArchitectureViolation)
-            .filter(ArchitectureViolation.analysis_id == analysis.id)
-        )
-        violations = violations_result.scalars().all()
+        violations = await _get_analysis_violations(db, analysis.id)
         circular_deps = sum(1 for v in violations if v.type == 'circular_dependency')
 
     # Build nodes and edges (extracted from architecture analysis data)
@@ -271,64 +525,17 @@ async def get_branch_architecture(
     edges = []
 
     if analysis and analysis.summary:
-        # Extract architecture graph data from summary JSON
-        summary = analysis.summary
-        if isinstance(summary, dict):
-            # Extract component information
-            components = summary.get('components', [])
-            for idx, component in enumerate(components):
-                nodes.append(GraphNode(
-                    id=str(idx + 1),
-                    label=component.get('name', f'Component {idx + 1}'),
-                    type=component.get('type', 'Unknown'),
-                    health=component.get('health', 'healthy'),
-                    complexity=component.get('complexity', 5),
-                    position={'x': 100 + (idx % 3) * 200, 'y': 100 + (idx // 3) * 200}
-                ))
-
-            # Extract dependency relationships
-            dependencies = summary.get('dependencies', [])
-            for idx, dep in enumerate(dependencies):
-                edges.append(GraphEdge(
-                    id=f'e{idx + 1}',
-                    source=str(dep.get('source', 1)),
-                    target=str(dep.get('target', 2)),
-                    type='default',
-                    is_circular=dep.get('is_circular', False)
-                ))
+        nodes, edges, _ = _build_architecture_graph_from_summary(
+            analysis.summary,
+            include_extended_fields=False,
+        )
 
     # If no architecture data, build basic graph from violation information
     if not nodes and violations:
-        components_set = set()
-        for violation in violations:
-            if violation.component:
-                components_set.add(violation.component)
-            if violation.related_component:
-                components_set.add(violation.related_component)
-
-        for idx, component in enumerate(components_set):
-            health = 'critical' if any(v.component == component and v.severity == 'critical' for v in violations) else 'warning'
-            nodes.append(GraphNode(
-                id=str(idx + 1),
-                label=component,
-                type='Component',
-                health=health,
-                complexity=5,
-                position={'x': 100 + (idx % 3) * 200, 'y': 100 + (idx // 3) * 200}
-            ))
-
-        # Extract dependency relationships from violations
-        for idx, violation in enumerate(violations):
-            if violation.component and violation.related_component:
-                source_idx = list(components_set).index(violation.component) + 1
-                target_idx = list(components_set).index(violation.related_component) + 1
-                edges.append(GraphEdge(
-                    id=f'e{idx + 1}',
-                    source=str(source_idx),
-                    target=str(target_idx),
-                    type='default',
-                    is_circular=(violation.type == 'circular_dependency')
-                ))
+        nodes, edges = _build_graph_from_violations(
+            violations,
+            edge_type='default',
+        )
 
     # Build branch information
     branch_info = BranchInfo(
@@ -339,7 +546,7 @@ async def get_branch_architecture(
         author=str(latest_pr.author_id) if latest_pr.author_id else 'unknown',
         components_count=len(nodes),
         complexity=int(latest_pr.risk_score / 10) if latest_pr.risk_score else 5,
-        health_status='critical' if len(violations) > 5 else 'warning' if len(violations) > 0 else 'healthy',
+        health_status=_health_status_from_violation_count(len(violations)),
         circular_dependencies=circular_deps
     )
 
@@ -416,13 +623,58 @@ class DependencyGraphResponse(BaseModel):
     updated_at: str
     api_version: str = Field(default=API_VERSION, description="API version for backward compatibility")
 
-    @validator('status')
-    def validate_status(cls, v):
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
         """Verify status value."""
         valid_statuses = ['pending', 'in_progress', 'processing', 'completed', 'failed']
         if v not in valid_statuses:
             raise ValueError(f'Status must be one of {valid_statuses}')
         return v
+
+
+def _map_analysis_status(status_value: str) -> str:
+    status_mapping = {
+        'pending': 'pending',
+        'in_progress': 'processing',
+        'completed': 'completed',
+        'failed': 'failed',
+    }
+    return status_mapping.get(status_value, 'pending')
+
+
+def _build_dependency_graph_from_summary(
+    summary: Dict[str, Any],
+) -> tuple[List["DependencyGraphNode"], List["DependencyGraphEdge"], List[List[str]]]:
+    if not isinstance(summary, dict):
+        return [], [], []
+
+    nodes = []
+    for idx, component in enumerate(summary.get('components', [])):
+        nodes.append(DependencyGraphNode(
+            id=str(component.get('id', idx + 1)),
+            name=component.get('name', f'Component {idx + 1}'),
+            type=component.get('type', 'module'),
+            file_path=component.get('file_path'),
+            lines_of_code=component.get('lines_of_code'),
+            complexity=component.get('complexity'),
+            properties=component.get('properties'),
+        ))
+
+    edges = []
+    for idx, dep in enumerate(summary.get('dependencies', [])):
+        edges.append(DependencyGraphEdge(
+            id=dep.get('id', f'e{idx + 1}'),
+            source=str(dep.get('source')),
+            target=str(dep.get('target')),
+            type=dep.get('type', 'import'),
+            weight=dep.get('weight', 1.0),
+            is_circular=dep.get('is_circular', False),
+            properties=dep.get('properties'),
+        ))
+
+    circular_dependency_chains = summary.get('circular_dependency_chains', [])
+    return nodes, edges, circular_dependency_chains
 
 
 @router.get("/dependencies/{project_id}", response_model=DependencyGraphResponse)
@@ -470,19 +722,8 @@ async def get_dependency_graph(
         )
 
     # Query latest architecture analysis for project
-    query = select(ArchitectureAnalysis).join(PullRequest).filter(
-        PullRequest.project_id == project_uuid
-    )
-
-    # Filter by branch if specified
-    if branch_id:
-        branch_name = branch_id.replace('-', '/')
-        query = query.filter(PullRequest.branch_name == branch_name)
-
-    query = query.order_by(ArchitectureAnalysis.started_at.desc()).limit(1)
-
-    analysis_result = await db.execute(query)
-    analysis = analysis_result.scalar_one_or_none()
+    branch_name = branch_id.replace('-', '/') if branch_id else None
+    analysis = await _get_latest_project_analysis(db, project_uuid, branch_name)
 
     if not analysis:
         raise HTTPException(
@@ -508,47 +749,13 @@ async def get_dependency_graph(
     circular_dependency_chains = []
 
     if analysis.summary and isinstance(analysis.summary, dict):
-        # Extract dependency graph data from summary
-        components = analysis.summary.get('components', [])
-        dependencies_data = analysis.summary.get('dependencies', [])
-
-        # Build nodes
-        for idx, component in enumerate(components):
-            node = DependencyGraphNode(
-                id=str(component.get('id', idx + 1)),
-                name=component.get('name', f'Component {idx + 1}'),
-                type=component.get('type', 'module'),
-                file_path=component.get('file_path'),
-                lines_of_code=component.get('lines_of_code'),
-                complexity=component.get('complexity'),
-                properties=component.get('properties')
-            )
-            nodes.append(node)
-
-        # Build edges
-        for idx, dep in enumerate(dependencies_data):
-            edge = DependencyGraphEdge(
-                id=dep.get('id', f'e{idx + 1}'),
-                source=str(dep.get('source')),
-                target=str(dep.get('target')),
-                type=dep.get('type', 'import'),
-                weight=dep.get('weight', 1.0),
-                is_circular=dep.get('is_circular', False),
-                properties=dep.get('properties')
-            )
-            edges.append(edge)
-
-        # Extract circular dependency chains
-        circular_dependency_chains = analysis.summary.get('circular_dependency_chains', [])
+        nodes, edges, circular_dependency_chains = _build_dependency_graph_from_summary(
+            analysis.summary
+        )
 
     # If no summary data, build basic dependency graph from violations
     if not nodes:
-        violations_result = await db.execute(
-            select(ArchitectureViolation).filter(
-                ArchitectureViolation.analysis_id == analysis.id
-            )
-        )
-        violations = violations_result.scalars().all()
+        violations = await _get_analysis_violations(db, analysis.id)
 
         if violations:
             components_set = set()
@@ -598,13 +805,7 @@ async def get_dependency_graph(
     )
 
     # Determine status
-    status_mapping = {
-        'pending': 'pending',
-        'in_progress': 'processing',
-        'completed': 'completed',
-        'failed': 'failed'
-    }
-    analysis_status = status_mapping.get(analysis.status.value, 'pending')
+    analysis_status = _map_analysis_status(analysis.status.value)
 
     # Build response (contains API version info - Requirement 3.4)
     response = DependencyGraphResponse(
@@ -697,11 +898,7 @@ async def get_architecture_analysis(
     # In production environment, should use require_project_access decorator
 
     # Get architecture violation data
-    violations_result = await db.execute(
-        select(ArchitectureViolation)
-        .filter(ArchitectureViolation.analysis_id == analysis_uuid)
-    )
-    violations = violations_result.scalars().all()
+    violations = await _get_analysis_violations(db, analysis_uuid)
 
     # Build nodes and edges
     nodes = []
@@ -709,75 +906,18 @@ async def get_architecture_analysis(
     circular_dependency_chains = []
 
     if analysis.summary and isinstance(analysis.summary, dict):
-        # Extract architecture graph data from summary
-        components = analysis.summary.get('components', [])
-        for idx, component in enumerate(components):
-            node = GraphNode(
-                id=str(component.get('id', idx + 1)),
-                label=component.get('name', f'Component {idx + 1}'),
-                type=component.get('type', 'Unknown'),
-                health=component.get('health', 'healthy'),
-                complexity=component.get('complexity', 5),
-                position=component.get('position', {'x': 100 + (idx % 3) * 200, 'y': 100 + (idx // 3) * 200}),
-                properties=component.get('properties'),
-                metrics=component.get('metrics')
-            )
-            nodes.append(node)
-
-        # Extract dependency relationships
-        dependencies = analysis.summary.get('dependencies', [])
-        for idx, dep in enumerate(dependencies):
-            edge = GraphEdge(
-                id=dep.get('id', f'e{idx + 1}'),
-                source=str(dep.get('source')),
-                target=str(dep.get('target')),
-                type=dep.get('type', 'default'),
-                is_circular=dep.get('is_circular', False),
-                properties=dep.get('properties')
-            )
-            edges.append(edge)
-
-        # Extract circular dependency chains
-        circular_dependency_chains = analysis.summary.get('circular_dependency_chains', [])
+        nodes, edges, circular_dependency_chains = _build_architecture_graph_from_summary(
+            analysis.summary,
+            include_extended_fields=True,
+        )
 
     # If no summary data, build basic graph from violations
     if not nodes and violations:
-        components_set = set()
-        for violation in violations:
-            if violation.component:
-                components_set.add(violation.component)
-            if violation.related_component:
-                components_set.add(violation.related_component)
-
-        for idx, component in enumerate(sorted(components_set)):
-            health = 'critical' if any(
-                v.component == component and v.severity == 'critical'
-                for v in violations
-            ) else 'warning'
-
-            node = GraphNode(
-                id=str(idx + 1),
-                label=component,
-                type='Component',
-                health=health,
-                complexity=5,
-                position={'x': 100 + (idx % 3) * 200, 'y': 100 + (idx // 3) * 200}
-            )
-            nodes.append(node)
-
-        # Extract dependency relationships from violations
-        component_to_id = {comp: str(idx + 1) for idx, comp in enumerate(sorted(components_set))}
-        for idx, violation in enumerate(violations):
-            if violation.component and violation.related_component:
-                if violation.component in component_to_id and violation.related_component in component_to_id:
-                    edge = GraphEdge(
-                        id=f'e{idx + 1}',
-                        source=component_to_id[violation.component],
-                        target=component_to_id[violation.related_component],
-                        type='dependency',
-                        is_circular=(violation.type == 'circular_dependency')
-                    )
-                    edges.append(edge)
+        nodes, edges = _build_graph_from_violations(
+            violations,
+            edge_type='dependency',
+            sort_components=True,
+        )
 
     # Calculate circular dependency count
     circular_deps_count = sum(1 for e in edges if e.is_circular)
@@ -800,13 +940,7 @@ async def get_architecture_analysis(
     )
 
     # Determine status
-    status_mapping = {
-        'pending': 'pending',
-        'in_progress': 'processing',
-        'completed': 'completed',
-        'failed': 'failed'
-    }
-    analysis_status = status_mapping.get(analysis.status.value, 'pending')
+    analysis_status = _map_analysis_status(analysis.status.value)
 
     # Build response (contains API version info - Requirement 3.4)
     response = ArchitectureAnalysisResponse(
@@ -958,22 +1092,11 @@ async def get_architecture_overview(
             project_name = project.name
 
         # Check for real architecture data from analysis
-        analysis_result = await db.execute(
-            select(ArchitectureAnalysis)
-            .join(PullRequest)
-            .filter(PullRequest.project_id == project_id)
-            .order_by(ArchitectureAnalysis.started_at.desc())
-            .limit(1)
-        )
-        analysis = analysis_result.scalar_one_or_none()
+        analysis = await _get_latest_project_analysis(db, project_id)
 
         # Count violations
         if analysis:
-            violations_result = await db.execute(
-                select(func.count(ArchitectureViolation.id))
-                .filter(ArchitectureViolation.analysis_id == analysis.id)
-            )
-            total_violations = violations_result.scalar() or 0
+            total_violations = await _count_analysis_violations(db, analysis.id)
     except Exception:
         # If project_id is invalid UUID or DB query fails, use defaults
         pass
@@ -1006,7 +1129,7 @@ def _build_system_nodes(violations: int = 0) -> List[ArchitectureOverviewNode]:
         ArchitectureOverviewNode(
             id="browser", label="Browser Client", type="frontend",
             group="client", health="healthy",
-            description="用户浏览器客户端",
+            description="User browser client for the web application.",
             position={"x": 400, "y": 20},
             style={"background": "#dbeafe", "borderColor": "#3b82f6"},
         ),
@@ -1014,7 +1137,7 @@ def _build_system_nodes(violations: int = 0) -> List[ArchitectureOverviewNode]:
         ArchitectureOverviewNode(
             id="nextjs", label="Next.js Frontend\n(Port 3000)", type="frontend",
             group="application", health="healthy",
-            description="Next.js 16 SSR + React 前端应用",
+            description="Next.js 16 SSR and React frontend application.",
             position={"x": 400, "y": 140},
             style={"background": "#e0e7ff", "borderColor": "#6366f1"},
         ),
@@ -1022,21 +1145,21 @@ def _build_system_nodes(violations: int = 0) -> List[ArchitectureOverviewNode]:
         ArchitectureOverviewNode(
             id="fastapi", label="FastAPI Backend\n(Port 8000)", type="backend",
             group="application", health="healthy",
-            description="FastAPI 异步后端 API 服务",
+            description="FastAPI asynchronous backend API service.",
             position={"x": 400, "y": 280},
             style={"background": "#dcfce7", "borderColor": "#22c55e"},
         ),
         ArchitectureOverviewNode(
             id="auth", label="Auth Module\nJWT + RBAC", type="backend",
             group="application", health="healthy",
-            description="身份认证与权限控制",
+            description="Authentication, authorization, and role-based access control.",
             position={"x": 160, "y": 280},
             style={"background": "#fef3c7", "borderColor": "#f59e0b"},
         ),
         ArchitectureOverviewNode(
             id="review_engine", label="Code Review\nEngine", type="backend",
             group="application", health="healthy",
-            description="代码审查引擎核心",
+            description="Core review engine for analysis and findings generation.",
             position={"x": 640, "y": 280},
             style={"background": "#dcfce7", "borderColor": "#22c55e"},
         ),
@@ -1044,21 +1167,21 @@ def _build_system_nodes(violations: int = 0) -> List[ArchitectureOverviewNode]:
         ArchitectureOverviewNode(
             id="postgres", label="PostgreSQL\n(Port 5432)", type="database",
             group="data", health=health_data,
-            description="主数据库 - 存储项目、用户、PR数据",
+            description="Primary database storing projects, users, and pull request data.",
             position={"x": 200, "y": 440},
             style={"background": "#dbeafe", "borderColor": "#2563eb"},
         ),
         ArchitectureOverviewNode(
             id="redis", label="Redis\n(Port 6379)", type="cache",
             group="data", health="healthy",
-            description="缓存与会话存储",
+            description="Cache and session storage for low-latency access.",
             position={"x": 400, "y": 440},
             style={"background": "#fce7f3", "borderColor": "#ec4899"},
         ),
         ArchitectureOverviewNode(
             id="neo4j", label="Neo4j\n(Port 7474)", type="graph_db",
             group="data", health="healthy",
-            description="图数据库 - 存储架构依赖关系",
+            description="Graph database for architecture and dependency relationships.",
             position={"x": 600, "y": 440},
             style={"background": "#e0e7ff", "borderColor": "#7c3aed"},
         ),
@@ -1066,21 +1189,21 @@ def _build_system_nodes(violations: int = 0) -> List[ArchitectureOverviewNode]:
         ArchitectureOverviewNode(
             id="deepseek", label="DeepSeek AI\nAPI", type="ai_engine",
             group="external", health=health_ai,
-            description="AI 代码分析引擎",
+            description="AI-powered code analysis and architecture insight engine.",
             position={"x": 160, "y": 580},
             style={"background": "#f3e8ff", "borderColor": "#9333ea"},
         ),
         ArchitectureOverviewNode(
             id="github", label="GitHub\nAPI", type="external",
             group="external", health="healthy",
-            description="GitHub 仓库集成与 Webhook",
+            description="GitHub repository integration, sync, and webhook events.",
             position={"x": 400, "y": 580},
             style={"background": "#f1f5f9", "borderColor": "#475569"},
         ),
         ArchitectureOverviewNode(
             id="otel", label="OpenTelemetry\nTracing", type="external",
             group="external", health="healthy",
-            description="分布式追踪与性能监控",
+            description="Distributed tracing and performance monitoring pipeline.",
             position={"x": 640, "y": 580},
             style={"background": "#fef3c7", "borderColor": "#d97706"},
         ),
@@ -1103,12 +1226,12 @@ def _build_system_edges() -> List[ArchitectureOverviewEdge]:
         # Backend → Auth
         ArchitectureOverviewEdge(
             id="e3", source="fastapi", target="auth",
-            label="认证", type="default",
+            label="Authentication", type="default",
         ),
         # Backend → Review Engine
         ArchitectureOverviewEdge(
             id="e4", source="fastapi", target="review_engine",
-            label="分析请求", type="default",
+            label="Analysis request", type="default",
         ),
         # Backend → Databases
         ArchitectureOverviewEdge(
@@ -1126,7 +1249,7 @@ def _build_system_edges() -> List[ArchitectureOverviewEdge]:
         # Review Engine → AI
         ArchitectureOverviewEdge(
             id="e8", source="review_engine", target="deepseek",
-            label="AI 分析", type="animated",
+            label="AI analysis", type="animated",
         ),
         # Backend → GitHub
         ArchitectureOverviewEdge(
@@ -1141,7 +1264,7 @@ def _build_system_edges() -> List[ArchitectureOverviewEdge]:
         # Auth → Redis (session)
         ArchitectureOverviewEdge(
             id="e11", source="auth", target="redis",
-            label="Token 存储", type="dashed",
+            label="Token storage", type="dashed",
         ),
     ]
 
@@ -1151,25 +1274,25 @@ def _build_system_groups() -> List[Dict[str, Any]]:
     return [
         {
             "id": "client",
-            "label": "客户端层 (Client Layer)",
+            "label": "Client Layer",
             "color": "#eff6ff",
             "borderColor": "#93c5fd",
         },
         {
             "id": "application",
-            "label": "应用层 (Application Layer)",
+            "label": "Application Layer",
             "color": "#f0fdf4",
             "borderColor": "#86efac",
         },
         {
             "id": "data",
-            "label": "数据层 (Data Layer)",
+            "label": "Data Layer",
             "color": "#fefce8",
             "borderColor": "#fde047",
         },
         {
             "id": "external",
-            "label": "外部服务 (External Services)",
+            "label": "External Services",
             "color": "#faf5ff",
             "borderColor": "#c084fc",
         },

@@ -119,7 +119,7 @@ class RefactoredRepositoryService(BaseCRUDService[Repository, AddRepositoryReque
         # 获取依赖信息
         dependencies = await self.fetch_dependencies(repo_info, create_dict.get("branch", "main"))
         if dependencies:
-            create_dict["metadata"] = {
+            create_dict["metadata_json"] = {
                 "dependencies": dependencies.__dict__,
                 "url_format": repo_info.url_format.value,
                 "clone_url": repo_info.clone_url
@@ -305,7 +305,7 @@ class RefactoredRepositoryService(BaseCRUDService[Repository, AddRepositoryReque
                     if validation_result["is_valid"]:
                         # 更新元数据
                         if validation_result.get("metadata"):
-                            repository.metadata = validation_result["metadata"]
+                            repository.metadata_json = validation_result["metadata"]
                             await self.db.commit()
                         
                         return {

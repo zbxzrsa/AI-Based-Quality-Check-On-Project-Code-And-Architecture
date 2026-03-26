@@ -10,13 +10,8 @@
 // ============================================================================
 
 export enum Role {
-  ADMIN = 'ADMIN',                    // Full system control
-  MANAGER = 'MANAGER',                // Project oversight & ROI
-  REVIEWER = 'REVIEWER',              // Read/Write analysis
-  PROGRAMMER = 'PROGRAMMER',          // CRUD own branch
-  DEVELOPER = 'DEVELOPER',            // Developer role (alias for PROGRAMMER)
-  COMPLIANCE_OFFICER = 'COMPLIANCE_OFFICER',  // Compliance officer
-  VISITOR = 'VISITOR',                // Read-only grants
+  ADMIN = 'admin',                    // Full system control
+  USER = 'user',                      // Standard authenticated user
 }
 
 export enum Permission {

@@ -61,11 +61,6 @@ export interface AuthError {
  */
 export function getBackendUrl(): string {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'http://localhost:8000';
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Using backend URL:', backendUrl);
-  }
-  
   return backendUrl;
 }
 
@@ -83,11 +78,6 @@ export function validateEnvironmentConfig(): { valid: boolean; errors: string[] 
   
   if (!process.env.NEXTAUTH_URL) {
     errors.push('NEXTAUTH_URL is not configured');
-  }
-  
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL;
-  if (!backendUrl) {
-    console.warn('[Auth] No backend URL configured, using default: http://localhost:8000');
   }
   
   return {
@@ -142,10 +132,6 @@ export function getUserDetailsUrl(): string {
  * Authenticate user with credentials
  */
 export async function authenticateUser(credentials: LoginCredentials): Promise<User> {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Authenticating user:', credentials.username);
-  }
-  
   // Validate credentials
   if (!credentials.username || !credentials.password) {
     throw createAuthError('validation', 'Username and password are required');
@@ -154,10 +140,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
   try {
     // Step 1: Login and get tokens
     const loginUrl = getLoginUrl();
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] Sending login request to:', loginUrl);
-    }
     
     const loginRes = await fetch(loginUrl, {
       method: 'POST',
@@ -170,10 +152,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     
     if (!loginRes.ok) {
       const error = await loginRes.json().catch(() => ({}));
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Auth] Login failed:', error);
-      }
       
       if (loginRes.status === 401) {
         throw createAuthError('credentials', error.detail || 'Invalid username or password', loginRes.status);
@@ -190,10 +168,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
       throw createAuthError('server', 'Invalid response from authentication server');
     }
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] Login successful, fetching user details');
-    }
-    
     // Step 2: Get user details
     const userDetailsUrl = getUserDetailsUrl();
     const meRes = await fetch(userDetailsUrl, {
@@ -203,17 +177,10 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     });
     
     if (!meRes.ok) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Auth] Failed to fetch user details');
-      }
       throw createAuthError('server', 'Failed to fetch user details', meRes.status);
     }
     
     const userData: UserResponse = await meRes.json();
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Auth] User details fetched successfully:', userData.username);
-    }
     
     // Combine auth data and user data
     return {
@@ -233,10 +200,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<U
     }
     
     // Network or unexpected error
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Auth] Unexpected error:', error);
-    }
-    
     throw createAuthError(
       'network',
       error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -291,27 +254,11 @@ export function getUserFriendlyErrorMessage(error: AuthError): string {
  */
 export function handleAuthError(error: unknown): AuthError {
   if (error instanceof Error && 'type' in error) {
-    const authError = error as AuthError;
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Auth] Authentication error:', {
-        type: authError.type,
-        message: authError.message,
-        statusCode: authError.statusCode,
-        details: authError.details,
-      });
-    }
-    
-    return authError;
+    return error as AuthError;
   }
   
   // Unknown error type
   const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.error('[Auth] Unknown error:', error);
-  }
-  
   return createAuthError('network', message);
 }
 
